@@ -1,0 +1,13 @@
+{
+  "name": "flowmonkey-studio-cli",
+  "version": "1.0.0",
+  "description": "FlowMonkey Video Studio CLI - AI Agent Operable Video Creation Engine",
+  "main": "index.js",
+  "bin": {
+    "studio-cli": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "type": "commonjs"
+}

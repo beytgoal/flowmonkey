@@ -1,0 +1,186 @@
+{
+  "projects": [
+    {
+      "id": 1,
+      "title": "TikTok Viral Trends 2026",
+      "description": "Dynamic AI video sequence created with FlowMonkey Studio",
+      "aspectRatio": "9:16",
+      "resolution": "1080p FHD",
+      "createdAt": "2026-08-02T20:30:22.916Z",
+      "updatedAt": "2026-08-02T20:30:22.917Z"
+    },
+    {
+      "id": 2,
+      "title": "Buat video klip 15 detik tenta",
+      "description": "Created automatically by AI Agent from prompt: Buat video klip 15 detik tentang kota futuristik dengan efek Cinematic Glow",
+      "aspectRatio": "9:16",
+      "resolution": "1080p FHD",
+      "createdAt": "2026-08-02T20:30:25.359Z",
+      "updatedAt": "2026-08-02T20:30:25.359Z"
+    }
+  ],
+  "activeProjectId": 1,
+  "tracks": [
+    {
+      "id": 1,
+      "projectId": 1,
+      "trackIndex": 0,
+      "type": "VIDEO",
+      "label": "Utama (Video Track 1)"
+    },
+    {
+      "id": 2,
+      "projectId": 1,
+      "trackIndex": 1,
+      "type": "VIDEO",
+      "label": "Overlay / B-Roll Track"
+    },
+    {
+      "id": 3,
+      "projectId": 1,
+      "trackIndex": 2,
+      "type": "AUDIO",
+      "label": "Musik & Efek Suara"
+    },
+    {
+      "id": 4,
+      "projectId": 1,
+      "trackIndex": 3,
+      "type": "TEXT",
+      "label": "Subtitel & Teks AI"
+    },
+    {
+      "id": 1785702625360,
+      "projectId": 2,
+      "trackIndex": 0,
+      "type": "VIDEO",
+      "label": "Utama (Video Track 1)"
+    },
+    {
+      "id": 1785702625361,
+      "projectId": 2,
+      "trackIndex": 1,
+      "type": "VIDEO",
+      "label": "Overlay Track"
+    },
+    {
+      "id": 1785702625362,
+      "projectId": 2,
+      "trackIndex": 2,
+      "type": "AUDIO",
+      "label": "Musik & Efek Suara"
+    },
+    {
+      "id": 1785702625363,
+      "projectId": 2,
+      "trackIndex": 3,
+      "type": "TEXT",
+      "label": "Subtitel AI"
+    }
+  ],
+  "clips": [
+    {
+      "id": 1,
+      "projectId": 1,
+      "trackId": 1,
+      "title": "Opening Cyberpunk Neon",
+      "uri": "https://example.com/assets/video1.mp4",
+      "startTimeMs": 0,
+      "endTimeMs": 5000,
+      "durationMs": 5000,
+      "filterName": "Cinematic Glow",
+      "speedMultiplier": 1,
+      "transitionType": "Dissolve",
+      "volume": 1,
+      "isMuted": false,
+      "audioFadeInSec": 0.5,
+      "audioFadeOutSec": 0.5,
+      "audioPitch": 1,
+      "noiseReduction": true,
+      "vocalEnhance": false,
+      "proxyUri": "proxy_360p_1_1720000000000.mp4",
+      "proxyStatus": "READY",
+      "speedCurve": "Bullet Time",
+      "keyframes": [
+        {
+          "id": 1,
+          "timeSec": 1.2,
+          "posX": 25,
+          "posY": -15,
+          "scale": 1.4,
+          "rotation": 10,
+          "opacity": 0.95,
+          "ease": "Bezier"
+        }
+      ],
+      "hasKeyframe": true
+    },
+    {
+      "id": 2,
+      "projectId": 2,
+      "trackId": 1785702625360,
+      "title": "[AI Veo 2] Buat video klip 15 detik ...",
+      "uri": "https://generated.flowmonkey.ai/v/1785702625360.mp4",
+      "startTimeMs": 0,
+      "endTimeMs": 10000,
+      "durationMs": 10000,
+      "filterName": "Cinematic Glow",
+      "speedMultiplier": 1,
+      "transitionType": "Dissolve",
+      "volume": 1,
+      "isMuted": false,
+      "audioFadeInSec": 0.5,
+      "audioFadeOutSec": 0.5,
+      "audioPitch": 1,
+      "noiseReduction": true,
+      "vocalEnhance": false,
+      "proxyUri": "proxy_2.mp4",
+      "proxyStatus": "READY"
+    }
+  ],
+  "transcodingJobs": [
+    {
+      "id": "job_1785702625360",
+      "clipId": 2,
+      "mediaTitle": "[AI Veo 2] Buat video klip 15 detik ...",
+      "originalResolution": "1080p FHD",
+      "targetResolution": "360p Proxy",
+      "progressPercent": 100,
+      "statusMessage": "Proxy Low-Res Transcoded (360p Proxy)",
+      "isCompleted": true
+    },
+    {
+      "id": "job_all_2_1785702625361",
+      "clipId": 2,
+      "mediaTitle": "[AI Veo 2] Buat video klip 15 detik ...",
+      "originalResolution": "1080p FHD",
+      "targetResolution": "360p Proxy",
+      "progressPercent": 100,
+      "statusMessage": "Proxy Transcoded (360p Proxy)",
+      "isCompleted": true
+    }
+  ],
+  "settings": {
+    "isProxyModeEnabled": true,
+    "proxyResolution": "360p Proxy",
+    "autoTranscodeOnImport": true,
+    "isDarkTheme": true,
+    "geminiApiKey": "",
+    "highfieldApiKey": "",
+    "customEndpoint": "https://api.flowmonkey.ai/v1"
+  },
+  "exports": [
+    {
+      "id": "exp_1785702625361",
+      "projectId": 2,
+      "projectTitle": "Buat video klip 15 detik tenta",
+      "resolution": "1080p FHD",
+      "fps": 60,
+      "format": "MP4",
+      "bitrate": "High (16 Mbps)",
+      "durationSec": 10,
+      "outputPath": "/sdcard/Movies/FlowMonkey/FlowMonkey_buat_video_klip_15_detik_tenta_1080_1785702625361.mp4",
+      "exportedAt": "2026-08-02T20:30:25.361Z"
+    }
+  ]
+}

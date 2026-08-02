@@ -1,0 +1,6 @@
+{
+  "name": "FlowMonkey",
+  "description": "FlowMonkey - AI Video Generator & Timeline Editor",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
