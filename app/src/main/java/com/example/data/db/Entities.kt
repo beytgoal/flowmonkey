@@ -17,7 +17,8 @@ data class VideoProjectEntity(
     val durationSeconds: Int = 15,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
-    val thumbnailPath: String? = null
+    val thumbnailPath: String? = null,
+    val isTemplate: Boolean = false
 )
 
 @Entity(

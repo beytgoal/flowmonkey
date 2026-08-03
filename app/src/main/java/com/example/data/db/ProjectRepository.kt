@@ -48,13 +48,13 @@ class ProjectRepository(
 
         // Create default tracks
         val videoTrackId = timelineDao.insertTrack(
-            TimelineTrackEntity(projectId = projectId, trackType = "VIDEO", trackName = "Trek Klip Video", trackIndex = 0)
+            TimelineTrackEntity(projectId = projectId, trackType = "VIDEO", trackName = "Klip Video", trackIndex = 0)
         )
         val textTrackId = timelineDao.insertTrack(
-            TimelineTrackEntity(projectId = projectId, trackType = "TEXT", trackName = "Trek Subjudul / Teks", trackIndex = 1)
+            TimelineTrackEntity(projectId = projectId, trackType = "TEXT", trackName = "Subjudul / Teks", trackIndex = 1)
         )
         val audioTrackId = timelineDao.insertTrack(
-            TimelineTrackEntity(projectId = projectId, trackType = "AUDIO", trackName = "Trek Musik & Suara", trackIndex = 2)
+            TimelineTrackEntity(projectId = projectId, trackType = "AUDIO", trackName = "Musik & Suara", trackIndex = 2)
         )
 
         // Seed 2 default scenes for storyboard
@@ -140,6 +140,128 @@ class ProjectRepository(
 
     suspend fun deleteProject(project: VideoProjectEntity) = withContext(Dispatchers.IO) {
         projectDao.deleteProject(project)
+    }
+
+    suspend fun createTemplateFromProject(sourceProject: VideoProjectEntity): Long = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        val templateTitle = if (sourceProject.title.startsWith("Template -")) sourceProject.title else "Template - ${sourceProject.title}"
+        val templateEntity = VideoProjectEntity(
+            title = templateTitle,
+            description = "Template full tools dibuat dari proyek ${sourceProject.title}",
+            aspectRatio = sourceProject.aspectRatio,
+            visualStyle = sourceProject.visualStyle,
+            exportResolution = sourceProject.exportResolution,
+            fps = sourceProject.fps,
+            durationSeconds = sourceProject.durationSeconds,
+            createdAt = now,
+            updatedAt = now,
+            isTemplate = true
+        )
+        val templateId = projectDao.insertProject(templateEntity)
+
+        // Copy tracks & clips
+        val existingTracks = timelineDao.getTracksListForProject(sourceProject.id)
+        val trackIdMap = mutableMapOf<Long, Long>()
+
+        existingTracks.forEach { track ->
+            val newTrackId = timelineDao.insertTrack(
+                TimelineTrackEntity(
+                    projectId = templateId,
+                    trackType = track.trackType,
+                    trackName = track.trackName.replace("Trek ", "").replace("Trek", "").trim(),
+                    trackIndex = track.trackIndex
+                )
+            )
+            trackIdMap[track.id] = newTrackId
+        }
+
+        val existingClips = timelineDao.getClipsListForProject(sourceProject.id)
+        val clonedClips = existingClips.mapNotNull { clip ->
+            val targetTrackId = trackIdMap[clip.trackId] ?: return@mapNotNull null
+            clip.copy(
+                id = 0,
+                trackId = targetTrackId,
+                projectId = templateId,
+                title = if (clip.title.contains("Placeholder")) clip.title else "Placeholder - ${clip.title}"
+            )
+        }
+        if (clonedClips.isNotEmpty()) {
+            timelineDao.insertClips(clonedClips)
+        }
+
+        // Copy storyboard scenes
+        val existingScenes = sceneDao.getScenesList(sourceProject.id)
+        val clonedScenes = existingScenes.map { scene ->
+            scene.copy(
+                id = 0,
+                projectId = templateId
+            )
+        }
+        if (clonedScenes.isNotEmpty()) {
+            sceneDao.insertScenes(clonedScenes)
+        }
+
+        templateId
+    }
+
+    suspend fun createProjectFromTemplate(template: VideoProjectEntity, customTitle: String = ""): Long = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        val newTitle = customTitle.ifBlank { template.title.removePrefix("Template - ").ifBlank { "Proyek dari Template" } }
+        val newProject = VideoProjectEntity(
+            title = newTitle,
+            description = "Proyek dibuat dari template ${template.title}",
+            aspectRatio = template.aspectRatio,
+            visualStyle = template.visualStyle,
+            exportResolution = template.exportResolution,
+            fps = template.fps,
+            durationSeconds = template.durationSeconds,
+            createdAt = now,
+            updatedAt = now,
+            isTemplate = false
+        )
+        val newProjectId = projectDao.insertProject(newProject)
+
+        val templateTracks = timelineDao.getTracksListForProject(template.id)
+        val trackIdMap = mutableMapOf<Long, Long>()
+
+        templateTracks.forEach { track ->
+            val newTrackId = timelineDao.insertTrack(
+                TimelineTrackEntity(
+                    projectId = newProjectId,
+                    trackType = track.trackType,
+                    trackName = track.trackName.replace("Trek ", "").replace("Trek", "").trim(),
+                    trackIndex = track.trackIndex
+                )
+            )
+            trackIdMap[track.id] = newTrackId
+        }
+
+        val templateClips = timelineDao.getClipsListForProject(template.id)
+        val clonedClips = templateClips.mapNotNull { clip ->
+            val targetTrackId = trackIdMap[clip.trackId] ?: return@mapNotNull null
+            clip.copy(
+                id = 0,
+                trackId = targetTrackId,
+                projectId = newProjectId,
+                title = clip.title.removePrefix("Placeholder - ")
+            )
+        }
+        if (clonedClips.isNotEmpty()) {
+            timelineDao.insertClips(clonedClips)
+        }
+
+        val templateScenes = sceneDao.getScenesList(template.id)
+        val clonedScenes = templateScenes.map { scene ->
+            scene.copy(
+                id = 0,
+                projectId = newProjectId
+            )
+        }
+        if (clonedScenes.isNotEmpty()) {
+            sceneDao.insertScenes(clonedScenes)
+        }
+
+        newProjectId
     }
 
     suspend fun replaceClipsForProject(projectId: Long, clips: List<TimelineClipEntity>) = withContext(Dispatchers.IO) {

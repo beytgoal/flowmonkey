@@ -366,6 +366,21 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun createTemplateFromProject(project: VideoProjectEntity, onCreated: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            repository.createTemplateFromProject(project)
+            onCreated?.invoke()
+        }
+    }
+
+    fun createProjectFromTemplate(template: VideoProjectEntity, customTitle: String = "") {
+        viewModelScope.launch {
+            val newProjectId = repository.createProjectFromTemplate(template, customTitle)
+            _activeProjectId.value = newProjectId
+            _currentTab.value = MainTab.TIMELINE_EDITOR
+        }
+    }
+
     fun deleteProject(project: VideoProjectEntity) {
         viewModelScope.launch {
             repository.deleteProject(project)
@@ -913,8 +928,8 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
             val defaultName = trackName ?: when (trackType) {
                 "VIDEO" -> "Overlay PIP ${existingTracks.count { it.trackType == "VIDEO" }}"
                 "TEXT" -> "Subjudul / Teks ${existingTracks.count { it.trackType == "TEXT" }}"
-                "AUDIO" -> "Trek Audio ${existingTracks.count { it.trackType == "AUDIO" }}"
-                else -> "Trek Efek ${existingTracks.count { it.trackType == "EFFECT" }}"
+                "AUDIO" -> "Audio ${existingTracks.count { it.trackType == "AUDIO" }}"
+                else -> "Efek ${existingTracks.count { it.trackType == "EFFECT" }}"
             }
             val newTrack = TimelineTrackEntity(
                 projectId = projId,

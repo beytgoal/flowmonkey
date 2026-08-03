@@ -2,7 +2,7 @@
 import sys
 import argparse
 import shlex
-from lib.projects import list_projects, create_project, select_project, delete_project
+from lib.projects import list_projects, create_project, select_project, delete_project, create_template, create_project_from_template
 from lib.generate import generate_ai_video
 from lib.storyboard import list_templates, compile_storyboard_to_timeline
 from lib.timeline import view_timeline, add_clip, update_filter, update_speed, set_speed_curve, add_keyframe, list_keyframes, remove_keyframe, clear_keyframes, split_clip, update_audio, delete_clip
@@ -21,11 +21,13 @@ PENGGUNAAN:
 
 PERINTAH UTAMA:
 
-1. PROYEK (PROJECT)
-   python3 cli/main.py project list                        List semua proyek video
+1. PROYEK & TEMPLATE (PROJECT & TEMPLATES)
+   python3 cli/main.py project list                        List semua proyek video & template
    python3 cli/main.py project create "<Title>" [ratio]    Buat proyek baru
    python3 cli/main.py project select <Id>                 Pilih proyek aktif
    python3 cli/main.py project delete <Id>                 Hapus proyek
+   python3 cli/main.py project template-create <Id>        Jadikan proyek terpilih sebagai Template Full Tools
+   python3 cli/main.py project template-use <TmplId> [Title] [--media <file.mp4>] Buat proyek baru dari Template
 
 2. AI VIDEO GENERATOR (VEO & HIGHFIELD)
    python3 cli/main.py generate --prompt "<text>" [--style Cinematic|Cyberpunk] [--model "Veo 2"] [--duration 5]
@@ -98,7 +100,7 @@ def handle_command(raw_args):
 
     if main_cmd in ['help', '-h', '--help']:
         print_help()
-    elif main_cmd == 'project':
+    elif main_cmd in ['project', 'template']:
         if sub_cmd == 'list':
             print(list_projects(json_mode))
         elif sub_cmd == 'create':
@@ -111,6 +113,14 @@ def handle_command(raw_args):
         elif sub_cmd == 'delete':
             target_id = positional[2] if len(positional) > 2 else flags.get('id', 0)
             print(delete_project(target_id, json_mode))
+        elif sub_cmd in ['template-create', 'make-template']:
+            target_id = positional[2] if len(positional) > 2 else flags.get('id', 1)
+            print(create_template(target_id, json_mode))
+        elif sub_cmd in ['template-use', 'use-template']:
+            tmpl_id = positional[2] if len(positional) > 2 else flags.get('id', 1)
+            c_title = positional[3] if len(positional) > 3 else flags.get('title', "")
+            media = flags.get('media', "")
+            print(create_project_from_template(tmpl_id, c_title, media, json_mode))
         else:
             print(list_projects(json_mode))
 

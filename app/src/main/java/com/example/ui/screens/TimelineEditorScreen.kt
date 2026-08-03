@@ -99,7 +99,6 @@ fun TimelineEditorScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
 
@@ -460,7 +459,8 @@ fun TimelineEditorScreen(
             onAddClipRequested = { showAddClipSheet = true },
             onAddOverlayTrackRequested = { trackType ->
                 viewModel.addNewOverlayTrack(trackType)
-            }
+            },
+            modifier = Modifier.weight(1f)
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -997,7 +997,7 @@ fun TimelineEditorScreen(
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
-                            Text("AI Video Generator (Veo 3.1 & Highfield)", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
+                            Text("AI Video Generator Studio", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
                             Text("Buat klip video AI otomatis menggunakan text-to-video / image", color = StudioTextSecondary, fontSize = 12.sp)
                         }
                     }
@@ -1008,11 +1008,11 @@ fun TimelineEditorScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 val sampleClips = listOf(
-                    Pair("Cyberpunk Night City", "veo_sample_cyberpunk_night"),
-                    Pair("Futuristic Drone Sunset", "veo_sample_drone_sunset"),
-                    Pair("Anime Sky & Clouds", "veo_sample_anime_sky"),
-                    Pair("Ocean Waves Sunset", "veo_sample_ocean_sunset"),
-                    Pair("Matrix Particle Glow", "veo_sample_matrix_particle")
+                    Pair("Cyberpunk Night City", "studio_sample_cyberpunk_night"),
+                    Pair("Futuristic Drone Sunset", "studio_sample_drone_sunset"),
+                    Pair("Anime Sky & Clouds", "studio_sample_anime_sky"),
+                    Pair("Ocean Waves Sunset", "studio_sample_ocean_sunset"),
+                    Pair("Matrix Particle Glow", "studio_sample_matrix_particle")
                 )
 
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

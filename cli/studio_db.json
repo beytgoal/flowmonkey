@@ -17,9 +17,29 @@
       "resolution": "1080p FHD",
       "createdAt": "2026-08-02T20:30:25.359Z",
       "updatedAt": "2026-08-02T20:30:25.359Z"
+    },
+    {
+      "id": 3,
+      "title": "Template - TikTok Viral Trends 2026",
+      "description": "Template full tools preset dari proyek TikTok Viral Trends 2026",
+      "aspectRatio": "9:16",
+      "resolution": "1080p FHD",
+      "isTemplate": true,
+      "createdAt": "2026-08-03T14:22:12.875298",
+      "updatedAt": "2026-08-03T14:22:12.875303"
+    },
+    {
+      "id": 4,
+      "title": "Iklan Sepatu (my_vlog)",
+      "description": "Proyek dibuat dari template Template - TikTok Viral Trends 2026",
+      "aspectRatio": "9:16",
+      "resolution": "1080p FHD",
+      "isTemplate": false,
+      "createdAt": "2026-08-03T14:22:16.698082",
+      "updatedAt": "2026-08-03T14:22:16.698088"
     }
   ],
-  "activeProjectId": 1,
+  "activeProjectId": 4,
   "tracks": [
     {
       "id": 1,
@@ -76,6 +96,62 @@
       "trackIndex": 3,
       "type": "TEXT",
       "label": "Subtitel AI"
+    },
+    {
+      "id": 1785766932876,
+      "projectId": 3,
+      "trackIndex": 0,
+      "type": "VIDEO",
+      "label": "Utama (Video Track 1)"
+    },
+    {
+      "id": 1785766932877,
+      "projectId": 3,
+      "trackIndex": 1,
+      "type": "VIDEO",
+      "label": "Overlay / B-Roll Track"
+    },
+    {
+      "id": 1785766932878,
+      "projectId": 3,
+      "trackIndex": 2,
+      "type": "AUDIO",
+      "label": "Musik & Efek Suara"
+    },
+    {
+      "id": 1785766932879,
+      "projectId": 3,
+      "trackIndex": 3,
+      "type": "TEXT",
+      "label": "Subtitel & Teks AI"
+    },
+    {
+      "id": 1785766936699,
+      "projectId": 4,
+      "trackIndex": 0,
+      "type": "VIDEO",
+      "label": "Utama (Video Track 1)"
+    },
+    {
+      "id": 1785766936700,
+      "projectId": 4,
+      "trackIndex": 1,
+      "type": "VIDEO",
+      "label": "Overlay / B-Roll Track"
+    },
+    {
+      "id": 1785766936701,
+      "projectId": 4,
+      "trackIndex": 2,
+      "type": "AUDIO",
+      "label": "Musik & Efek Suara"
+    },
+    {
+      "id": 1785766936702,
+      "projectId": 4,
+      "trackIndex": 3,
+      "type": "TEXT",
+      "label": "Subtitel & Teks AI"
     }
   ],
   "clips": [
@@ -136,6 +212,78 @@
       "vocalEnhance": false,
       "proxyUri": "proxy_2.mp4",
       "proxyStatus": "READY"
+    },
+    {
+      "id": 1785766932976,
+      "projectId": 3,
+      "trackId": 1785766932876,
+      "title": "Placeholder - Opening Cyberpunk Neon",
+      "uri": "https://example.com/assets/video1.mp4",
+      "startTimeMs": 0,
+      "endTimeMs": 5000,
+      "durationMs": 5000,
+      "filterName": "Cinematic Glow",
+      "speedMultiplier": 1,
+      "transitionType": "Dissolve",
+      "volume": 1,
+      "isMuted": false,
+      "audioFadeInSec": 0.5,
+      "audioFadeOutSec": 0.5,
+      "audioPitch": 1,
+      "noiseReduction": true,
+      "vocalEnhance": false,
+      "proxyUri": "proxy_360p_1_1720000000000.mp4",
+      "proxyStatus": "READY",
+      "speedCurve": "Bullet Time",
+      "keyframes": [
+        {
+          "id": 1,
+          "timeSec": 1.2,
+          "posX": 25,
+          "posY": -15,
+          "scale": 1.4,
+          "rotation": 10,
+          "opacity": 0.95,
+          "ease": "Bezier"
+        }
+      ],
+      "hasKeyframe": true
+    },
+    {
+      "id": 1785766936799,
+      "projectId": 4,
+      "trackId": 1785766936699,
+      "title": "Media Galeri: my_vlog.mp4",
+      "uri": "file:///sdcard/Gallery/my_vlog.mp4",
+      "startTimeMs": 0,
+      "endTimeMs": 5000,
+      "durationMs": 5000,
+      "filterName": "Cinematic Glow",
+      "speedMultiplier": 1,
+      "transitionType": "Dissolve",
+      "volume": 1,
+      "isMuted": false,
+      "audioFadeInSec": 0.5,
+      "audioFadeOutSec": 0.5,
+      "audioPitch": 1,
+      "noiseReduction": true,
+      "vocalEnhance": false,
+      "proxyUri": "proxy_360p_1_1720000000000.mp4",
+      "proxyStatus": "READY",
+      "speedCurve": "Bullet Time",
+      "keyframes": [
+        {
+          "id": 1,
+          "timeSec": 1.2,
+          "posX": 25,
+          "posY": -15,
+          "scale": 1.4,
+          "rotation": 10,
+          "opacity": 0.95,
+          "ease": "Bezier"
+        }
+      ],
+      "hasKeyframe": true
     }
   ],
   "transcodingJobs": [

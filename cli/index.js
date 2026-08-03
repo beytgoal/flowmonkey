@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const readline = require('readline');
-const { listProjects, createProject, selectProject, deleteProject } = require('./lib/projects');
+const { listProjects, createProject, selectProject, deleteProject, createTemplate, createProjectFromTemplate } = require('./lib/projects');
 const { generateAiVideo } = require('./lib/generate');
 const { listTemplates, compileStoryboardToTimeline } = require('./lib/storyboard');
 const { viewTimeline, addClip, updateFilter, updateSpeed, setSpeedCurve, addKeyframe, listKeyframes, removeKeyframe, clearKeyframes, splitClip, updateAudio, deleteClip } = require('./lib/timeline');
@@ -20,11 +20,13 @@ PENGGUNAAN:
 
 PERINTAH UTAMA:
 
-1. PROYEK (PROJECT)
-   node cli/index.js project list                        List semua proyek video
+1. PROYEK & TEMPLATE (PROJECT & TEMPLATES)
+   node cli/index.js project list                        List semua proyek video & template
    node cli/index.js project create "<Title>" [ratio]    Buat proyek baru (misal: "TikTok Video" 9:16)
    node cli/index.js project select <Id>                 Pilih proyek aktif
    node cli/index.js project delete <Id>                 Hapus proyek
+   node cli/index.js project template-create <Id>        Jadikan proyek terpilih sebagai Template Full Tools
+   node cli/index.js project template-use <TmplId> [Title] [--media <file.mp4>] Buat proyek baru dari Template
 
 2. AI VIDEO GENERATOR (VEO & HIGHFIELD)
    node cli/index.js generate --prompt "<text>" [--style Cinematic|Cyberpunk|Anime] [--model "Veo 2"] [--duration 5]
@@ -106,6 +108,7 @@ function handleCommand(rawArgs) {
       break;
 
     case 'project':
+    case 'template':
       if (subCmd === 'list') console.log(listProjects(jsonMode));
       else if (subCmd === 'create') {
         const title = positional[2] || "Proyek Baru Studio";
@@ -113,7 +116,15 @@ function handleCommand(rawArgs) {
         console.log(createProject(title, "Dibuat via CLI", ratio, "1080p FHD", jsonMode));
       } else if (subCmd === 'select') console.log(selectProject(positional[2], jsonMode));
       else if (subCmd === 'delete') console.log(deleteProject(positional[2], jsonMode));
-      else console.log(listProjects(jsonMode));
+      else if (subCmd === 'template-create' || subCmd === 'make-template') {
+        const targetId = positional[2] || flags.id || 1;
+        console.log(createTemplate(targetId, jsonMode));
+      } else if (subCmd === 'template-use' || subCmd === 'use-template') {
+        const tmplId = positional[2] || flags.id || 1;
+        const cTitle = positional[3] || flags.title || "";
+        const media = flags.media || "";
+        console.log(createProjectFromTemplate(tmplId, cTitle, media, jsonMode));
+      } else console.log(listProjects(jsonMode));
       break;
 
     case 'generate':
