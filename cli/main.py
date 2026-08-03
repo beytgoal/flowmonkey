@@ -13,7 +13,7 @@ from lib.agent import run_agent_task
 
 def print_help():
     print("""
-🎬 FLOWMONKEY VIDEO STUDIO PYTHON CLI (AI AGENT OPERABLE ENGINE v2.0)
+🎬 FLOWMONKEY VIDEO STUDIO PYTHON CLI (AI AGENT OPERABLE ENGINE v2.1)
 ========================================================================
 PENGGUNAAN:
   python3 cli/main.py <command> [subcommand] [flags]

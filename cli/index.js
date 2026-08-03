@@ -12,7 +12,7 @@ const { runAgentTask } = require('./lib/agent');
 
 function printHelp() {
   console.log(`
-🎬 FLOWMONKEY VIDEO STUDIO CLI (AI AGENT OPERABLE ENGINE v1.0)
+🎬 FLOWMONKEY VIDEO STUDIO CLI (AI AGENT OPERABLE ENGINE v2.1)
 ========================================================================
 PENGGUNAAN:
   node cli/index.js <command> [subcommand] [flags]

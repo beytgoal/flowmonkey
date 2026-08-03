@@ -13,8 +13,9 @@ def view_settings(json_mode=False):
     gemini_str = f"••••••••{gemini_key[-4:]}" if gemini_key else "Belum diatur (Menggunakan Fallback Engine)"
     highfield_str = f"••••••••{highfield_key[-4:]}" if highfield_key else "Terhubung"
 
-    out = f"\n⚙️ PENGATURAN STUDIO & KONFIGURASI API (Python)\n"
+    out = f"\n⚙️ PENGATURAN STUDIO & KONFIGURASI API (Python v2.1.0)\n"
     out += f"=========================================================\n"
+    out += f"CLI Engine Version: v2.1.0\n"
     out += f"Gemini API Key    : {gemini_str}\n"
     out += f"Highfield Key     : {highfield_str}\n"
     out += f"Custom Endpoint   : {s.get('customEndpoint', '')}\n"

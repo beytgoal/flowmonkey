@@ -1,6 +1,6 @@
-# 🎬 FlowMonkey Video Studio Python CLI Engine
+# 🎬 FlowMonkey Video Studio CLI Engine (v2.1.0)
 
-Framework CLI FlowMonkey Studio telah ditingkatkan penuh ke **Python 3.10+** untuk dukungan pustaka AI, manipulasi JSON, dan integrasi otomatisasi agent yang jauh lebih baik.
+Framework CLI FlowMonkey Studio telah ditingkatkan ke **v2.1.0 (Python 3.10+ & Node.js)** untuk dukungan pustaka AI, manipulasi JSON, dan integrasi otomatisasi agent yang jauh lebih baik.
 
 ## 🚀 Fitur Utama Python CLI
 - **Proyek Video**: `python3 cli/main.py project list|create|select|delete`

@@ -6,8 +6,9 @@ function viewSettings(jsonMode = false) {
 
   if (jsonMode) return JSON.stringify(s, null, 2);
 
-  let out = `\n⚙️ PENGATURAN STUDIO & KONFIGURASI API\n`;
+  let out = `\n⚙️ PENGATURAN STUDIO & KONFIGURASI API (v2.1.0)\n`;
   out += `=========================================================\n`;
+  out += `CLI Engine Version: v2.1.0\n`;
   out += `Gemini API Key    : ${s.geminiApiKey ? "••••••••" + s.geminiApiKey.slice(-4) : "Belum diatur (Menggunakan Fallback Engine)"}\n`;
   out += `Highfield Key     : ${s.highfieldApiKey ? "••••••••" + s.highfieldApiKey.slice(-4) : "Terhubung"}\n`;
   out += `Custom Endpoint   : ${s.customEndpoint}\n`;
