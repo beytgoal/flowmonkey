@@ -115,13 +115,24 @@ fun QuickGenerateScreen(
                                     color = Color(0xFF6366F1),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text(
-                                        text = "HIGHFIELD AI",
-                                        color = Color.White,
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AutoAwesome,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Text(
+                                            text = "HIGHFIELD AI",
+                                            color = Color.White,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(

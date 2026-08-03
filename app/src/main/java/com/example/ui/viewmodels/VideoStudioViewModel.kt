@@ -51,6 +51,13 @@ data class TranscodingJob(
     val isCompleted: Boolean = false
 )
 
+data class CustomLutItem(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val name: String,
+    val filePath: String = "",
+    val description: String = "Custom Color Grading LUT"
+)
+
 class VideoStudioViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = AppDatabase.getDatabase(application)
@@ -118,6 +125,28 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _transcodingJobs = MutableStateFlow<List<TranscodingJob>>(emptyList())
     val transcodingJobs: StateFlow<List<TranscodingJob>> = _transcodingJobs.asStateFlow()
+
+    // Custom LUTs State for Filter Color Grading
+    private val _customLutList = MutableStateFlow<List<CustomLutItem>>(
+        listOf(
+            CustomLutItem(name = "LOG-to-Rec709.cube", description = "Standard SDR Normalizer LUT"),
+            CustomLutItem(name = "Fuji-Film-35mm.cube", description = "Warm Nostalgic Film Print"),
+            CustomLutItem(name = "Kodak-Vision3-250D.cube", description = "Hollywood Skin Tone Grade"),
+            CustomLutItem(name = "ARRI-Alexa-Cinematic.cube", description = "High Dynamic Range Cinema Look"),
+            CustomLutItem(name = "Sony-SLOG3-TealOrange.cube", description = "Popular Teal & Orange Look")
+        )
+    )
+    val customLutList: StateFlow<List<CustomLutItem>> = _customLutList.asStateFlow()
+
+    fun importCustomLut(lutName: String, path: String = "") {
+        val cleanName = if (lutName.endsWith(".cube", ignoreCase = true) || lutName.endsWith(".3dl", ignoreCase = true)) lutName else "$lutName.cube"
+        val newLut = CustomLutItem(
+            name = cleanName,
+            filePath = path.ifBlank { "luts/${cleanName.lowercase().replace(" ", "_")}" },
+            description = "Custom LUT diimpor oleh pengguna"
+        )
+        _customLutList.value = _customLutList.value + newLut
+    }
 
     fun toggleProxyMode(enabled: Boolean? = null) {
         _isProxyModeEnabled.value = enabled ?: !_isProxyModeEnabled.value

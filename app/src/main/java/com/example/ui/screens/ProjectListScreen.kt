@@ -46,9 +46,18 @@ fun ProjectListScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text("Daftar Proyek Video", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("${projects.size} proyek tersimpan", color = StudioTextSecondary, fontSize = 12.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.VideoLibrary,
+                    contentDescription = null,
+                    tint = StudioPrimaryViolet,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text("Daftar Proyek Video", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("${projects.size} proyek tersimpan", color = StudioTextSecondary, fontSize = 12.sp)
+                }
             }
 
             FloatingActionButton(
@@ -111,18 +120,12 @@ fun ProjectListScreen(
                             )
                             if (isActive) {
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Surface(
-                                    color = StudioSecondaryTeal,
-                                    shape = CircleShape
-                                ) {
-                                    Text(
-                                        "AKTIF",
-                                        color = Color.Black,
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Active Project",
+                                    tint = StudioSecondaryTeal,
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
                         }
 

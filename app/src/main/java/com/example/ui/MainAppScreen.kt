@@ -41,26 +41,54 @@ fun MainAppScreen(
                         )
                     },
                     actions = {
-                        // Full Screen Settings Button
-                        IconButton(
-                            onClick = { viewModel.selectTab(MainTab.SETTINGS) },
-                            modifier = Modifier.testTag("settings_proxy_toggle_button")
-                        ) {
-                            BadgedBox(
-                                badge = {
-                                    val activeCount = transcodingJobs.count { !it.isCompleted }
-                                    if (activeCount > 0) {
-                                        Badge(containerColor = StudioSecondaryTeal) {
-                                            Text("$activeCount", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                }
+                        if (currentTab == MainTab.TIMELINE_EDITOR) {
+                            // Top-Right Export Button specifically for Timeline Tab
+                            Button(
+                                onClick = { viewModel.selectTab(MainTab.EXPORT_STUDIO) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = StudioSecondaryTeal,
+                                    contentColor = Color.Black
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                modifier = Modifier
+                                    .padding(end = 12.dp)
+                                    .testTag("top_app_bar_export_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Settings,
-                                    contentDescription = "Pengaturan",
-                                    tint = if (currentTab == MainTab.SETTINGS) StudioPrimaryViolet else StudioTextSecondary
+                                    imageVector = Icons.Default.IosShare,
+                                    contentDescription = "Ekspor Video",
+                                    modifier = Modifier.size(16.dp)
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Ekspor",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        } else {
+                            // Settings Button for other tabs
+                            IconButton(
+                                onClick = { viewModel.selectTab(MainTab.SETTINGS) },
+                                modifier = Modifier.testTag("settings_proxy_toggle_button")
+                            ) {
+                                BadgedBox(
+                                    badge = {
+                                        val activeCount = transcodingJobs.count { !it.isCompleted }
+                                        if (activeCount > 0) {
+                                            Badge(containerColor = StudioSecondaryTeal) {
+                                                Text("$activeCount", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = "Pengaturan",
+                                        tint = if (currentTab == MainTab.SETTINGS) StudioPrimaryViolet else StudioTextSecondary
+                                    )
+                                }
                             }
                         }
                     },
@@ -92,7 +120,7 @@ fun MainAppScreen(
                     NavigationBarItem(
                         selected = currentTab == MainTab.STORYBOARD,
                         onClick = { viewModel.selectTab(MainTab.STORYBOARD) },
-                        icon = { Icon(Icons.Default.ViewCarousel, contentDescription = "Storyboard") },
+                        icon = { Icon(Icons.Default.MovieFilter, contentDescription = "Storyboard") },
                         label = { Text("Storyboard", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = StudioPrimaryViolet,
@@ -120,24 +148,9 @@ fun MainAppScreen(
                     )
 
                     NavigationBarItem(
-                        selected = currentTab == MainTab.EXPORT_STUDIO,
-                        onClick = { viewModel.selectTab(MainTab.EXPORT_STUDIO) },
-                        icon = { Icon(Icons.Default.IosShare, contentDescription = "Ekspor") },
-                        label = { Text("Ekspor", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = StudioPrimaryViolet,
-                            selectedTextColor = StudioPrimaryViolet,
-                            unselectedIconColor = StudioTextSecondary,
-                            unselectedTextColor = StudioTextSecondary,
-                            indicatorColor = StudioPrimaryViolet.copy(alpha = 0.15f)
-                        ),
-                        modifier = Modifier.testTag("nav_item_export")
-                    )
-
-                    NavigationBarItem(
                         selected = currentTab == MainTab.PROJECTS_LIST,
                         onClick = { viewModel.selectTab(MainTab.PROJECTS_LIST) },
-                        icon = { Icon(Icons.Default.Folder, contentDescription = "Proyek") },
+                        icon = { Icon(Icons.Default.VideoLibrary, contentDescription = "Proyek") },
                         label = { Text("Proyek", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = StudioPrimaryViolet,
@@ -147,21 +160,6 @@ fun MainAppScreen(
                             indicatorColor = StudioPrimaryViolet.copy(alpha = 0.15f)
                         ),
                         modifier = Modifier.testTag("nav_item_projects")
-                    )
-
-                    NavigationBarItem(
-                        selected = currentTab == MainTab.SETTINGS,
-                        onClick = { viewModel.selectTab(MainTab.SETTINGS) },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Pengaturan") },
-                        label = { Text("Pengaturan", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = StudioPrimaryViolet,
-                            selectedTextColor = StudioPrimaryViolet,
-                            unselectedIconColor = StudioTextSecondary,
-                            unselectedTextColor = StudioTextSecondary,
-                            indicatorColor = StudioPrimaryViolet.copy(alpha = 0.15f)
-                        ),
-                        modifier = Modifier.testTag("nav_item_settings")
                     )
                 }
             },

@@ -92,14 +92,13 @@ fun StoryboardScreen(
 
                     Surface(
                         color = StudioAccentPink.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = CircleShape
                     ) {
-                        Text(
-                            text = "THINKING HIGH",
-                            color = StudioAccentPink,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = "Thinking Mode Active",
+                            tint = StudioAccentPink,
+                            modifier = Modifier.padding(6.dp).size(16.dp)
                         )
                     }
                 }

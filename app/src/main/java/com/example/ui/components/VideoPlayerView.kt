@@ -112,21 +112,30 @@ fun VideoPlayerView(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        when (activeFilter) {
-                            "Cyberpunk Neon" -> Brush.verticalGradient(
+                        when {
+                            activeFilter.contains("Cyberpunk") || activeFilter.contains("Neon") -> Brush.verticalGradient(
                                 listOf(Color(0x33FF00FF), Color(0x3300FFFF))
                             )
-                            "Cinematic Glow" -> Brush.radialGradient(
+                            activeFilter.contains("Teal & Orange") || activeFilter.contains("TealOrange") -> Brush.verticalGradient(
+                                listOf(Color(0x33008080), Color(0x33FF7F50))
+                            )
+                            activeFilter.contains("Cinematic") || activeFilter.contains("Hollywood") -> Brush.radialGradient(
                                 listOf(Color(0x22FFD700), Color(0x66000000))
                             )
-                            "Vintage Film" -> Brush.verticalGradient(
+                            activeFilter.contains("Vintage") || activeFilter.contains("Fuji") || activeFilter.contains("Kodak") -> Brush.verticalGradient(
                                 listOf(Color(0x33A0522D), Color(0x228B4513))
                             )
-                            "Warm Sunset" -> Brush.horizontalGradient(
+                            activeFilter.contains("Sunset") || activeFilter.contains("Amber") -> Brush.horizontalGradient(
                                 listOf(Color(0x33FF7F50), Color(0x33FFD700))
                             )
-                            "B&W Noir" -> Brush.linearGradient(
+                            activeFilter.contains("Noir") || activeFilter.contains("B&W") -> Brush.linearGradient(
                                 listOf(Color(0x88000000), Color(0x88333333))
+                            )
+                            activeFilter.contains("LOG") || activeFilter.contains("ARRI") || activeFilter.contains("Rec709") -> Brush.verticalGradient(
+                                listOf(Color(0x2200BFFF), Color(0x44000000))
+                            )
+                            activeFilter.contains("LUT:") -> Brush.radialGradient(
+                                listOf(Color(0x2200FA9A), Color(0x55000000))
                             )
                             else -> Brush.verticalGradient(
                                 listOf(Color.Transparent, Color(0xAA000000))

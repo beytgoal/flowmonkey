@@ -25,6 +25,7 @@ import com.example.data.db.TimelineClipEntity
 import com.example.ui.components.TimelineView
 import com.example.ui.components.VideoPlayerView
 import com.example.ui.theme.*
+import com.example.ui.viewmodels.MainTab
 import com.example.ui.viewmodels.VideoStudioViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,6 +51,8 @@ fun TimelineEditorScreen(
     var selectedToolCategory by remember { mutableStateOf(0) } // 0: Dasar, 1: Visual & Efek, 2: Lanjutan & AI, 3: Audio & Teks
 
     // Dialog & Bottom Sheet visibility states
+    var showAddClipSheet by remember { mutableStateOf(false) }
+    var showAssetStoreSheet by remember { mutableStateOf(false) }
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showAnimationSheet by remember { mutableStateOf(false) }
     var showCropRotateSheet by remember { mutableStateOf(false) }
@@ -65,6 +68,22 @@ fun TimelineEditorScreen(
     var showTextDialog by remember { mutableStateOf(false) }
     var showStickersSheet by remember { mutableStateOf(false) }
     var showProxyDialog by remember { mutableStateOf(false) }
+    var showExportSheet by remember { mutableStateOf(false) }
+
+    val customLuts by viewModel.customLutList.collectAsState()
+
+    // File picker launcher for Custom LUTs
+    val lutFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val fileName = it.lastPathSegment?.substringAfterLast("/") ?: "Custom_LUT_${System.currentTimeMillis()}.cube"
+            viewModel.importCustomLut(fileName, it.toString())
+            selectedClip?.let { clip ->
+                viewModel.updateClipFilter(clip, "LUT: $fileName")
+            }
+        }
+    }
 
     // Media Gallery Picker Launcher
     val mediaPickerLauncher = rememberLauncherForActivityResult(
@@ -162,19 +181,30 @@ fun TimelineEditorScreen(
                     }
                 }
 
-                // Aspect Ratio Selector Tag
+                // Aspect Ratio Tag
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = StudioSecondaryTeal.copy(alpha = 0.2f),
                     border = BorderStroke(1.dp, StudioSecondaryTeal)
                 ) {
-                    Text(
-                        text = activeProject?.aspectRatio ?: "16:9",
-                        color = StudioSecondaryTeal,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AspectRatio,
+                            contentDescription = "Rasio Layar",
+                            tint = StudioSecondaryTeal,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = activeProject?.aspectRatio ?: "16:9",
+                            color = StudioSecondaryTeal,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -219,6 +249,14 @@ fun TimelineEditorScreen(
             when (selectedToolCategory) {
                 0 -> {
                     // --- Tools Dasar Timeline ---
+                    item {
+                        ActionToolChip(
+                            icon = Icons.Default.Add,
+                            label = "+ Tambah Klip",
+                            onClick = { showAddClipSheet = true },
+                            color = StudioPrimaryViolet
+                        )
+                    }
                     item {
                         ActionToolChip(
                             icon = Icons.Default.ContentCut,
@@ -283,6 +321,22 @@ fun TimelineEditorScreen(
                     // --- Tools Visual dan Efek ---
                     item {
                         ActionToolChip(
+                            icon = Icons.Default.Category,
+                            label = "Tool Asset Studio",
+                            onClick = { showAssetStoreSheet = true },
+                            color = StudioAccentAmber
+                        )
+                    }
+                    item {
+                        ActionToolChip(
+                            icon = Icons.Default.FilterVintage,
+                            label = "Filter & Custom LUTs",
+                            onClick = { showFilterSheet = true },
+                            color = StudioSecondaryTeal
+                        )
+                    }
+                    item {
+                        ActionToolChip(
                             icon = Icons.Default.FlipCameraAndroid,
                             label = "Edit Reverse dan Freeze",
                             onClick = { if (selectedClip != null) showEditVisualSheet = true },
@@ -296,14 +350,6 @@ fun TimelineEditorScreen(
                             onClick = { if (selectedClip != null) showEffectsSheet = true },
                             enabled = selectedClip != null,
                             color = StudioAccentAmber
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.FilterVintage,
-                            label = "Filter VFX Studio",
-                            onClick = { if (selectedClip != null) showFilterSheet = true },
-                            enabled = selectedClip != null
                         )
                     }
                     item {
@@ -411,6 +457,7 @@ fun TimelineEditorScreen(
             totalDurationMs = totalDurationMs,
             onSeek = { viewModel.seekTo(it) },
             onClipSelected = { selectedClip = it },
+            onAddClipRequested = { showAddClipSheet = true },
             onAddOverlayTrackRequested = { trackType ->
                 viewModel.addNewOverlayTrack(trackType)
             }
@@ -858,9 +905,322 @@ fun TimelineEditorScreen(
         }
     }
 
-    // 6. Filter VFX Bottom Sheet
-    if (showFilterSheet && selectedClip != null) {
-        val filters = listOf("None", "Cinematic Glow", "Cyberpunk Neon", "Vintage Film", "Sunset Amber", "B&W Noir", "Moody Teal")
+    // 0. Tambah Klip Bottom Sheet (Support Gallery, AI Generator & Stock Samples)
+    if (showAddClipSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showAddClipSheet = false },
+            containerColor = StudioSurfaceDark,
+            contentColor = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+                    .navigationBarsPadding()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.VideoCall, contentDescription = null, tint = StudioPrimaryViolet)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Tambah Klip ke Timeline", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    }
+                    IconButton(onClick = { showAddClipSheet = false }) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Option 1: Dari Galeri HP
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showAddClipSheet = false
+                            mediaPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                            )
+                        }
+                        .border(1.dp, StudioPrimaryViolet, RoundedCornerShape(12.dp)),
+                    colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = StudioPrimaryViolet.copy(alpha = 0.2f),
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null, tint = StudioPrimaryViolet)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
+                            Text("Dari Galeri Device / HP", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
+                            Text("Pilih video atau foto lokal dari penyimpanan HP", color = StudioTextSecondary, fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Option 2: AI Video Generator
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showAddClipSheet = false
+                            viewModel.selectTab(MainTab.STUDIO_GENERATOR)
+                        }
+                        .border(1.dp, StudioSecondaryTeal, RoundedCornerShape(12.dp)),
+                    colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = StudioSecondaryTeal.copy(alpha = 0.2f),
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = StudioSecondaryTeal)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
+                            Text("AI Video Generator (Veo 3.1 & Highfield)", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
+                            Text("Buat klip video AI otomatis menggunakan text-to-video / image", color = StudioTextSecondary, fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                Text("Pilih Klip Sampel Studio Instant:", color = StudioAccentAmber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val sampleClips = listOf(
+                    Pair("Cyberpunk Night City", "veo_sample_cyberpunk_night"),
+                    Pair("Futuristic Drone Sunset", "veo_sample_drone_sunset"),
+                    Pair("Anime Sky & Clouds", "veo_sample_anime_sky"),
+                    Pair("Ocean Waves Sunset", "veo_sample_ocean_sunset"),
+                    Pair("Matrix Particle Glow", "veo_sample_matrix_particle")
+                )
+
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(sampleClips) { (title, uri) ->
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.addMediaFromGallery(uri, title)
+                                showAddClipSheet = false
+                            },
+                            border = BorderStroke(1.dp, StudioAccentAmber.copy(alpha = 0.6f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        ) {
+                            Icon(imageVector = Icons.Default.Movie, contentDescription = null, modifier = Modifier.size(16.dp), tint = StudioAccentAmber)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(title, fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+
+    // Tool Asset Store Sheet (Overlay Assets & Stickers)
+    if (showAssetStoreSheet) {
+        var assetTab by remember { mutableStateOf(0) } // 0: Overlay FX Assets, 1: Stickers
+
+        val overlayAssets = listOf(
+            Pair("Light Leak Vintage FX", "Light Leak"),
+            Pair("Film Grain 35mm Overlay", "Film Grain"),
+            Pair("Atmospheric Rain & Dust", "Rain Dust"),
+            Pair("Cyber Neon Frame Border", "Neon Frame"),
+            Pair("VHS Glitch Scanlines", "VHS Glitch"),
+            Pair("Fire Sparks & Smoke", "Fire Smoke"),
+            Pair("Snow Particles Glow", "Snow Particles")
+        )
+
+        val stickerAssets = listOf(
+            Pair("Lencana Subscribe & Like", "Badge Subscribe"),
+            Pair("Lencana Verifikasi Centang Blue", "Verifikasi Centang"),
+            Pair("Stiker Neon Arrow Panah", "Neon Arrow"),
+            Pair("Grafis Flame Api 🔥", "Flame Api"),
+            Pair("Cinema Clapboard 🎬", "Clapboard"),
+            Pair("Lightning Flash ⚡", "Flash Lightning"),
+            Pair("Star Burst Element ⭐", "Star Burst"),
+            Pair("Boom Explosion 💥", "Boom Explosion")
+        )
+
+        ModalBottomSheet(
+            onDismissRequest = { showAssetStoreSheet = false },
+            containerColor = StudioSurfaceDark,
+            contentColor = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+                    .navigationBarsPadding()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.Category, contentDescription = null, tint = StudioAccentAmber)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Tool Asset & Overlay Library", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                    IconButton(onClick = { showAssetStoreSheet = false }) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TabRow(
+                    selectedTabIndex = assetTab,
+                    containerColor = Color.Transparent,
+                    contentColor = StudioAccentAmber
+                ) {
+                    Tab(
+                        selected = assetTab == 0,
+                        onClick = { assetTab = 0 },
+                        text = { Text("Overlay FX", fontWeight = FontWeight.Bold) }
+                    )
+                    Tab(
+                        selected = assetTab == 1,
+                        onClick = { assetTab = 1 },
+                        text = { Text("Stiker", fontWeight = FontWeight.Bold) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (assetTab == 0) {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        Text("Pilih Asset Overlay PIP (Picture in Picture):", color = StudioTextSecondary, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        overlayAssets.forEach { (title, effectKey) ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable {
+                                        val projId = activeProject?.id ?: return@clickable
+                                        viewModel.addNewOverlayTrack("VIDEO", "Overlay $title")
+                                        viewModel.addClip(
+                                            TimelineClipEntity(
+                                                trackId = 0,
+                                                projectId = projId,
+                                                title = "Overlay: $title",
+                                                mediaUri = "overlay_$effectKey",
+                                                startTimeMs = currentTimeMs,
+                                                endTimeMs = currentTimeMs + 5000L,
+                                                durationMs = 5000L,
+                                                effectName = effectKey
+                                            )
+                                        )
+                                        showAssetStoreSheet = false
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = StudioCardBg),
+                                border = BorderStroke(1.dp, StudioCardBorder)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(imageVector = Icons.Default.Layers, contentDescription = null, tint = StudioSecondaryTeal)
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = StudioSecondaryTeal.copy(alpha = 0.2f)
+                                    ) {
+                                        Text("+ Tambah PIP", color = StudioSecondaryTeal, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        Text("Pilih Stiker & Motion Graphics Studio:", color = StudioTextSecondary, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        stickerAssets.forEach { (title, stickerKey) ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable {
+                                        viewModel.addStickerClip(title)
+                                        showAssetStoreSheet = false
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = StudioCardBg),
+                                border = BorderStroke(1.dp, StudioCardBorder)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(imageVector = Icons.Default.EmojiEmotions, contentDescription = null, tint = StudioAccentAmber)
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = StudioAccentAmber.copy(alpha = 0.2f)
+                                    ) {
+                                        Text("+ Pasang Stiker", color = StudioAccentAmber, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                Button(onClick = { showAssetStoreSheet = false }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Tutup Tool Asset")
+                }
+            }
+        }
+    }
+
+    // 6. Filter Grading VFX & Custom LUTs Bottom Sheet
+    if (showFilterSheet) {
+        val targetClip = selectedClip ?: clips.firstOrNull()
+        val presetFilters = listOf(
+            "None",
+            "Teal & Orange (Hollywood)",
+            "Moody Dark Film",
+            "Vintage 35mm Grain",
+            "Cyberpunk Neon Glow",
+            "Warm Sunset Amber",
+            "HDR Ultra Clarity",
+            "B&W Noir Dramatic"
+        )
+        var filterTab by remember { mutableStateOf(0) } // 0: Presets, 1: Custom LUTs
+
         ModalBottomSheet(
             onDismissRequest = { showFilterSheet = false },
             containerColor = StudioSurfaceDark,
@@ -872,23 +1232,125 @@ fun TimelineEditorScreen(
                     .padding(20.dp)
                     .navigationBarsPadding()
             ) {
-                Text("Filter Color VFX Studio", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.FilterVintage, contentDescription = null, tint = StudioSecondaryTeal)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Filter Color Grading & Custom LUTs", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                    IconButton(onClick = { showFilterSheet = false }) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                TabRow(
+                    selectedTabIndex = filterTab,
+                    containerColor = Color.Transparent,
+                    contentColor = StudioSecondaryTeal
+                ) {
+                    Tab(
+                        selected = filterTab == 0,
+                        onClick = { filterTab = 0 },
+                        text = { Text("Preset Grading", fontWeight = FontWeight.Bold) }
+                    )
+                    Tab(
+                        selected = filterTab == 1,
+                        onClick = { filterTab = 1 },
+                        text = { Text("Custom LUTs (${customLuts.size})", fontWeight = FontWeight.Bold) }
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
 
-                filters.forEach { filter ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                viewModel.updateClipFilter(selectedClip!!, filter)
-                                showFilterSheet = false
+                if (filterTab == 0) {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        presetFilters.forEach { filter ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        targetClip?.let {
+                                            viewModel.updateClipFilter(it, filter)
+                                        }
+                                        showFilterSheet = false
+                                    }
+                                    .padding(vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = targetClip?.filterName == filter,
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(selectedColor = StudioSecondaryTeal)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(filter, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                             }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = selectedClip!!.filterName == filter, onClick = null)
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(filter, color = Color.White, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                } else {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        // Import LUT Button
+                        Button(
+                            onClick = {
+                                lutFilePickerLauncher.launch("*/*")
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.FileUpload, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Impor File LUT (.cube / .3dl)", fontWeight = FontWeight.Bold)
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text("Daftar LUT Tersedia:", color = StudioTextSecondary, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        customLuts.forEach { lut ->
+                            val lutFilterName = "LUT: ${lut.name}"
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable {
+                                        targetClip?.let {
+                                            viewModel.updateClipFilter(it, lutFilterName)
+                                        }
+                                        showFilterSheet = false
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = StudioCardBg),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (targetClip?.filterName == lutFilterName) StudioSecondaryTeal else StudioCardBorder
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(imageVector = Icons.Default.ColorLens, contentDescription = null, tint = StudioSecondaryTeal)
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(lut.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            Text(lut.description, color = StudioTextSecondary, fontSize = 11.sp)
+                                        }
+                                    }
+                                    if (targetClip?.filterName == lutFilterName) {
+                                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Active", tint = StudioSecondaryTeal)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -1295,6 +1757,23 @@ fun TimelineEditorScreen(
                 }
             }
         )
+    }
+
+    if (showExportSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showExportSheet = false },
+            containerColor = StudioDarkBg,
+            contentColor = Color.White,
+            modifier = Modifier.testTag("export_studio_bottom_sheet")
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.9f)
+            ) {
+                ExportStudioScreen(viewModel = viewModel)
+            }
+        }
     }
 }
 

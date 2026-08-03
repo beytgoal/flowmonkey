@@ -1,0 +1,5 @@
+# FlowMonkey Video Studio Python CLI Requirements
+# Uses Python 3.10+ standard library modules by default (json, argparse, pathlib, shlex, datetime, time)
+# Optional dependencies for enhanced formatting or HTTP calls:
+requests>=2.28.0
+rich>=13.0.0
