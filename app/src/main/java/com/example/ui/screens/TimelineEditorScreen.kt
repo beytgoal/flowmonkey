@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -48,7 +49,22 @@ fun TimelineEditorScreen(
     val transcodingJobs by viewModel.transcodingJobs.collectAsState()
 
     var selectedClip by remember { mutableStateOf<TimelineClipEntity?>(null) }
-    var selectedToolCategory by remember { mutableStateOf(0) } // 0: Dasar, 1: Visual & Efek, 2: Lanjutan & AI, 3: Audio & Teks
+    var activeColumnMode by remember { mutableStateOf("ALL") } // "ALL", "TEXT", "AUDIO", "STICKER", "VIDEO"
+    var selectedToolCategory by remember { mutableStateOf(0) } // 0: Utama, 1: VFX & Gaya, 2: Lanjutan & AI
+    var isToolsExpanded by remember { mutableStateOf(false) } // Default hidden to give maximum timeline space
+
+    LaunchedEffect(selectedClip) {
+        selectedClip?.let { clip ->
+            val track = tracks.find { it.id == clip.trackId }
+            when {
+                clip.stickerIcon.isNotBlank() || track?.trackType == "STICKER" -> activeColumnMode = "STICKER"
+                clip.textContent != null || track?.trackType == "TEXT" -> activeColumnMode = "TEXT"
+                track?.trackType == "AUDIO" -> activeColumnMode = "AUDIO"
+                else -> activeColumnMode = "VIDEO"
+            }
+            isToolsExpanded = true
+        }
+    }
 
     // Dialog & Bottom Sheet visibility states
     var showAddClipSheet by remember { mutableStateOf(false) }
@@ -109,6 +125,10 @@ fun TimelineEditorScreen(
             currentTimeMs = currentTimeMs,
             totalDurationMs = totalDurationMs,
             activeFilter = selectedClip?.filterName ?: "Cinematic Glow",
+            activeAnimation = selectedClip?.animationIn?.takeIf { it != "None" }
+                ?: selectedClip?.animationOut?.takeIf { it != "None" }
+                ?: selectedClip?.animationCombo ?: "None",
+            activeEffect = selectedClip?.effectName ?: "None",
             isProxyMode = isProxyMode,
             proxyResolution = proxyResolution,
             onToggleProxyMode = { showProxyDialog = true },
@@ -210,243 +230,599 @@ fun TimelineEditorScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        ScrollableTabRow(
-            selectedTabIndex = selectedToolCategory,
-            containerColor = Color.Transparent,
-            contentColor = StudioPrimaryViolet,
-            edgePadding = 0.dp
+        // Column Switcher & Top-to-Bottom Dropdown Tools Menu Container
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    1.dp,
+                    when (activeColumnMode) {
+                        "VIDEO" -> StudioPrimaryViolet
+                        "TEXT" -> StudioSecondaryTeal
+                        "AUDIO" -> StudioAccentPink
+                        "STICKER" -> Color(0xFFFFB74D)
+                        else -> StudioCardBorder
+                    },
+                    RoundedCornerShape(14.dp)
+                ),
+            colors = CardDefaults.cardColors(containerColor = StudioCardBg)
         ) {
-            Tab(
-                selected = selectedToolCategory == 0,
-                onClick = { selectedToolCategory = 0 },
-                text = { Text("Tools Dasar", fontWeight = FontWeight.Bold) }
-            )
-            Tab(
-                selected = selectedToolCategory == 1,
-                onClick = { selectedToolCategory = 1 },
-                text = { Text("Visual & Efek", fontWeight = FontWeight.Bold) }
-            )
-            Tab(
-                selected = selectedToolCategory == 2,
-                onClick = { selectedToolCategory = 2 },
-                text = { Text("Lanjutan & AI", fontWeight = FontWeight.Bold) }
-            )
-            Tab(
-                selected = selectedToolCategory == 3,
-                onClick = { selectedToolCategory = 3 },
-                text = { Text("Audio & Teks", fontWeight = FontWeight.Bold) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Category Specific Professional Toolbar
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.testTag("timeline_tools_bar")
-        ) {
-            when (selectedToolCategory) {
-                0 -> {
-                    // --- Tools Dasar Timeline ---
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.Add,
-                            label = "+ Tambah Klip",
-                            onClick = { showAddClipSheet = true },
-                            color = StudioPrimaryViolet
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.ContentCut,
-                            label = "Split Bagi Klip",
-                            onClick = {
-                                selectedClip?.let {
-                                    viewModel.splitClipAtCurrentTime(it, currentTimeMs)
-                                }
-                            },
-                            enabled = selectedClip != null && currentTimeMs > (selectedClip?.startTimeMs ?: 0L) && currentTimeMs < (selectedClip?.endTimeMs ?: 0L),
-                            color = StudioSecondaryTeal
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.Delete,
-                            label = "Hapus Klip",
-                            onClick = {
-                                selectedClip?.let {
-                                    viewModel.deleteClip(it)
-                                    selectedClip = null
-                                }
-                            },
-                            enabled = selectedClip != null,
-                            color = StudioAccentPink
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.Speed,
-                            label = "Speed dan Curve",
-                            onClick = { if (selectedClip != null) showSpeedSheet = true },
-                            enabled = selectedClip != null
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.Animation,
-                            label = "Animasi Studio",
-                            onClick = { if (selectedClip != null) showAnimationSheet = true },
-                            enabled = selectedClip != null
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.Crop,
-                            label = "Crop dan Canvas",
-                            onClick = { if (selectedClip != null) showCropRotateSheet = true },
-                            enabled = selectedClip != null
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = if (isProxyMode) Icons.Default.Speed else Icons.Default.HighQuality,
-                            label = if (isProxyMode) "Proxy $proxyResolution ON" else "Proxy OFF 1080p",
-                            onClick = { showProxyDialog = true },
-                            color = if (isProxyMode) StudioSecondaryTeal else StudioAccentAmber
-                        )
-                    }
-                }
-                1 -> {
-                    // --- Tools Visual dan Efek ---
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.Category,
-                            label = "Tool Asset Studio",
-                            onClick = { showAssetStoreSheet = true },
-                            color = StudioAccentAmber
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.FilterVintage,
-                            label = "Filter & Custom LUTs",
-                            onClick = { showFilterSheet = true },
-                            color = StudioSecondaryTeal
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.FlipCameraAndroid,
-                            label = "Edit Reverse dan Freeze",
-                            onClick = { if (selectedClip != null) showEditVisualSheet = true },
-                            enabled = selectedClip != null
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.AutoAwesome,
-                            label = "Efek Video dan Body",
-                            onClick = { if (selectedClip != null) showEffectsSheet = true },
-                            enabled = selectedClip != null,
-                            color = StudioAccentAmber
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.Tune,
-                            label = "Adjust Color Grade",
-                            onClick = { if (selectedClip != null) showAdjustSheet = true },
-                            enabled = selectedClip != null,
-                            color = StudioSecondaryTeal
-                        )
-                    }
-                }
-                2 -> {
-                    // --- Tools Lanjutan dan AI ---
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.CenterFocusWeak,
-                            label = "Cutout / Remove BG",
-                            onClick = { if (selectedClip != null) showCutoutSheet = true },
-                            enabled = selectedClip != null,
-                            color = StudioSecondaryTeal
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.GridOn,
-                            label = "Masking Shape",
-                            onClick = { if (selectedClip != null) showMaskingSheet = true },
-                            enabled = selectedClip != null
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.Transform,
-                            label = "Keyframe Studio",
-                            onClick = { if (selectedClip != null) showKeyframeSheet = true },
-                            enabled = selectedClip != null,
-                            color = if (selectedClip?.hasKeyframe == true) StudioAccentAmber else StudioPrimaryViolet
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.Security,
-                            label = "Stabilize Video",
-                            onClick = { if (selectedClip != null) showStabilizeSheet = true },
-                            enabled = selectedClip != null
-                        )
-                    }
-                }
-                3 -> {
-                    // --- Tools Audio, Teks & Stiker ---
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.Audiotrack,
-                            label = "Audio Mixer & SFX",
-                            onClick = { showAudioStudioSheet = true },
-                            color = StudioSecondaryTeal
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.RecordVoiceOver,
-                            label = "Auto Captions AI",
-                            onClick = { viewModel.autoTranscribeSubtitles() },
-                            color = StudioAccentAmber
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.Subtitles,
-                            label = "Teks Subjudul",
-                            onClick = { showTextDialog = true }
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.EmojiEmotions,
-                            label = "Stiker Hiasan",
-                            onClick = { showStickersSheet = true }
-                        )
-                    }
-                    item {
-                        ActionToolChip(
-                            icon = Icons.Default.AddPhotoAlternate,
-                            label = "+ Media Galeri",
-                            onClick = {
-                                mediaPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+            Column(modifier = Modifier.padding(10.dp)) {
+                // Column Selection Filter Chips (Utama/All, Subjudul, Musik, Stiker, Video)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        item {
+                            FilterChip(
+                                selected = activeColumnMode == "ALL",
+                                onClick = {
+                                    activeColumnMode = "ALL"
+                                    isToolsExpanded = true
+                                },
+                                label = { Text("🌌 Utama", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                            )
+                        }
+                        item {
+                            FilterChip(
+                                selected = activeColumnMode == "TEXT",
+                                onClick = {
+                                    activeColumnMode = "TEXT"
+                                    isToolsExpanded = true
+                                },
+                                label = { Text("💬 Subjudul", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = StudioSecondaryTeal,
+                                    selectedLabelColor = Color.White
                                 )
-                            },
-                            color = StudioPrimaryViolet
-                        )
+                            )
+                        }
+                        item {
+                            FilterChip(
+                                selected = activeColumnMode == "AUDIO",
+                                onClick = {
+                                    activeColumnMode = "AUDIO"
+                                    isToolsExpanded = true
+                                },
+                                label = { Text("🎵 Musik", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = StudioAccentPink,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                        item {
+                            FilterChip(
+                                selected = activeColumnMode == "STICKER",
+                                onClick = {
+                                    activeColumnMode = "STICKER"
+                                    isToolsExpanded = true
+                                },
+                                label = { Text("⭐ Stiker", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Color(0xFFFFB74D),
+                                    selectedLabelColor = Color.Black
+                                )
+                            )
+                        }
+                        item {
+                            FilterChip(
+                                selected = activeColumnMode == "VIDEO",
+                                onClick = {
+                                    activeColumnMode = "VIDEO"
+                                    isToolsExpanded = true
+                                },
+                                label = { Text("🎬 Video PIP", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = StudioPrimaryViolet,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (selectedClip != null) {
+                            IconButton(
+                                onClick = { selectedClip = null },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Unselect Clip", tint = Color.LightGray)
+                            }
+                        }
+
+                        // Toggle Tools Panel Visibility
+                        IconButton(
+                            onClick = { isToolsExpanded = !isToolsExpanded },
+                            modifier = Modifier
+                                .size(32.dp)
+                                .testTag("toggle_tools_expansion_button")
+                        ) {
+                            Icon(
+                                imageVector = if (isToolsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.Tune,
+                                contentDescription = if (isToolsExpanded) "Sembunyikan Tools" else "Tampilkan Tools",
+                                tint = StudioPrimaryViolet
+                            )
+                        }
+                    }
+                }
+
+                // Top-to-Bottom Dropdown Tools Container (Hidden initially for spacious timeline)
+                AnimatedVisibility(
+                    visible = isToolsExpanded,
+                    enter = expandVertically(expandFrom = Alignment.Top) + fadeIn() + slideInVertically { -it / 2 },
+                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Sub-category Tabs for active column
+                        when (activeColumnMode) {
+                            "VIDEO" -> {
+                                ScrollableTabRow(
+                                    selectedTabIndex = selectedToolCategory.coerceIn(0, 2),
+                                    containerColor = Color.Transparent,
+                                    contentColor = StudioPrimaryViolet,
+                                    edgePadding = 0.dp
+                                ) {
+                                    Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Dasar Video", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                    Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("Visual & VFX", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                    Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("Cutout & AI", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                }
+                            }
+                            "TEXT" -> {
+                                ScrollableTabRow(
+                                    selectedTabIndex = selectedToolCategory.coerceIn(0, 2),
+                                    containerColor = Color.Transparent,
+                                    contentColor = StudioSecondaryTeal,
+                                    edgePadding = 0.dp
+                                ) {
+                                    Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Edit Subjudul", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                    Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("Gaya & Font", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                    Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("Animasi Teks", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                }
+                            }
+                            "AUDIO" -> {
+                                ScrollableTabRow(
+                                    selectedTabIndex = selectedToolCategory.coerceIn(0, 2),
+                                    containerColor = Color.Transparent,
+                                    contentColor = StudioAccentPink,
+                                    edgePadding = 0.dp
+                                ) {
+                                    Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Kontrol Audio", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                    Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("Denoise & Speed", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                    Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("SFX Studio", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                }
+                            }
+                            "STICKER" -> {
+                                ScrollableTabRow(
+                                    selectedTabIndex = selectedToolCategory.coerceIn(0, 1),
+                                    containerColor = Color.Transparent,
+                                    contentColor = Color(0xFFFFB74D),
+                                    edgePadding = 0.dp
+                                ) {
+                                    Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Pilih Stiker", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                    Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("Animasi & FX", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                }
+                            }
+                            else -> { // "ALL"
+                                ScrollableTabRow(
+                                    selectedTabIndex = selectedToolCategory.coerceIn(0, 2),
+                                    containerColor = Color.Transparent,
+                                    contentColor = StudioPrimaryViolet,
+                                    edgePadding = 0.dp
+                                ) {
+                                    Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Tools Dasar", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                    Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("Visual & Efek", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                    Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("Audio & Teks", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Dynamic Action Tools Bar
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.testTag("timeline_tools_bar")
+                        ) {
+                            when (activeColumnMode) {
+                                "VIDEO" -> {
+                                    when (selectedToolCategory.coerceIn(0, 2)) {
+                                        0 -> {
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.ContentCut,
+                                                    label = "Split Bagi Klip",
+                                                    onClick = { selectedClip?.let { viewModel.splitClipAtCurrentTime(it, currentTimeMs) } },
+                                                    enabled = selectedClip != null && currentTimeMs > (selectedClip?.startTimeMs ?: 0L) && currentTimeMs < (selectedClip?.endTimeMs ?: 0L),
+                                                    color = StudioSecondaryTeal
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Speed,
+                                                    label = "Kecepatan & Curve",
+                                                    onClick = { showSpeedSheet = true }
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Crop,
+                                                    label = "Crop dan Canvas",
+                                                    onClick = { showCropRotateSheet = true }
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.FlipCameraAndroid,
+                                                    label = "Reverse / Freeze",
+                                                    onClick = { showEditVisualSheet = true }
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Add,
+                                                    label = "Tambah Video",
+                                                    onClick = { showAddClipSheet = true },
+                                                    color = StudioPrimaryViolet
+                                                )
+                                            }
+                                            if (selectedClip != null) {
+                                                item {
+                                                    ActionToolChip(
+                                                        icon = Icons.Default.Delete,
+                                                        label = "Hapus Klip Video",
+                                                        onClick = {
+                                                            selectedClip?.let { viewModel.deleteClip(it) }
+                                                            selectedClip = null
+                                                        },
+                                                        color = StudioAccentPink
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        1 -> {
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Animation,
+                                                    label = "Animasi Kedip / Studio",
+                                                    onClick = { showAnimationSheet = true },
+                                                    color = StudioPrimaryViolet
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.FilterVintage,
+                                                    label = "Filter & Custom LUTs",
+                                                    onClick = { showFilterSheet = true },
+                                                    color = StudioSecondaryTeal
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.InvertColors,
+                                                    label = "Pembalik Warna (Invert)",
+                                                    onClick = {
+                                                        selectedClip?.let { clip ->
+                                                            viewModel.updateClipFilter(clip, "Pembalik Warna (Invert Colors)")
+                                                        }
+                                                    },
+                                                    color = StudioAccentAmber
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.AutoAwesome,
+                                                    label = "Efek Video & Body",
+                                                    onClick = { showEffectsSheet = true },
+                                                    color = StudioAccentAmber
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Tune,
+                                                    label = "Adjust Color Grade",
+                                                    onClick = { showAdjustSheet = true },
+                                                    color = StudioSecondaryTeal
+                                                )
+                                            }
+                                        }
+                                        2 -> {
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.CenterFocusWeak,
+                                                    label = "Cutout / Remove BG",
+                                                    onClick = { showCutoutSheet = true },
+                                                    color = StudioSecondaryTeal
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.GridOn,
+                                                    label = "Masking Shape",
+                                                    onClick = { showMaskingSheet = true }
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Transform,
+                                                    label = "Keyframe Studio",
+                                                    onClick = { showKeyframeSheet = true },
+                                                    color = if (selectedClip?.hasKeyframe == true) StudioAccentAmber else StudioPrimaryViolet
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Security,
+                                                    label = "Stabilize Video",
+                                                    onClick = { showStabilizeSheet = true }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                "TEXT" -> {
+                                    when (selectedToolCategory.coerceIn(0, 2)) {
+                                        0 -> {
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Edit,
+                                                    label = if (selectedClip != null) "Edit Teks Subjudul" else "Tambah Teks Baru",
+                                                    onClick = { showTextDialog = true },
+                                                    color = StudioSecondaryTeal
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.ContentCut,
+                                                    label = "Split Subjudul",
+                                                    onClick = { selectedClip?.let { viewModel.splitClipAtCurrentTime(it, currentTimeMs) } },
+                                                    enabled = selectedClip != null && currentTimeMs > (selectedClip?.startTimeMs ?: 0L) && currentTimeMs < (selectedClip?.endTimeMs ?: 0L)
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.RecordVoiceOver,
+                                                    label = "Auto Captions AI",
+                                                    onClick = { viewModel.autoTranscribeSubtitles() },
+                                                    color = StudioAccentAmber
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Add,
+                                                    label = "Tambah Subjudul Studio",
+                                                    onClick = { showTextDialog = true },
+                                                    color = StudioPrimaryViolet
+                                                )
+                                            }
+                                            if (selectedClip != null) {
+                                                item {
+                                                    ActionToolChip(
+                                                        icon = Icons.Default.Delete,
+                                                        label = "Hapus Subjudul",
+                                                        onClick = {
+                                                            selectedClip?.let { viewModel.deleteClip(it) }
+                                                            selectedClip = null
+                                                        },
+                                                        color = StudioAccentPink
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        1 -> {
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.FormatPaint,
+                                                    label = "Style & Warna Teks",
+                                                    onClick = { showTextDialog = true },
+                                                    color = StudioSecondaryTeal
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.ChatBubble,
+                                                    label = "Gelembung Subjudul",
+                                                    onClick = { showStickersSheet = true }
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.EmojiEmotions,
+                                                    label = "Stiker Hiasan",
+                                                    onClick = { showStickersSheet = true }
+                                                )
+                                            }
+                                        }
+                                        2 -> {
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Animation,
+                                                    label = "Animasi Teks Kedip",
+                                                    onClick = { showAnimationSheet = true },
+                                                    color = StudioPrimaryViolet
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Transform,
+                                                    label = "Keyframe Posisi Teks",
+                                                    onClick = { showKeyframeSheet = true }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                "AUDIO" -> {
+                                    when (selectedToolCategory.coerceIn(0, 2)) {
+                                        0 -> {
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.VolumeUp,
+                                                    label = "Volume & Fade Mixer",
+                                                    onClick = { showAudioStudioSheet = true },
+                                                    color = StudioSecondaryTeal
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.ContentCut,
+                                                    label = "Split Audio",
+                                                    onClick = { selectedClip?.let { viewModel.splitClipAtCurrentTime(it, currentTimeMs) } },
+                                                    enabled = selectedClip != null && currentTimeMs > (selectedClip?.startTimeMs ?: 0L) && currentTimeMs < (selectedClip?.endTimeMs ?: 0L)
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Add,
+                                                    label = "Tambah Audio / SFX",
+                                                    onClick = { showAudioStudioSheet = true },
+                                                    color = StudioPrimaryViolet
+                                                )
+                                            }
+                                            if (selectedClip != null) {
+                                                item {
+                                                    ActionToolChip(
+                                                        icon = Icons.Default.Delete,
+                                                        label = "Hapus Musik",
+                                                        onClick = {
+                                                            selectedClip?.let { viewModel.deleteClip(it) }
+                                                            selectedClip = null
+                                                        },
+                                                        color = StudioAccentPink
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        1 -> {
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.SurroundSound,
+                                                    label = "Denoise AI",
+                                                    onClick = { showAudioStudioSheet = true },
+                                                    color = StudioAccentAmber
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Speed,
+                                                    label = "Kecepatan Audio",
+                                                    onClick = { showSpeedSheet = true }
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.FastRewind,
+                                                    label = "Reverse Audio",
+                                                    onClick = { selectedClip?.let { viewModel.reverseClip(it) } }
+                                                )
+                                            }
+                                        }
+                                        2 -> {
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Audiotrack,
+                                                    label = "Audio Mixer & SFX",
+                                                    onClick = { showAudioStudioSheet = true },
+                                                    color = StudioSecondaryTeal
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                "STICKER" -> {
+                                    when (selectedToolCategory.coerceIn(0, 1)) {
+                                        0 -> {
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.EmojiEmotions,
+                                                    label = "Katalog Stiker & Emoji",
+                                                    onClick = { showStickersSheet = true },
+                                                    color = Color(0xFFFFB74D)
+                                                )
+                                            }
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Add,
+                                                    label = "Tambah Stiker FX",
+                                                    onClick = { showStickersSheet = true },
+                                                    color = StudioPrimaryViolet
+                                                )
+                                            }
+                                            if (selectedClip != null) {
+                                                item {
+                                                    ActionToolChip(
+                                                        icon = Icons.Default.Delete,
+                                                        label = "Hapus Stiker",
+                                                        onClick = {
+                                                            selectedClip?.let { viewModel.deleteClip(it) }
+                                                            selectedClip = null
+                                                        },
+                                                        color = StudioAccentPink
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        1 -> {
+                                            item {
+                                                ActionToolChip(
+                                                    icon = Icons.Default.Animation,
+                                                    label = "Animasi Stiker",
+                                                    onClick = { showAnimationSheet = true },
+                                                    color = StudioSecondaryTeal
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                else -> { // "ALL"
+                                    item {
+                                        ActionToolChip(
+                                            icon = Icons.Default.Add,
+                                            label = "Tambah Video",
+                                            onClick = { showAddClipSheet = true },
+                                            color = StudioPrimaryViolet
+                                        )
+                                    }
+                                    item {
+                                        ActionToolChip(
+                                            icon = Icons.Default.Subtitles,
+                                            label = "Tambah Subjudul",
+                                            onClick = { showTextDialog = true },
+                                            color = StudioSecondaryTeal
+                                        )
+                                    }
+                                    item {
+                                        ActionToolChip(
+                                            icon = Icons.Default.Audiotrack,
+                                            label = "Audio Mixer",
+                                            onClick = { showAudioStudioSheet = true },
+                                            color = StudioAccentPink
+                                        )
+                                    }
+                                    item {
+                                        ActionToolChip(
+                                            icon = Icons.Default.Speed,
+                                            label = "Kecepatan & Curve",
+                                            onClick = { showSpeedSheet = true }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Multitrack Timeline Canvas
         TimelineView(
@@ -454,92 +830,18 @@ fun TimelineEditorScreen(
             clips = clips,
             currentTimeMs = currentTimeMs,
             totalDurationMs = totalDurationMs,
+            activeColumnFilter = activeColumnMode,
             onSeek = { viewModel.seekTo(it) },
             onClipSelected = { selectedClip = it },
+            onClipMoved = { clipId, newStartMs, newTrackId ->
+                viewModel.moveClipPositionAndTrack(clipId, newStartMs, newTrackId)
+            },
             onAddClipRequested = { showAddClipSheet = true },
             onAddOverlayTrackRequested = { trackType ->
                 viewModel.addNewOverlayTrack(trackType)
             },
             modifier = Modifier.weight(1f)
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Active Selected Clip Details & Status Card
-        selectedClip?.let { clip ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, StudioPrimaryViolet, RoundedCornerShape(14.dp)),
-                colors = CardDefaults.cardColors(containerColor = StudioCardBg)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.Movie, contentDescription = null, tint = StudioPrimaryViolet)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Klip Terpilih: ${clip.title}",
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        IconButton(onClick = { selectedClip = null }) {
-                            Icon(imageVector = Icons.Default.Close, contentDescription = "Unselect", tint = Color.Gray)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Durasi: ${clip.durationMs / 1000}s", color = StudioTextSecondary, fontSize = 12.sp)
-                        Text("Kecepatan: ${clip.speedMultiplier}x (${clip.speedCurve})", color = StudioSecondaryTeal, fontSize = 12.sp)
-                        Text("Volume: ${(clip.volume * 100).toInt()}%", color = StudioAccentAmber, fontSize = 12.sp)
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Active Effects Badges
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (clip.isReversed) {
-                            item { StatusBadge("Reverse ON", StudioAccentPink) }
-                        }
-                        if (clip.isMirrored) {
-                            item { StatusBadge("Mirror ON", StudioSecondaryTeal) }
-                        }
-                        if (clip.rotationDegrees > 0) {
-                            item { StatusBadge("Rotasi: ${clip.rotationDegrees}°", StudioPrimaryViolet) }
-                        }
-                        if (clip.cutoutMode != "None") {
-                            item { StatusBadge("Cutout: ${clip.cutoutMode}", StudioAccentAmber) }
-                        }
-                        if (clip.effectName != "None") {
-                            item { StatusBadge("Efek: ${clip.effectName}", StudioPrimaryViolet) }
-                        }
-                        if (clip.hasKeyframe) {
-                            item { StatusBadge("Keyframe Active", StudioAccentPink) }
-                        }
-                        if (clip.stabilizeLevel != "None") {
-                            item { StatusBadge("Stabilize: ${clip.stabilizeLevel}", StudioSecondaryTeal) }
-                        }
-                        if (clip.vignette > 0f) {
-                            item { StatusBadge("Vignette", StudioSecondaryTeal) }
-                        }
-                        if (clip.noiseReduction) {
-                            item { StatusBadge("Denoise AI", StudioAccentAmber) }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     // --- CAPCUT BOTTOM SHEETS (SLIDE-UP FROM BOTTOM TO TOP) ---
@@ -623,9 +925,9 @@ fun TimelineEditorScreen(
 
     // 2. Animation Bottom Sheet
     if (showAnimationSheet && selectedClip != null) {
-        val animsIn = listOf("None", "Fade In", "Slide Right", "Zoom In", "Bounce In", "Rotate Entrance")
-        val animsOut = listOf("None", "Fade Out", "Slide Left", "Zoom Out", "Dissolve Out", "Glitch Exit")
-        val animsCombo = listOf("None", "Spin & Zoom", "Glitch Bounce", "3D Flip", "Elastic Pop")
+        val animsIn = listOf("None", "Kedip / Flash In", "Kedip Cepat (Blink)", "Kedip Disko Strobe", "Fade In", "Slide Right", "Zoom In", "Bounce In", "Rotate Entrance")
+        val animsOut = listOf("None", "Kedip / Flash Out", "Kedip Cepat (Blink)", "Fade Out", "Slide Left", "Zoom Out", "Dissolve Out", "Glitch Exit")
+        val animsCombo = listOf("None", "Kedip Kedip Strobe", "Flash Kedip Pulse", "Kedip Invert Blink", "Spin & Zoom", "Glitch Bounce", "3D Flip", "Elastic Pop")
 
         var currentIn by remember { mutableStateOf(selectedClip!!.animationIn) }
         var currentOut by remember { mutableStateOf(selectedClip!!.animationOut) }
@@ -857,7 +1159,7 @@ fun TimelineEditorScreen(
 
     // 5. Video & Body Effects Bottom Sheet
     if (showEffectsSheet && selectedClip != null) {
-        val videoEffects = listOf("None", "Retro VHS", "Cyber Glitch", "Light Leak", "Film Grain", "Neon Edge")
+        val videoEffects = listOf("None", "Pembalik Warna (Invert FX)", "Kedip Strobe Flash", "Retro VHS", "Cyber Glitch", "Light Leak", "Film Grain", "Neon Edge")
         val bodyEffects = listOf("None", "Aura Glow", "Cyber Eyes", "Lightning Wings", "Halo Ring")
 
         ModalBottomSheet(
@@ -1211,6 +1513,8 @@ fun TimelineEditorScreen(
         val targetClip = selectedClip ?: clips.firstOrNull()
         val presetFilters = listOf(
             "None",
+            "Pembalik Warna (Invert Colors)",
+            "Pembalik Warna RGB (Negative)",
             "Teal & Orange (Hollywood)",
             "Moody Dark Film",
             "Vintage 35mm Grain",
@@ -1507,43 +1811,54 @@ fun TimelineEditorScreen(
         }
     }
 
-    // 13. Add Text Dialog
+    // 13. Add / Edit Text Subtitle Dialog
     if (showTextDialog) {
-        var textInput by remember { mutableStateOf("SUBJUDUL FLOWMONKEY STUDIO") }
+        var textInput by remember { mutableStateOf(selectedClip?.textContent ?: "SUBJUDUL VIDEO STUDIO") }
         AlertDialog(
             onDismissRequest = { showTextDialog = false },
-            title = { Text("Tambah Teks Subjudul Studio", fontWeight = FontWeight.Bold) },
+            title = {
+                Text(
+                    if (selectedClip?.textContent != null) "Edit Teks Subjudul" else "Tambah Teks Subjudul Studio",
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = {
                 OutlinedTextField(
                     value = textInput,
                     onValueChange = { textInput = it },
                     label = { Text("Teks Subjudul") },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White),
+                    modifier = Modifier.fillMaxWidth()
                 )
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val projId = activeProject?.id ?: return@Button
-                        val textTrack = tracks.find { it.trackType == "TEXT" }
-                        if (textTrack != null) {
-                            viewModel.addClip(
-                                TimelineClipEntity(
-                                    trackId = textTrack.id,
-                                    projectId = projId,
-                                    title = "Teks Subjudul",
-                                    mediaUri = "",
-                                    startTimeMs = currentTimeMs,
-                                    endTimeMs = currentTimeMs + 3000L,
-                                    durationMs = 3000L,
-                                    textContent = textInput
+                        val activeClip = selectedClip
+                        if (activeClip != null && activeClip.textContent != null) {
+                            viewModel.updateClipTextContent(activeClip, textInput)
+                        } else {
+                            val projId = activeProject?.id ?: return@Button
+                            val textTrack = tracks.find { it.trackType == "TEXT" }
+                            if (textTrack != null) {
+                                viewModel.addClip(
+                                    TimelineClipEntity(
+                                        trackId = textTrack.id,
+                                        projectId = projId,
+                                        title = textInput.take(20),
+                                        mediaUri = "",
+                                        startTimeMs = currentTimeMs,
+                                        endTimeMs = currentTimeMs + 3000L,
+                                        durationMs = 3000L,
+                                        textContent = textInput
+                                    )
                                 )
-                            )
+                            }
                         }
                         showTextDialog = false
                     }
                 ) {
-                    Text("Tambah")
+                    Text(if (selectedClip?.textContent != null) "Simpan" else "Tambah")
                 }
             }
         )

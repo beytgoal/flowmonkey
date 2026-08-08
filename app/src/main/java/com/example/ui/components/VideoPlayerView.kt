@@ -35,6 +35,8 @@ fun VideoPlayerView(
     currentTimeMs: Long = 0L,
     totalDurationMs: Long = 15000L,
     activeFilter: String = "None",
+    activeAnimation: String = "None",
+    activeEffect: String = "None",
     thumbnailDrawableRes: Int? = null,
     isProxyMode: Boolean = true,
     proxyResolution: String = "360p Proxy",
@@ -60,20 +62,56 @@ fun VideoPlayerView(
         label = "pulseAlpha"
     )
 
+    // Kedip / Flash / Strobe Animation State
+    val isBlinkActive = activeAnimation.contains("Kedip", ignoreCase = true) ||
+            activeAnimation.contains("Flash", ignoreCase = true) ||
+            activeAnimation.contains("Blink", ignoreCase = true) ||
+            activeEffect.contains("Kedip", ignoreCase = true) ||
+            activeEffect.contains("Flash", ignoreCase = true) ||
+            activeEffect.contains("Blink", ignoreCase = true)
+
+    val blinkAlpha by if (isBlinkActive) {
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 0.85f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(180, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "blinkAlpha"
+        )
+    } else {
+        remember { mutableFloatStateOf(0f) }
+    }
+
+    // Pembalik Warna (Color Invert) Filter State
+    val isInvertActive = activeFilter.contains("Pembalik Warna", ignoreCase = true) ||
+            activeFilter.contains("Invert", ignoreCase = true) ||
+            activeEffect.contains("Pembalik Warna", ignoreCase = true) ||
+            activeEffect.contains("Invert", ignoreCase = true)
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(aspectRatioFloat)
+            .height(210.dp)
             .clip(RoundedCornerShape(16.dp))
             .border(1.dp, StudioCardBorder, RoundedCornerShape(16.dp))
             .testTag("video_player_card"),
-        colors = CardDefaults.cardColors(containerColor = Color.Black)
+        colors = CardDefaults.cardColors(containerColor = StudioDarkBg)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clickable { onTogglePlay() }
+                .background(Color.Black),
+            contentAlignment = Alignment.Center
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .aspectRatio(aspectRatioFloat)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onTogglePlay() }
+            ) {
             // Background preview graphic
             val imageRes = thumbnailDrawableRes ?: R.drawable.img_hero_banner_1785585794962
             Image(
@@ -113,6 +151,9 @@ fun VideoPlayerView(
                     .fillMaxSize()
                     .background(
                         when {
+                            activeFilter.contains("Pembalik Warna") || activeFilter.contains("Invert") -> Brush.verticalGradient(
+                                listOf(Color(0x66FFFFFF), Color(0x33000000))
+                            )
                             activeFilter.contains("Cyberpunk") || activeFilter.contains("Neon") -> Brush.verticalGradient(
                                 listOf(Color(0x33FF00FF), Color(0x3300FFFF))
                             )
@@ -143,6 +184,32 @@ fun VideoPlayerView(
                         }
                     )
             )
+
+            // True Pembalik Warna (Invert Colors) Blend Mode Layer
+            if (isInvertActive) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .drawWithCache {
+                            onDrawWithContent {
+                                drawContent()
+                                drawRect(
+                                    color = Color.White,
+                                    blendMode = BlendMode.Difference
+                                )
+                            }
+                        }
+                )
+            }
+
+            // Kedip / Flash / Strobe Animasi Overlay Layer
+            if (isBlinkActive && blinkAlpha > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White.copy(alpha = blinkAlpha))
+                )
+            }
 
             // Aspect Ratio badge & Veo watermark (Top Start)
             Row(
@@ -306,6 +373,7 @@ fun VideoPlayerView(
             }
         }
     }
+}
 }
 
 fun formatTimeMs(ms: Long): String {

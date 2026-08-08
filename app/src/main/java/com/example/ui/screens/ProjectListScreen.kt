@@ -24,6 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.db.VideoProjectEntity
+import com.example.data.models.LocalMediaAsset
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import com.example.ui.theme.*
 import com.example.ui.viewmodels.MainTab
 import com.example.ui.viewmodels.VideoStudioViewModel
@@ -37,11 +40,12 @@ fun ProjectListScreen(
 ) {
     val projects by viewModel.allProjects.collectAsState()
     val activeProjectId by viewModel.activeProjectId.collectAsState()
+    val mediaAssets by viewModel.localMediaAssets.collectAsState()
 
     val userProjects = remember(projects) { projects.filter { !it.isTemplate } }
     val templateProjects = remember(projects) { projects.filter { it.isTemplate } }
 
-    var selectedSubTab by remember { mutableIntStateOf(0) } // 0: Proyek, 1: Template
+    var selectedSubTab by remember { mutableIntStateOf(0) } // 0: Proyek, 1: Template, 2: Pustaka Media
     var showCreateDialog by remember { mutableStateOf(false) }
     var selectedTemplateForMediaReplace by remember { mutableStateOf<VideoProjectEntity?>(null) }
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
@@ -81,9 +85,13 @@ fun ProjectListScreen(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        Text("Daftar Proyek & Template", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Daftar Proyek, Template & Media", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Text(
-                            text = if (selectedSubTab == 0) "${userProjects.size} proyek aktif" else "${templateProjects.size} template siap pakai",
+                            text = when (selectedSubTab) {
+                                0 -> "${userProjects.size} proyek aktif"
+                                1 -> "${templateProjects.size} template siap pakai"
+                                else -> "${mediaAssets.size} aset media di pustaka"
+                            },
                             color = StudioTextSecondary,
                             fontSize = 12.sp
                         )
@@ -102,7 +110,7 @@ fun ProjectListScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Sub Tab Navigation (Proyek vs Template)
+            // Sub Tab Navigation (Proyek vs Template vs Pustaka Media)
             TabRow(
                 selectedTabIndex = selectedSubTab,
                 containerColor = StudioSurfaceDark,
@@ -119,7 +127,7 @@ fun ProjectListScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(imageVector = Icons.Default.Movie, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Proyek (${userProjects.size})", fontWeight = FontWeight.Bold)
+                            Text("Proyek (${userProjects.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     },
                     selectedContentColor = StudioSecondaryTeal,
@@ -132,10 +140,23 @@ fun ProjectListScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(imageVector = Icons.Default.Bookmark, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Template (${templateProjects.size})", fontWeight = FontWeight.Bold)
+                            Text("Template (${templateProjects.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     },
                     selectedContentColor = StudioPrimaryViolet,
+                    unselectedContentColor = StudioTextSecondary
+                )
+                Tab(
+                    selected = selectedSubTab == 2,
+                    onClick = { selectedSubTab = 2 },
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Pustaka (${mediaAssets.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    },
+                    selectedContentColor = StudioSecondaryTeal,
                     unselectedContentColor = StudioTextSecondary
                 )
             }
@@ -201,7 +222,7 @@ fun ProjectListScreen(
                         Spacer(modifier = Modifier.height(10.dp))
                     }
                 }
-            } else {
+            } else if (selectedSubTab == 1) {
                 // TAB 1: TEMPLATE (Full Tools & Placeholder Media)
                 if (templateProjects.isEmpty()) {
                     Card(
@@ -239,6 +260,7 @@ fun ProjectListScreen(
                         template = template,
                         onUseTemplate = {
                             viewModel.createProjectFromTemplate(template)
+                            viewModel.selectTab(MainTab.TIMELINE_EDITOR)
                             snackbarMessage = "Proyek baru dari Template '${template.title}' siap diedit!"
                         },
                         onReplaceMedia = {
@@ -251,6 +273,12 @@ fun ProjectListScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
+            } else {
+                // TAB 2: PUSTAKA MEDIA LOKAL
+                LocalMediaLibraryView(
+                    viewModel = viewModel,
+                    onShowSnackbar = { snackbarMessage = it }
+                )
             }
         }
     }
@@ -655,6 +683,406 @@ fun TemplateItemCard(
                     Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Media Galeri", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Pustaka Media Lokal View Component
+ * Filter categorized assets (Video, Audio, Gambar) with Drag & Drop or Direct Insertion to Active Timeline.
+ */
+@Composable
+fun LocalMediaLibraryView(
+    viewModel: VideoStudioViewModel,
+    onShowSnackbar: (String) -> Unit
+) {
+    val mediaAssets by viewModel.localMediaAssets.collectAsState()
+    var selectedCategory by remember { mutableStateOf("Semua") }
+    var searchQuery by remember { mutableStateOf("") }
+    var showImportDialog by remember { mutableStateOf(false) }
+
+    val categories = listOf("Semua", "Video", "Audio", "Gambar & Grafis", "AI Generated")
+
+    val filteredAssets = remember(mediaAssets, selectedCategory, searchQuery) {
+        mediaAssets.filter { asset ->
+            val matchesCategory = when (selectedCategory) {
+                "Video" -> asset.category.equals("VIDEO", ignoreCase = true)
+                "Audio" -> asset.category.equals("AUDIO", ignoreCase = true)
+                "Gambar & Grafis" -> asset.category.equals("IMAGE", ignoreCase = true) || asset.category.equals("GRAPHIC", ignoreCase = true)
+                "AI Generated" -> asset.isAiGenerated
+                else -> true
+            }
+            val matchesSearch = searchQuery.isBlank() || asset.title.contains(searchQuery, ignoreCase = true) || asset.tags.any { it.contains(searchQuery, ignoreCase = true) }
+            matchesCategory && matchesSearch
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Header Actions
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Aset Media Tersimpan (${filteredAssets.size})",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                Text(
+                    text = "Tarik atau klik 'Sisipkan & Buka Editor' untuk memasukkan klip ke timeline",
+                    color = StudioTextSecondary,
+                    fontSize = 11.sp
+                )
+            }
+
+            Button(
+                onClick = { showImportDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.testTag("button_import_media")
+            ) {
+                Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("+ Impor Media", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Search Bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text("Cari aset video, musik, SFX, stiker...", fontSize = 12.sp) },
+            leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = StudioTextSecondary) },
+            trailingIcon = if (searchQuery.isNotEmpty()) {
+                {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Clear", tint = StudioTextSecondary)
+                    }
+                }
+            } else null,
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = StudioSurfaceDark,
+                unfocusedContainerColor = StudioSurfaceDark,
+                focusedBorderColor = StudioSecondaryTeal,
+                unfocusedBorderColor = StudioCardBorder,
+                focusedTextColor = Color.White
+            ),
+            shape = RoundedCornerShape(10.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Category Filter Chips
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(categories) { cat ->
+                FilterChip(
+                    selected = selectedCategory == cat,
+                    onClick = { selectedCategory = cat },
+                    label = { Text(cat, fontSize = 12.sp) },
+                    leadingIcon = when (cat) {
+                        "Video" -> { { Icon(imageVector = Icons.Default.Movie, contentDescription = null, modifier = Modifier.size(14.dp)) } }
+                        "Audio" -> { { Icon(imageVector = Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(14.dp)) } }
+                        "Gambar & Grafis" -> { { Icon(imageVector = Icons.Default.Image, contentDescription = null, modifier = Modifier.size(14.dp)) } }
+                        "AI Generated" -> { { Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(14.dp)) } }
+                        else -> null
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = StudioPrimaryViolet,
+                        selectedLabelColor = Color.White,
+                        containerColor = StudioSurfaceDark,
+                        labelColor = StudioTextSecondary
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        if (filteredAssets.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, tint = StudioTextSecondary, modifier = Modifier.size(44.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Aset Media Tidak Ditemukan", color = Color.White, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Tekan '+ Impor Media' untuk menambah media dari galeri device.", color = StudioTextSecondary, fontSize = 12.sp)
+                }
+            }
+        } else {
+            filteredAssets.forEach { asset ->
+                MediaAssetCard(
+                    asset = asset,
+                    onAddToTimeline = {
+                        viewModel.insertAssetToActiveTimeline(asset, jumpToTimeline = false)
+                        onShowSnackbar("Aset '${asset.title}' dimasukkan ke timeline proyek aktif!")
+                    },
+                    onDragAndInsertToTimeline = {
+                        viewModel.insertAssetToActiveTimeline(asset, jumpToTimeline = true)
+                        onShowSnackbar("Menyisipkan '${asset.title}' & Membuka Editor Timeline...")
+                    },
+                    onDeleteAsset = {
+                        viewModel.deleteMediaAsset(asset.id)
+                        onShowSnackbar("Aset '${asset.title}' dihapus dari pustaka.")
+                    }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
+    }
+
+    // Dialog Import Media Baru
+    if (showImportDialog) {
+        var newTitle by remember { mutableStateOf("") }
+        var selectedCategory by remember { mutableStateOf("VIDEO") }
+        var newUri by remember { mutableStateOf("") }
+        var durationInput by remember { mutableStateOf("00:05") }
+
+        AlertDialog(
+            onDismissRequest = { showImportDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, tint = StudioSecondaryTeal)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Impor Media Baru", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = newTitle,
+                        onValueChange = { newTitle = it },
+                        label = { Text("Nama / Judul Aset") },
+                        placeholder = { Text("Contoh: Video Cinematic Sunset") },
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Kategori Media:", fontSize = 12.sp, color = StudioTextSecondary)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("VIDEO", "AUDIO", "IMAGE").forEach { cat ->
+                            FilterChip(
+                                selected = selectedCategory == cat,
+                                onClick = { selectedCategory = cat },
+                                label = { Text(if (cat == "IMAGE") "GAMBAR" else cat, fontSize = 11.sp) }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = newUri,
+                        onValueChange = { newUri = it },
+                        label = { Text("URI / Path File Media") },
+                        placeholder = { Text("storage/emulated/0/Movies/clip.mp4") },
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = durationInput,
+                        onValueChange = { durationInput = it },
+                        label = { Text("Durasi (mm:ss)") },
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val titleFinal = newTitle.ifBlank { "Media Impor ${System.currentTimeMillis() % 1000}" }
+                        val uriFinal = newUri.ifBlank { "imported_media_${System.currentTimeMillis()}" }
+                        viewModel.addMediaAsset(
+                            LocalMediaAsset(
+                                title = titleFinal,
+                                category = selectedCategory,
+                                uri = uriFinal,
+                                durationText = durationInput,
+                                isAiGenerated = false,
+                                dateAdded = "Baru saja"
+                            )
+                        )
+                        showImportDialog = false
+                        onShowSnackbar("Aset '${titleFinal}' berhasil diimpor ke pustaka!")
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal)
+                ) {
+                    Text("Impor ke Pustaka", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImportDialog = false }) { Text("Batal") }
+            }
+        )
+    }
+}
+
+/**
+ * Card Asset Item di Pustaka Media
+ * Fitur: Preview kustom, Badge Kategori & AI, Tombol Tambah & Sisipkan (Drag/Drop trigger to Timeline).
+ */
+@Composable
+fun MediaAssetCard(
+    asset: LocalMediaAsset,
+    onAddToTimeline: () -> Unit,
+    onDragAndInsertToTimeline: () -> Unit,
+    onDeleteAsset: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, StudioCardBorder, RoundedCornerShape(12.dp)),
+        colors = CardDefaults.cardColors(containerColor = StudioSurfaceDark)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Asset Thumbnail Placeholder / Category Icon
+            Box(
+                modifier = Modifier
+                    .size(68.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        when (asset.category.uppercase()) {
+                            "VIDEO" -> StudioPrimaryViolet.copy(alpha = 0.25f)
+                            "AUDIO" -> StudioSecondaryTeal.copy(alpha = 0.25f)
+                            else -> StudioAccentPink.copy(alpha = 0.25f)
+                        }
+                    )
+                    .border(
+                        1.dp,
+                        when (asset.category.uppercase()) {
+                            "VIDEO" -> StudioPrimaryViolet.copy(alpha = 0.5f)
+                            "AUDIO" -> StudioSecondaryTeal.copy(alpha = 0.5f)
+                            else -> StudioAccentPink.copy(alpha = 0.5f)
+                        },
+                        RoundedCornerShape(10.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = when (asset.category.uppercase()) {
+                            "VIDEO" -> Icons.Default.Movie
+                            "AUDIO" -> Icons.Default.MusicNote
+                            else -> Icons.Default.Image
+                        },
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = asset.durationText,
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Details
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = asset.title,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 1
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // Category badge
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(StudioCardBg)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(asset.category, fontSize = 10.sp, color = StudioTextSecondary, fontWeight = FontWeight.Bold)
+                    }
+
+                    if (asset.isAiGenerated) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(StudioPrimaryViolet.copy(alpha = 0.3f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = StudioSecondaryTeal, modifier = Modifier.size(10.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("AI Generated", fontSize = 10.sp, color = StudioSecondaryTeal, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    Text(asset.resolutionOrType, fontSize = 10.sp, color = StudioTextSecondary)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Action buttons row: Drag & Drop Affordance / Add to Timeline / Delete
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Button 1: Quick Add to Timeline
+                    Button(
+                        onClick = onAddToTimeline,
+                        colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        shape = RoundedCornerShape(6.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(12.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Tambah", fontSize = 11.sp)
+                    }
+
+                    // Button 2: Drag & Insert to Timeline (Switches to Editor)
+                    OutlinedButton(
+                        onClick = onDragAndInsertToTimeline,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, StudioSecondaryTeal),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.DragHandle, contentDescription = null, tint = StudioSecondaryTeal, modifier = Modifier.size(12.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Sisipkan & Buka Editor", fontSize = 11.sp, color = StudioSecondaryTeal)
+                    }
+
+                    IconButton(
+                        onClick = onDeleteAsset,
+                        modifier = Modifier.size(30.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = "Delete Asset", tint = StudioTextSecondary, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
         }

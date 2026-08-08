@@ -22,8 +22,11 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import kotlin.math.roundToInt
 import com.example.data.db.TimelineClipEntity
 import com.example.data.db.TimelineTrackEntity
 import com.example.ui.theme.*
@@ -35,14 +38,17 @@ fun TimelineView(
     clips: List<TimelineClipEntity>,
     currentTimeMs: Long,
     totalDurationMs: Long = 15000L,
+    activeColumnFilter: String = "ALL",
     onSeek: (Long) -> Unit,
     onClipSelected: (TimelineClipEntity) -> Unit,
+    onClipMoved: (clipId: Long, newStartTimeMs: Long, newTrackId: Long) -> Unit = { _, _, _ -> },
     onAddClipRequested: () -> Unit = {},
     onAddOverlayTrackRequested: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
     val density = LocalDensity.current
+    val mainVideoTrack = tracks.find { it.trackType == "VIDEO" }
 
     // 1 ms = 0.08 dp scale for horizontal timeline canvas
     val pxPerMs = 0.08f
@@ -72,7 +78,7 @@ fun TimelineView(
             .testTag("timeline_editor_container"),
         colors = CardDefaults.cardColors(containerColor = StudioCardBg)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
 
             // Multitrack Action Toolbar
             Row(
@@ -153,11 +159,17 @@ fun TimelineView(
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            val mainVideoTrack = tracks.find { it.trackType == "VIDEO" && it.trackIndex == 0 } ?: tracks.find { it.trackType == "VIDEO" }
+            val overlayVideoTracks = tracks.filter { it.trackType == "VIDEO" && it.id != mainVideoTrack?.id }
+            val textTracksAll = tracks.filter { it.trackType == "TEXT" }
+            val stickerTracksAll = tracks.filter { it.trackType == "STICKER" }
+            val audioTracksAll = tracks.filter { it.trackType == "AUDIO" }
+
             // Multitrack Container with Anchored Track Headers on Left & Synchronized Scrollable Canvas on Right
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 260.dp)
+                    .weight(1f)
                     .verticalScroll(rememberScrollState())
             ) {
                 // Fixed Left Track Controls Column (Anchored Width: 100.dp)
@@ -181,9 +193,52 @@ fun TimelineView(
                         )
                     }
 
-                    // Track Control Headers
-                    tracks.forEach { track ->
-                        TrackHeaderCard(track = track)
+                    // Determine visible tracks according to activeColumnFilter mode
+                    val videoTracks = when (activeColumnFilter) {
+                        "TEXT", "AUDIO", "STICKER" -> if (mainVideoTrack != null) listOf(mainVideoTrack) else emptyList()
+                        else -> if (mainVideoTrack != null) listOf(mainVideoTrack) + overlayVideoTracks else emptyList()
+                    }
+
+                    val textTracks = when (activeColumnFilter) {
+                        "TEXT", "ALL" -> textTracksAll
+                        else -> emptyList()
+                    }
+
+                    val stickerTracks = when (activeColumnFilter) {
+                        "STICKER", "ALL" -> if (stickerTracksAll.isNotEmpty()) stickerTracksAll else if (activeColumnFilter == "STICKER") listOf(
+                            TimelineTrackEntity(id = -999L, projectId = mainVideoTrack?.projectId ?: 0L, trackType = "STICKER", trackName = "Track Stiker", trackIndex = 99)
+                        ) else emptyList()
+                        else -> emptyList()
+                    }
+
+                    val audioTracks = when (activeColumnFilter) {
+                        "AUDIO", "ALL" -> audioTracksAll
+                        else -> emptyList()
+                    }
+
+                    // Track Control Headers grouped by media column
+                    if (videoTracks.isNotEmpty()) {
+                        videoTracks.forEach { track ->
+                            TrackHeaderCard(track = track)
+                        }
+                    }
+
+                    if (textTracks.isNotEmpty()) {
+                        textTracks.forEach { track ->
+                            TrackHeaderCard(track = track)
+                        }
+                    }
+
+                    if (stickerTracks.isNotEmpty()) {
+                        stickerTracks.forEach { track ->
+                            TrackHeaderCard(track = track)
+                        }
+                    }
+
+                    if (audioTracks.isNotEmpty()) {
+                        audioTracks.forEach { track ->
+                            TrackHeaderCard(track = track)
+                        }
                     }
                 }
 
@@ -225,18 +280,86 @@ fun TimelineView(
 
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        // Track Rows for Clips
+                        // Track Rows for Clips grouped by media column according to activeColumnFilter
+                        val videoTracksCanvas = when (activeColumnFilter) {
+                            "TEXT", "AUDIO", "STICKER" -> if (mainVideoTrack != null) listOf(mainVideoTrack) else emptyList()
+                            else -> if (mainVideoTrack != null) listOf(mainVideoTrack) + overlayVideoTracks else emptyList()
+                        }
+
+                        val textTracksCanvas = when (activeColumnFilter) {
+                            "TEXT", "ALL" -> textTracksAll
+                            else -> emptyList()
+                        }
+
+                        val stickerTracksCanvas = when (activeColumnFilter) {
+                            "STICKER", "ALL" -> if (stickerTracksAll.isNotEmpty()) stickerTracksAll else if (activeColumnFilter == "STICKER") listOf(
+                                TimelineTrackEntity(id = -999L, projectId = mainVideoTrack?.projectId ?: 0L, trackType = "STICKER", trackName = "Track Stiker", trackIndex = 99)
+                            ) else emptyList()
+                            else -> emptyList()
+                        }
+
+                        val audioTracksCanvas = when (activeColumnFilter) {
+                            "AUDIO", "ALL" -> audioTracksAll
+                            else -> emptyList()
+                        }
+
                         Column(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            tracks.forEach { track ->
-                                val trackClips = clips.filter { it.trackId == track.id }
-                                TrackClipsRow(
-                                    track = track,
-                                    clips = trackClips,
-                                    pxPerMs = pxPerMs,
-                                    onClipSelected = onClipSelected
-                                )
+                            if (videoTracksCanvas.isNotEmpty()) {
+                                videoTracksCanvas.forEach { track ->
+                                    val trackClips = clips.filter { it.trackId == track.id }
+                                    TrackClipsRow(
+                                        track = track,
+                                        clips = trackClips,
+                                        allTracks = tracks,
+                                        pxPerMs = pxPerMs,
+                                        onClipSelected = onClipSelected,
+                                        onClipMoved = onClipMoved
+                                    )
+                                }
+                            }
+
+                            if (textTracksCanvas.isNotEmpty()) {
+                                textTracksCanvas.forEach { track ->
+                                    val trackClips = clips.filter { it.trackId == track.id }
+                                    TrackClipsRow(
+                                        track = track,
+                                        clips = trackClips,
+                                        allTracks = tracks,
+                                        pxPerMs = pxPerMs,
+                                        onClipSelected = onClipSelected,
+                                        onClipMoved = onClipMoved
+                                    )
+                                }
+                            }
+
+                            if (stickerTracksCanvas.isNotEmpty()) {
+                                stickerTracksCanvas.forEach { track ->
+                                    val trackClips = clips.filter { it.trackId == track.id || (it.stickerIcon.isNotBlank() && track.id == -999L) }
+                                    TrackClipsRow(
+                                        track = track,
+                                        clips = trackClips,
+                                        allTracks = tracks,
+                                        pxPerMs = pxPerMs,
+                                        onClipSelected = onClipSelected,
+                                        onClipMoved = onClipMoved
+                                    )
+                                }
+                            }
+
+                            if (audioTracksCanvas.isNotEmpty()) {
+                                audioTracksCanvas.forEach { track ->
+                                    val trackClips = clips.filter { it.trackId == track.id }
+                                    TrackClipsRow(
+                                        track = track,
+                                        clips = trackClips,
+                                        allTracks = tracks,
+                                        pxPerMs = pxPerMs,
+                                        onClipSelected = onClipSelected,
+                                        onClipMoved = onClipMoved
+                                    )
+                                }
                             }
                         }
                     }
@@ -332,9 +455,12 @@ fun TrackHeaderCard(
 fun TrackClipsRow(
     track: TimelineTrackEntity,
     clips: List<TimelineClipEntity>,
+    allTracks: List<TimelineTrackEntity>,
     pxPerMs: Float,
-    onClipSelected: (TimelineClipEntity) -> Unit
+    onClipSelected: (TimelineClipEntity) -> Unit,
+    onClipMoved: (clipId: Long, newStartTimeMs: Long, newTrackId: Long) -> Unit
 ) {
+    val density = LocalDensity.current
     val trackColor = when (track.trackType) {
         "VIDEO" -> StudioPrimaryViolet
         "TEXT" -> StudioSecondaryTeal
@@ -352,52 +478,108 @@ fun TrackClipsRow(
             val startDp = (clip.startTimeMs * pxPerMs).dp
             val widthDp = (clip.durationMs * pxPerMs).dp.coerceAtLeast(36.dp)
 
-            Surface(
+            var isDragging by remember { mutableStateOf(false) }
+            var dragOffsetX by remember { mutableFloatStateOf(0f) }
+            var dragOffsetY by remember { mutableFloatStateOf(0f) }
+
+            Box(
                 modifier = Modifier
                     .offset(x = startDp)
+                    .offset { IntOffset(dragOffsetX.roundToInt(), dragOffsetY.roundToInt()) }
                     .width(widthDp)
                     .fillMaxHeight()
                     .padding(vertical = 2.dp, horizontal = 1.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable { onClipSelected(clip) }
-                    .testTag("clip_item_${clip.id}"),
-                color = if (track.trackType == "AUDIO") StudioAccentPink.copy(alpha = 0.85f) else trackColor.copy(alpha = 0.85f),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .padding(horizontal = 6.dp)
-                        .fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = if (track.trackType == "TEXT") clip.textContent ?: clip.title else clip.title,
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
+                    .zIndex(if (isDragging) 10f else 1f)
+                    .pointerInput(clip.id) {
+                        detectTapGestures(
+                            onTap = { onClipSelected(clip) }
+                        )
+                    }
+                    .pointerInput(clip.id, allTracks, pxPerMs) {
+                        detectDragGestures(
+                            onDragStart = {
+                                isDragging = true
+                                dragOffsetX = 0f
+                                dragOffsetY = 0f
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                dragOffsetX += dragAmount.x
+                                dragOffsetY += dragAmount.y
+                            },
+                            onDragEnd = {
+                                if (isDragging) {
+                                    val densityPxPerMs = pxPerMs.dp.toPx()
+                                    val deltaMs = (dragOffsetX / densityPxPerMs).toLong()
+                                    val newStartMs = (clip.startTimeMs + deltaMs).coerceAtLeast(0L)
 
+                                    val trackHeightPx = with(density) { 54.dp.toPx() } // 48.dp row + 6.dp gap
+                                    val indexShift = (dragOffsetY / trackHeightPx).roundToInt()
+
+                                    // Filter target tracks strictly to the same track type (VIDEO, TEXT, AUDIO)
+                                    val sameTypeTracks = allTracks.filter { it.trackType == track.trackType }
+                                    val currentTrackIdx = sameTypeTracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
+                                    val targetTrackIdx = (currentTrackIdx + indexShift).coerceIn(0, sameTypeTracks.lastIndex)
+                                    val targetTrackId = sameTypeTracks.getOrNull(targetTrackIdx)?.id ?: track.id
+
+                                    onClipMoved(clip.id, newStartMs, targetTrackId)
+                                }
+                                isDragging = false
+                                dragOffsetX = 0f
+                                dragOffsetY = 0f
+                            },
+                            onDragCancel = {
+                                isDragging = false
+                                dragOffsetX = 0f
+                                dragOffsetY = 0f
+                            }
+                        )
+                    }
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(6.dp))
+                        .testTag("clip_item_${clip.id}"),
+                    color = if (isDragging) StudioSecondaryTeal.copy(alpha = 0.95f) else (if (track.trackType == "AUDIO") StudioAccentPink.copy(alpha = 0.85f) else trackColor.copy(alpha = 0.85f)),
+                    border = BorderStroke(if (isDragging) 2.dp else 1.dp, if (isDragging) Color.Yellow else Color.White.copy(alpha = 0.4f)),
+                    shadowElevation = if (isDragging) 8.dp else 0.dp
+                ) {
                     Row(
+                        modifier = Modifier
+                            .padding(horizontal = 6.dp)
+                            .fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        if (clip.hasKeyframe) {
-                            Text("◇", color = StudioAccentAmber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                        if (clip.speedMultiplier != 1.0f) {
-                            Surface(
-                                color = Color.Black.copy(alpha = 0.6f),
-                                shape = RoundedCornerShape(4.dp)
-                            ) {
-                                Text(
-                                    text = "${clip.speedMultiplier}x",
-                                    color = StudioSecondaryTeal,
-                                    fontSize = 8.sp,
-                                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
-                                )
+                        Text(
+                            text = if (track.trackType == "TEXT") clip.textContent ?: clip.title else clip.title,
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            if (clip.hasKeyframe) {
+                                Text("◇", color = StudioAccentAmber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            if (clip.speedMultiplier != 1.0f) {
+                                Surface(
+                                    color = Color.Black.copy(alpha = 0.6f),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = "${clip.speedMultiplier}x",
+                                        color = StudioSecondaryTeal,
+                                        fontSize = 8.sp,
+                                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -530,5 +712,60 @@ fun PlayheadOverlay(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun SectionHeaderBadge(title: String, color: Color) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(20.dp),
+        color = color.copy(alpha = 0.25f),
+        shape = RoundedCornerShape(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 4.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = title,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = color
+            )
+        }
+    }
+}
+
+@Composable
+fun SectionDividerLine(title: String, color: Color) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(20.dp)
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .height(2.dp)
+                .weight(1f)
+                .background(color.copy(alpha = 0.4f))
+        )
+        Text(
+            text = " $title ",
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = color.copy(alpha = 0.8f)
+        )
+        Box(
+            modifier = Modifier
+                .height(2.dp)
+                .weight(1f)
+                .background(color.copy(alpha = 0.4f))
+        )
     }
 }

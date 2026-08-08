@@ -113,6 +113,73 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
     var highfieldSettingsState = MutableStateFlow(com.example.data.models.HighfieldSettings())
     var isDarkThemeState = MutableStateFlow(true)
 
+    // Local Media Library State
+    private val _localMediaAssets = MutableStateFlow(com.example.data.models.DefaultMediaAssets.initialAssets)
+    val localMediaAssets: StateFlow<List<com.example.data.models.LocalMediaAsset>> = _localMediaAssets.asStateFlow()
+
+    fun addMediaAsset(asset: com.example.data.models.LocalMediaAsset) {
+        _localMediaAssets.value = listOf(asset) + _localMediaAssets.value
+    }
+
+    fun deleteMediaAsset(assetId: String) {
+        _localMediaAssets.value = _localMediaAssets.value.filter { it.id != assetId }
+    }
+
+    fun insertAssetToActiveTimeline(
+        asset: com.example.data.models.LocalMediaAsset,
+        targetTrackType: String? = null,
+        jumpToTimeline: Boolean = false
+    ) {
+        val projId = _activeProjectId.value ?: return
+        viewModelScope.launch {
+            val tracks = repository.getTracksForProject(projId).firstOrNull() ?: emptyList()
+            val reqType = targetTrackType ?: when (asset.category.uppercase()) {
+                "AUDIO" -> "AUDIO"
+                "IMAGE", "GRAPHIC" -> "TEXT"
+                else -> "VIDEO"
+            }
+
+            var matchingTrack = tracks.find { it.trackType == reqType }
+            if (matchingTrack == null) {
+                val newTrack = TimelineTrackEntity(
+                    projectId = projId,
+                    trackType = reqType,
+                    trackName = when (reqType) {
+                        "AUDIO" -> "Audio Track ${tracks.count { it.trackType == "AUDIO" } + 1}"
+                        "TEXT" -> "Overlay Grafis ${tracks.count { it.trackType == "TEXT" } + 1}"
+                        else -> "Video Track ${tracks.count { it.trackType == "VIDEO" } + 1}"
+                    },
+                    trackIndex = tracks.size
+                )
+                repository.addTrack(newTrack)
+                matchingTrack = repository.getTracksForProject(projId).firstOrNull()?.find { it.trackType == reqType }
+            }
+
+            val targetTrackId = matchingTrack?.id ?: (tracks.firstOrNull()?.id ?: 0L)
+            val currentClips = timelineClips.value
+            val maxEndMs = currentClips.maxOfOrNull { it.endTimeMs } ?: 0L
+
+            val newClip = TimelineClipEntity(
+                trackId = targetTrackId,
+                projectId = projId,
+                title = asset.title,
+                mediaUri = asset.uri.ifBlank { "media_library_${asset.id}" },
+                startTimeMs = maxEndMs,
+                endTimeMs = maxEndMs + asset.durationMs,
+                durationMs = asset.durationMs,
+                audioSfx = if (reqType == "AUDIO") asset.title else "",
+                stickerIcon = if (reqType == "TEXT") asset.title else ""
+            )
+
+            repository.addClip(newClip)
+            saveHistoryState()
+
+            if (jumpToTimeline) {
+                _currentTab.value = MainTab.TIMELINE_EDITOR
+            }
+        }
+    }
+
     // Low-Resolution Proxy Preview State for Timeline Performance
     private val _isProxyModeEnabled = MutableStateFlow(true)
     val isProxyModeEnabled: StateFlow<Boolean> = _isProxyModeEnabled.asStateFlow()
@@ -402,6 +469,74 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
     fun addClip(clip: TimelineClipEntity) {
         viewModelScope.launch {
             repository.addClip(clip)
+            saveHistoryState()
+        }
+    }
+
+    fun moveClipPositionAndTrack(clipId: Long, newStartTimeMs: Long, newTrackId: Long) {
+        viewModelScope.launch {
+            val currentClips = timelineClips.value
+            val clipToMove = currentClips.find { clip -> clip.id == clipId } ?: return@launch
+            val allTracks = timelineTracks.value
+            val targetTrack = allTracks.find { it.id == newTrackId } ?: return@launch
+            val currentTrack = allTracks.find { it.id == clipToMove.trackId }
+
+            // Determine clip's media type
+            val clipMediaType = when {
+                clipToMove.textContent != null -> "TEXT"
+                currentTrack?.trackType != null -> currentTrack.trackType
+                else -> targetTrack.trackType
+            }
+
+            // 1. Strict Track Matching: Ensure video stay on video track, text on text track, audio on audio track
+            val finalTrackId = if (targetTrack.trackType == clipMediaType) {
+                newTrackId
+            } else {
+                allTracks.find { it.trackType == clipMediaType }?.id ?: clipToMove.trackId
+            }
+
+            val duration = clipToMove.durationMs
+            var validStartMs = newStartTimeMs.coerceAtLeast(0L)
+
+            // 2. Anti-collision Overlap Prevention: Ensure no two clips on the same track layer overlap!
+            val otherClipsOnTrack = currentClips
+                .filter { it.trackId == finalTrackId && it.id != clipId }
+                .sortedBy { it.startTimeMs }
+
+            for (other in otherClipsOnTrack) {
+                val otherStart = other.startTimeMs
+                val otherEnd = other.endTimeMs
+                val proposedEnd = validStartMs + duration
+
+                // Overlap condition: proposedStart < otherEnd && proposedEnd > otherStart
+                if (validStartMs < otherEnd && proposedEnd > otherStart) {
+                    val snapAfter = otherEnd
+                    val snapBefore = (otherStart - duration).coerceAtLeast(0L)
+
+                    if (Math.abs(validStartMs - snapAfter) <= Math.abs(validStartMs - snapBefore)) {
+                        validStartMs = snapAfter
+                    } else {
+                        val fitsBefore = otherClipsOnTrack.none { prev ->
+                            prev.id != other.id && snapBefore < prev.endTimeMs && (snapBefore + duration) > prev.startTimeMs
+                        }
+                        validStartMs = if (fitsBefore) snapBefore else snapAfter
+                    }
+                }
+            }
+
+            val updatedClip = clipToMove.copy(
+                trackId = finalTrackId,
+                startTimeMs = validStartMs,
+                endTimeMs = validStartMs + duration
+            )
+            repository.updateClip(updatedClip)
+            saveHistoryState()
+        }
+    }
+
+    fun updateClipTextContent(clip: TimelineClipEntity, textContent: String) {
+        viewModelScope.launch {
+            repository.updateClip(clip.copy(textContent = textContent, title = textContent.take(20)))
             saveHistoryState()
         }
     }
