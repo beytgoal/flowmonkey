@@ -184,17 +184,17 @@ fun StoryboardTemplateSelectorDialog(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "🎬 ${template.scenes.size} Adegan",
+                                        text = "${template.scenes.size} Adegan",
                                         fontSize = 10.sp,
                                         color = Color(0xFF10B981)
                                     )
                                     Text(
-                                        text = "📐 ${template.recommendedAspectRatio}",
+                                        text = template.recommendedAspectRatio,
                                         fontSize = 10.sp,
                                         color = Color(0xFFF59E0B)
                                     )
                                     Text(
-                                        text = "🎨 ${template.defaultStyle}",
+                                        text = template.defaultStyle,
                                         fontSize = 10.sp,
                                         color = Color(0xFFEC4899)
                                     )
@@ -209,7 +209,7 @@ fun StoryboardTemplateSelectorDialog(
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     template.scenes.forEach { sc ->
                                         Text(
-                                            text = "• ${sc.title} (${sc.durationSeconds}s) — ${sc.cameraMovement}",
+                                            text = "• ${sc.title} — ${sc.durationSeconds}s — ${sc.cameraMovement}",
                                             fontSize = 10.sp,
                                             color = Color.White.copy(alpha = 0.8f)
                                         )

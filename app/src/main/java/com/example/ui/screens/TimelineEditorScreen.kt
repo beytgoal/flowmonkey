@@ -266,7 +266,7 @@ fun TimelineEditorScreen(
                                     activeColumnMode = "ALL"
                                     isToolsExpanded = true
                                 },
-                                label = { Text("🌌 Utama", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                                label = { Text("Utama", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
                             )
                         }
                         item {
@@ -276,7 +276,7 @@ fun TimelineEditorScreen(
                                     activeColumnMode = "TEXT"
                                     isToolsExpanded = true
                                 },
-                                label = { Text("💬 Subjudul", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                label = { Text("Subjudul", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = StudioSecondaryTeal,
                                     selectedLabelColor = Color.White
@@ -290,7 +290,7 @@ fun TimelineEditorScreen(
                                     activeColumnMode = "AUDIO"
                                     isToolsExpanded = true
                                 },
-                                label = { Text("🎵 Musik", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                label = { Text("Musik", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = StudioAccentPink,
                                     selectedLabelColor = Color.White
@@ -304,7 +304,7 @@ fun TimelineEditorScreen(
                                     activeColumnMode = "STICKER"
                                     isToolsExpanded = true
                                 },
-                                label = { Text("⭐ Stiker", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                label = { Text("Stiker", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = Color(0xFFFFB74D),
                                     selectedLabelColor = Color.Black
@@ -318,7 +318,7 @@ fun TimelineEditorScreen(
                                     activeColumnMode = "VIDEO"
                                     isToolsExpanded = true
                                 },
-                                label = { Text("🎬 Video PIP", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                label = { Text("Video PIP", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = StudioPrimaryViolet,
                                     selectedLabelColor = Color.White
@@ -508,10 +508,10 @@ fun TimelineEditorScreen(
                                             item {
                                                 ActionToolChip(
                                                     icon = Icons.Default.InvertColors,
-                                                    label = "Pembalik Warna (Invert)",
+                                                    label = "Pembalik Warna Invert",
                                                     onClick = {
                                                         selectedClip?.let { clip ->
-                                                            viewModel.updateClipFilter(clip, "Pembalik Warna (Invert Colors)")
+                                                            viewModel.updateClipFilter(clip, "Pembalik Warna Invert Colors")
                                                         }
                                                     },
                                                     color = StudioAccentAmber
@@ -925,8 +925,8 @@ fun TimelineEditorScreen(
 
     // 2. Animation Bottom Sheet
     if (showAnimationSheet && selectedClip != null) {
-        val animsIn = listOf("None", "Kedip / Flash In", "Kedip Cepat (Blink)", "Kedip Disko Strobe", "Fade In", "Slide Right", "Zoom In", "Bounce In", "Rotate Entrance")
-        val animsOut = listOf("None", "Kedip / Flash Out", "Kedip Cepat (Blink)", "Fade Out", "Slide Left", "Zoom Out", "Dissolve Out", "Glitch Exit")
+        val animsIn = listOf("None", "Kedip / Flash In", "Kedip Cepat Blink", "Kedip Disko Strobe", "Fade In", "Slide Right", "Zoom In", "Bounce In", "Rotate Entrance")
+        val animsOut = listOf("None", "Kedip / Flash Out", "Kedip Cepat Blink", "Fade Out", "Slide Left", "Zoom Out", "Dissolve Out", "Glitch Exit")
         val animsCombo = listOf("None", "Kedip Kedip Strobe", "Flash Kedip Pulse", "Kedip Invert Blink", "Spin & Zoom", "Glitch Bounce", "3D Flip", "Elastic Pop")
 
         var currentIn by remember { mutableStateOf(selectedClip!!.animationIn) }
@@ -962,7 +962,7 @@ fun TimelineEditorScreen(
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                Text("Animasi Keluar (Out):", color = StudioAccentPink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("Animasi Keluar Out:", color = StudioAccentPink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(animsOut) { anim ->
                         FilterChip(
@@ -1159,7 +1159,7 @@ fun TimelineEditorScreen(
 
     // 5. Video & Body Effects Bottom Sheet
     if (showEffectsSheet && selectedClip != null) {
-        val videoEffects = listOf("None", "Pembalik Warna (Invert FX)", "Kedip Strobe Flash", "Retro VHS", "Cyber Glitch", "Light Leak", "Film Grain", "Neon Edge")
+        val videoEffects = listOf("None", "Pembalik Warna Invert FX", "Kedip Strobe Flash", "Retro VHS", "Cyber Glitch", "Light Leak", "Film Grain", "Neon Edge")
         val bodyEffects = listOf("None", "Aura Glow", "Cyber Eyes", "Lightning Wings", "Halo Ring")
 
         ModalBottomSheet(
@@ -1357,11 +1357,11 @@ fun TimelineEditorScreen(
             Pair("Lencana Subscribe & Like", "Badge Subscribe"),
             Pair("Lencana Verifikasi Centang Blue", "Verifikasi Centang"),
             Pair("Stiker Neon Arrow Panah", "Neon Arrow"),
-            Pair("Grafis Flame Api 🔥", "Flame Api"),
-            Pair("Cinema Clapboard 🎬", "Clapboard"),
-            Pair("Lightning Flash ⚡", "Flash Lightning"),
-            Pair("Star Burst Element ⭐", "Star Burst"),
-            Pair("Boom Explosion 💥", "Boom Explosion")
+            Pair("Grafis Flame Api", "Flame Api"),
+            Pair("Cinema Clapboard", "Clapboard"),
+            Pair("Lightning Flash", "Flash Lightning"),
+            Pair("Star Burst Element", "Star Burst"),
+            Pair("Boom Explosion", "Boom Explosion")
         )
 
         ModalBottomSheet(
@@ -1413,7 +1413,7 @@ fun TimelineEditorScreen(
 
                 if (assetTab == 0) {
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                        Text("Pilih Asset Overlay PIP (Picture in Picture):", color = StudioTextSecondary, fontSize = 12.sp)
+                        Text("Pilih Asset Overlay PIP Picture in Picture:", color = StudioTextSecondary, fontSize = 12.sp)
                         Spacer(modifier = Modifier.height(8.dp))
 
                         overlayAssets.forEach { (title, effectKey) ->
@@ -1513,9 +1513,9 @@ fun TimelineEditorScreen(
         val targetClip = selectedClip ?: clips.firstOrNull()
         val presetFilters = listOf(
             "None",
-            "Pembalik Warna (Invert Colors)",
-            "Pembalik Warna RGB (Negative)",
-            "Teal & Orange (Hollywood)",
+            "Pembalik Warna Invert Colors",
+            "Pembalik Warna RGB Negative",
+            "Teal & Orange Hollywood",
             "Moody Dark Film",
             "Vintage 35mm Grain",
             "Cyberpunk Neon Glow",
@@ -1566,7 +1566,7 @@ fun TimelineEditorScreen(
                     Tab(
                         selected = filterTab == 1,
                         onClick = { filterTab = 1 },
-                        text = { Text("Custom LUTs (${customLuts.size})", fontWeight = FontWeight.Bold) }
+                        text = { Text("Custom LUTs • ${customLuts.size}", fontWeight = FontWeight.Bold) }
                     )
                 }
 
@@ -1610,7 +1610,7 @@ fun TimelineEditorScreen(
                         ) {
                             Icon(imageVector = Icons.Default.FileUpload, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Impor File LUT (.cube / .3dl)", fontWeight = FontWeight.Bold)
+                            Text("Impor File LUT .cube / .3dl", fontWeight = FontWeight.Bold)
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -1711,7 +1711,7 @@ fun TimelineEditorScreen(
 
     // 8. Cutout Bottom Sheet
     if (showCutoutSheet && selectedClip != null) {
-        val cutoutModes = listOf("None", "Auto AI Cutout (Hapus BG)", "Chroma Key (Layar Hijau)", "Smart Portrait Segmentation")
+        val cutoutModes = listOf("None", "Auto AI Cutout Hapus BG", "Chroma Key Layar Hijau", "Smart Portrait Segmentation")
         ModalBottomSheet(
             onDismissRequest = { showCutoutSheet = false },
             containerColor = StudioSurfaceDark,
@@ -1785,7 +1785,7 @@ fun TimelineEditorScreen(
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                Text("Tambah Efek Suara (SFX):", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("Tambah Efek Suara SFX:", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 sfxList.forEach { sfx ->
                     Row(
                         modifier = Modifier

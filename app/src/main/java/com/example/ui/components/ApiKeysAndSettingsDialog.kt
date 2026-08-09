@@ -77,7 +77,7 @@ fun ApiKeysAndSettingsDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Setelan API Keys & Highfield Engine",
+                            text = "Setelan API Keys & Studio Engine",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -149,7 +149,7 @@ fun ApiKeysAndSettingsDialog(
 
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Aplikasi terhubung dengan akun Google Anda untuk mengaktifkan API Key Gemini & Veo khusus pengguna.",
+                                text = "Aplikasi terhubung dengan akun Google Anda untuk mengaktifkan API Key Gemini khusus pengguna.",
                                 fontSize = 11.sp,
                                 color = Color.White.copy(alpha = 0.6f)
                             )
@@ -223,7 +223,7 @@ fun ApiKeysAndSettingsDialog(
                             OutlinedTextField(
                                 value = geminiKey,
                                 onValueChange = { geminiKey = it },
-                                label = { Text("Google Gemini / Veo API Key", fontSize = 11.sp) },
+                                label = { Text("Google Gemini API Key", fontSize = 11.sp) },
                                 placeholder = { Text("AIzaSy...", fontSize = 11.sp, color = Color.Gray) },
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -267,7 +267,7 @@ fun ApiKeysAndSettingsDialog(
                             OutlinedTextField(
                                 value = claudeKey,
                                 onValueChange = { claudeKey = it },
-                                label = { Text("Anthropic Claude API Key (Director AI)", fontSize = 11.sp) },
+                                label = { Text("Anthropic Claude API Key Director AI", fontSize = 11.sp) },
                                 placeholder = { Text("sk-ant-...", fontSize = 11.sp, color = Color.Gray) },
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -342,7 +342,7 @@ fun ApiKeysAndSettingsDialog(
                         }
                     }
 
-                    // SECTION 3: Highfield AI Workflow Engine
+                    // SECTION 3: Studio AI Workflow Engine
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = Color(0x0DFFFFFF),
@@ -364,7 +364,7 @@ fun ApiKeysAndSettingsDialog(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Highfield AI Workflow Quality",
+                                        text = "Studio AI Workflow Quality",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
@@ -421,7 +421,7 @@ fun ApiKeysAndSettingsDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Target Framerate (FPS):",
+                                    text = "Target Framerate FPS:",
                                     fontSize = 11.sp,
                                     color = Color.White.copy(alpha = 0.8f)
                                 )
@@ -449,7 +449,7 @@ fun ApiKeysAndSettingsDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Raytracing & Dynamic Lighting Highfield Engine",
+                                    text = "Raytracing & Dynamic Lighting Engine",
                                     fontSize = 11.sp,
                                     color = Color.White.copy(alpha = 0.8f)
                                 )

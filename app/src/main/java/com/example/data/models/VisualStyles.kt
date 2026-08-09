@@ -66,7 +66,7 @@ object VisualStylesRepository {
             name = "Photorealistic Unreal Engine 5",
             description = "Render raytracing realistis dengan detail fisik materi, pantulan air akurat, dan pencahayaan alami presisi.",
             promptModifier = "photorealistic unreal engine 5 render, raytracing, octanerender, ultra detailed materials, natural lighting",
-            badge = "HIGHFIELD ULTRA",
+            badge = "STUDIO ULTRA",
             accentColor = Color(0xFF3B82F6)
         ),
         VisualStyleOption(

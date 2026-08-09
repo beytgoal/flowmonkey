@@ -128,7 +128,7 @@ object StoryboardTemplatesRepository {
             scenes = listOf(
                 TemplateSceneSpec(
                     title = "Scene 1: Masalah & Pertanyaan Utama",
-                    scriptText = "Pernahkah kamu bertanya-tanya bagaimana sistem AI Veo bisa memahami teks menjadi video?",
+                    scriptText = "Pernahkah kamu bertanya-tanya bagaimana sistem AI Generator bisa memahami teks menjadi video?",
                     visualPrompt = "3D cute robot character scratching head in front of a giant glowing chalkboard filled with floating formulas",
                     cameraMovement = "Static Medium Shot",
                     durationSeconds = 5

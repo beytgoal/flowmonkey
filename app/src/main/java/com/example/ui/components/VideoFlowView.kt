@@ -54,15 +54,15 @@ fun VideoFlowView(
         ),
         VideoFlowNode(
             stepIndex = 3,
-            title = "Storyboard (${scenes.size} Adegan)",
+            title = "Storyboard • ${scenes.size} Adegan",
             subtitle = scenes.firstOrNull()?.title ?: "Skenario Adegan",
             icon = Icons.Default.ViewCarousel,
             statusText = "Terstruktur"
         ),
         VideoFlowNode(
             stepIndex = 4,
-            title = "Veo 3 AI Generator",
-            subtitle = "veo-3.1-fast-generate",
+            title = "Studio AI Generator",
+            subtitle = "studio-fast-generate",
             icon = Icons.Default.AutoAwesome,
             statusText = "Klip HD"
         ),

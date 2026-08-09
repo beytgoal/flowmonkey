@@ -78,7 +78,7 @@ fun QuickGenerateScreen(
             .padding(16.dp)
     ) {
 
-        // Hero Banner Header with Highfield Status & Settings Button
+        // Hero Banner Header with Engine Status & Settings Button
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -127,7 +127,7 @@ fun QuickGenerateScreen(
                                         )
                                         Spacer(modifier = Modifier.width(3.dp))
                                         Text(
-                                            text = "HIGHFIELD AI",
+                                            text = "STUDIO AI",
                                             color = Color.White,
                                             fontSize = 9.sp,
                                             fontWeight = FontWeight.Bold
@@ -275,7 +275,7 @@ fun QuickGenerateScreen(
                         Icon(imageVector = Icons.Default.DocumentScanner, contentDescription = "Analyze")
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (imageAnalysisState.isGenerating) "Menganalisis Gambar (Gemini 3.1 Pro)..." else "Analisis Gambar Untuk Prompt Video",
+                            text = if (imageAnalysisState.isGenerating) "Menganalisis Gambar Gemini 3.1 Pro..." else "Analisis Gambar Untuk Prompt Video",
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -510,7 +510,7 @@ fun QuickGenerateScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(54.dp)
-                .testTag("generate_veo_clip_button"),
+                .testTag("generate_clip_button"),
             colors = ButtonDefaults.buttonColors(
                 containerColor = StudioPrimaryViolet,
                 contentColor = Color.White
@@ -528,7 +528,7 @@ fun QuickGenerateScreen(
             } else {
                 Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = "Generate")
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "GENERATE KLIP VEO 3", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(text = "GENERATE KLIP VIDEO AI", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
 

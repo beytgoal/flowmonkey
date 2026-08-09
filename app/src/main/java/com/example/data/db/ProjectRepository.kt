@@ -412,7 +412,7 @@ class ProjectRepository(
             contents = listOf(
                 Content(
                     parts = listOf(
-                        Part(text = "Analisis gambar ini dan buatlah prompt animasi video yang sangat mendetail dalam bahasa Inggris untuk generator video Veo AI. $userInstruction"),
+                        Part(text = "Analisis gambar ini dan buatlah prompt animasi video yang sangat mendetail dalam bahasa Inggris untuk generator video AI. $userInstruction"),
                         Part(inlineData = InlineData(mimeType = "image/jpeg", data = base64Data))
                     )
                 )

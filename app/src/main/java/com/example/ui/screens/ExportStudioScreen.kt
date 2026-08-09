@@ -39,7 +39,7 @@ fun ExportStudioScreen(
     val exportState by viewModel.exportState.collectAsState()
     val activeProject by viewModel.activeProject.collectAsState()
 
-    var selectedPlatform by remember { mutableStateOf("TikTok (9:16)") }
+    var selectedPlatform by remember { mutableStateOf("TikTok 9:16") }
     var selectedResolution by remember { mutableStateOf("1080p") }
     var selectedFps by remember { mutableStateOf(30) }
 
@@ -89,7 +89,7 @@ fun ExportStudioScreen(
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             platforms.forEach { preset ->
-                val isSelected = selectedPlatform == "${preset.name} (${preset.ratio})"
+                val isSelected = selectedPlatform == "${preset.name} ${preset.ratio}"
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -99,7 +99,7 @@ fun ExportStudioScreen(
                             if (isSelected) StudioPrimaryViolet else StudioCardBorder,
                             RoundedCornerShape(12.dp)
                         )
-                        .clickable { selectedPlatform = "${preset.name} (${preset.ratio})" }
+                        .clickable { selectedPlatform = "${preset.name} ${preset.ratio}" }
                         .testTag("export_platform_${preset.name}"),
                     colors = CardDefaults.cardColors(containerColor = StudioCardBg)
                 ) {
@@ -216,7 +216,7 @@ fun ExportStudioScreen(
             if (exportState.isExporting) {
                 CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.Black)
                 Spacer(modifier = Modifier.width(10.dp))
-                Text("MENGAMBIL & MERENDER FRAME... (${exportState.progressPercent}%)", fontWeight = FontWeight.Bold)
+                Text("MENGAMBIL & MERENDER FRAME... ${exportState.progressPercent}%", fontWeight = FontWeight.Bold)
             } else {
                 Icon(imageVector = Icons.Default.Download, contentDescription = "Export")
                 Spacer(modifier = Modifier.width(8.dp))

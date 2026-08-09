@@ -566,7 +566,12 @@ fun TrackClipsRow(
                             horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             if (clip.hasKeyframe) {
-                                Text("◇", color = StudioAccentAmber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Icon(
+                                    imageVector = Icons.Default.Animation,
+                                    contentDescription = "Keyframe",
+                                    tint = StudioAccentAmber,
+                                    modifier = Modifier.size(12.dp)
+                                )
                             }
                             if (clip.speedMultiplier != 1.0f) {
                                 Surface(

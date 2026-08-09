@@ -46,7 +46,7 @@ fun StylePickerGrid(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Gaya Visual AI (${VisualStylesRepository.options.size} Pilihan)",
+                    text = "Gaya Visual AI • ${VisualStylesRepository.options.size} Pilihan",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White.copy(alpha = 0.9f)

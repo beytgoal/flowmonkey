@@ -580,7 +580,7 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
 
             val subtitleLines = listOf(
                 Pair(0L, "Selamat datang di FlowMonkey Studio"),
-                Pair(3000L, "Teknologi video AI tercepat dengan Gemini 3.5 & Veo Engine"),
+                Pair(3000L, "Teknologi video AI tercepat dengan Gemini 3.5 Engine"),
                 Pair(7000L, "Menciptakan visual masa depan secara otomatis dengan AI")
             )
 
@@ -609,7 +609,7 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             _clipGenState.value = GenerationState(
                 isGenerating = true,
-                progressMessage = "Mengirim prompt ke model Veo (veo-3.1-fast-generate-preview)..."
+                progressMessage = "Mengirim prompt ke model Video AI..."
             )
 
             delay(1000)
@@ -641,7 +641,7 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
                         TimelineClipEntity(
                             trackId = videoTrack.id,
                             projectId = projId,
-                            title = "Veo Clip: ${prompt.take(18)}...",
+                            title = "AI Clip: ${prompt.take(18)}...",
                             mediaUri = generatedUri,
                             startTimeMs = lastEndTime,
                             endTimeMs = lastEndTime + clipDurationMs,
@@ -802,7 +802,7 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
                     "Vintage 35mm Film" -> "Vintage Grain"
                     "Neon Synthwave 80s" -> "Cyber Neon"
                     "Noir Monochrome" -> "Noir B&W"
-                    else -> "Highfield Clarity"
+                    else -> "Studio Clarity"
                 }
 
                 val clip = TimelineClipEntity(

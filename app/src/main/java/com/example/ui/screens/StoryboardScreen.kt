@@ -359,7 +359,7 @@ fun StoryboardSceneCard(
                     Divider(color = StudioCardBorder)
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    Text("Prompt Visual Veo AI:", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("Prompt Visual Video AI:", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     OutlinedTextField(
                         value = scene.visualPrompt,

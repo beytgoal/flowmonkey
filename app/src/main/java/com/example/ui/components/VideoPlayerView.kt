@@ -211,7 +211,7 @@ fun VideoPlayerView(
                 )
             }
 
-            // Aspect Ratio badge & Veo watermark (Top Start)
+            // Aspect Ratio badge & AI watermark (Top Start)
             Row(
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -229,13 +229,13 @@ fun VideoPlayerView(
                     ) {
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = "AI Veo",
+                            contentDescription = "Studio AI",
                             tint = StudioSecondaryTeal,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Veo 3 AI ($aspectRatioStr)",
+                            text = "Studio AI • $aspectRatioStr",
                             color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
@@ -283,7 +283,7 @@ fun VideoPlayerView(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = if (isProxyMode) "⚡ PROXY $proxyResolution" else "🎬 1080p FULL RES",
+                        text = if (isProxyMode) "PROXY $proxyResolution" else "1080p FULL RES",
                         color = if (isProxyMode) Color.Black else Color.White,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold

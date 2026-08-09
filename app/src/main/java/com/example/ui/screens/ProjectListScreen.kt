@@ -194,7 +194,7 @@ fun ProjectListScreen(
                     }
                 } else {
                     Text(
-                        text = "💡 Petunjuk: Tarik (swipe) proyek ke kiri untuk membuka ikon Buat Template & Hapus",
+                        text = "Petunjuk: Tarik (swipe) proyek ke kiri untuk membuka ikon Buat Template & Hapus",
                         fontSize = 11.sp,
                         color = StudioSecondaryTeal,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -646,7 +646,7 @@ fun TemplateItemCard(
                         border = BorderStroke(0.5.dp, StudioCardBorder)
                     ) {
                         Text(
-                            text = "✓ $toolTag",
+                            text = toolTag,
                             color = StudioSecondaryTeal,
                             fontSize = 10.sp,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
