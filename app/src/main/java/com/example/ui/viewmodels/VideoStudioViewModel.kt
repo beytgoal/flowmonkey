@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.db.*
+import com.example.data.models.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -425,6 +426,14 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         _activeProjectId.value = projectId
     }
 
+    fun updateProjectAspectRatio(aspectRatio: String) {
+        viewModelScope.launch {
+            activeProject.value?.let { proj ->
+                repository.updateProject(proj.copy(aspectRatio = aspectRatio, updatedAt = System.currentTimeMillis()))
+            }
+        }
+    }
+
     fun createNewProject(title: String, aspectRatio: String, style: String) {
         viewModelScope.launch {
             val newId = repository.createNewProject(title, "", aspectRatio, style)
@@ -534,6 +543,13 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun updateClipVolume(clip: TimelineClipEntity, volume: Float) {
+        viewModelScope.launch {
+            repository.updateClip(clip.copy(volume = volume.coerceIn(0f, 2f)))
+            saveHistoryState()
+        }
+    }
+
     fun updateClipTextContent(clip: TimelineClipEntity, textContent: String) {
         viewModelScope.launch {
             repository.updateClip(clip.copy(textContent = textContent, title = textContent.take(20)))
@@ -601,7 +617,7 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // --- Action: Generate Veo Video Clip ---
+    // --- Action: Generate Studio AI Video Clip ---
     fun generateVideoClip() {
         val prompt = promptText.value
         if (prompt.isBlank()) return
@@ -617,7 +633,7 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
                 progressMessage = "Memproses animasi gerakan & pencahayaan [${selectedStyle.value}]..."
             )
 
-            val result = repository.generateVeoVideoClip(
+            val result = repository.generateStudioAiVideoClip(
                 prompt = prompt,
                 aspectRatio = selectedAspectRatio.value,
                 durationSeconds = selectedDuration.value,
@@ -625,7 +641,7 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
             )
 
             delay(1200)
-            val generatedUri = result.getOrDefault("veo_clip_${System.currentTimeMillis()}")
+            val generatedUri = result.getOrDefault("studio_ai_clip_${System.currentTimeMillis()}")
 
             // Add generated clip to active project timeline video track if project exists
             val projId = _activeProjectId.value
@@ -862,11 +878,27 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
             isPlaying.value = true
             val maxTimeMs = timelineClips.value.maxOfOrNull { it.endTimeMs } ?: 15000L
             playbackJob = viewModelScope.launch {
+                var lastTime = System.currentTimeMillis()
                 while (isPlaying.value) {
-                    delay(50)
-                    currentTimeMs.value += 50
-                    if (currentTimeMs.value >= maxTimeMs) {
+                    delay(16) // Ultra-smooth 60 FPS playback loop
+                    val now = System.currentTimeMillis()
+                    val realDelta = (now - lastTime).coerceIn(5L, 40L)
+                    lastTime = now
+
+                    // Calculate dynamic speed factor based on active clip at playhead
+                    val currentClips = timelineClips.value.filter {
+                        currentTimeMs.value in it.startTimeMs until it.endTimeMs
+                    }
+                    val mainTrackId = timelineTracks.value.find { it.trackType == "VIDEO" }?.id
+                    val activeClip = currentClips.find { it.trackId == mainTrackId } ?: currentClips.firstOrNull()
+                    val speedFactor = activeClip?.speedMultiplier ?: 1.0f
+
+                    val advancedTime = (realDelta * speedFactor).toLong().coerceAtLeast(1L)
+                    val newTime = currentTimeMs.value + advancedTime
+                    if (newTime >= maxTimeMs) {
                         currentTimeMs.value = 0L
+                    } else {
+                        currentTimeMs.value = newTime
                     }
                 }
             }
@@ -896,6 +928,99 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             val newDur = (clip.durationMs / speed).toLong().coerceAtLeast(500L)
             repository.updateClip(clip.copy(speedMultiplier = speed, speedCurve = curve, durationMs = newDur, endTimeMs = clip.startTimeMs + newDur))
+            saveHistoryState()
+        }
+    }
+
+    // --- Overlay (Stiker & Foto) Actions ---
+    fun addPhotoOverlay(uri: String, title: String = "Overlay Foto") {
+        viewModelScope.launch {
+            val projId = activeProject.value?.id ?: return@launch
+            var overlayTrack = timelineTracks.value.find { it.trackType == "STICKER" || it.trackType == "OVERLAY" }
+            if (overlayTrack == null) {
+                val newTrack = TimelineTrackEntity(
+                    projectId = projId,
+                    trackType = "STICKER",
+                    trackName = "Track Overlay",
+                    trackIndex = 2
+                )
+                repository.addTrack(newTrack)
+                overlayTrack = repository.getTracksForProject(projId).firstOrNull()?.find { it.trackType == "STICKER" || it.trackType == "OVERLAY" }
+            }
+
+            val start = currentTimeMs.value
+            val newClip = TimelineClipEntity(
+                trackId = overlayTrack?.id ?: 1L,
+                projectId = projId,
+                title = title,
+                mediaUri = uri,
+                startTimeMs = start,
+                endTimeMs = start + 4000L,
+                durationMs = 4000L,
+                cropRatio = "1:1",
+                stickerIcon = "IMAGE_OVERLAY"
+            )
+            repository.addClip(newClip)
+            saveHistoryState()
+        }
+    }
+
+    fun updateOverlayTransform(clip: TimelineClipEntity, rotation: Int, isMirrored: Boolean, cropRatio: String) {
+        viewModelScope.launch {
+            repository.updateClip(clip.copy(rotationDegrees = rotation, isMirrored = isMirrored, cropRatio = cropRatio))
+            saveHistoryState()
+        }
+    }
+
+    fun updateOverlayAnimation(clip: TimelineClipEntity, animIn: String, animOut: String = "None") {
+        viewModelScope.launch {
+            repository.updateClip(clip.copy(animationIn = animIn, animationOut = animOut))
+            saveHistoryState()
+        }
+    }
+
+    fun updateOverlayBlend(clip: TimelineClipEntity, opacity: Float, blendMode: String) {
+        viewModelScope.launch {
+            repository.updateClip(clip.copy(opacity = opacity, blendMode = blendMode))
+            saveHistoryState()
+        }
+    }
+
+    fun updateClipTypography(clip: TimelineClipEntity, fontFamily: String, fontSize: Int, fontColor: String, alignment: String) {
+        viewModelScope.launch {
+            repository.updateClip(clip.copy(fontFamily = fontFamily, fontSize = fontSize, fontColor = fontColor, textAlignment = alignment))
+            saveHistoryState()
+        }
+    }
+
+    fun generateAiVoiceover(text: String, voiceStyle: String = "Studio Neutral") {
+        viewModelScope.launch {
+            val projId = activeProject.value?.id ?: return@launch
+            var audioTrack = timelineTracks.value.find { it.trackType == "AUDIO" }
+            if (audioTrack == null) {
+                val newTrack = TimelineTrackEntity(
+                    projectId = projId,
+                    trackType = "AUDIO",
+                    trackName = "Voice Track",
+                    trackIndex = 3
+                )
+                repository.addTrack(newTrack)
+                audioTrack = repository.getTracksForProject(projId).firstOrNull()?.find { it.trackType == "AUDIO" }
+            }
+
+            val start = currentTimeMs.value
+            val newClip = TimelineClipEntity(
+                trackId = audioTrack?.id ?: 1L,
+                projectId = projId,
+                title = "AI Voice: ${text.take(15)}",
+                mediaUri = "ai_voice_${System.currentTimeMillis()}",
+                startTimeMs = start,
+                endTimeMs = start + 3500L,
+                durationMs = 3500L,
+                isVoiceover = true,
+                audioSfx = "AI Voiceover ($voiceStyle)"
+            )
+            repository.addClip(newClip)
             saveHistoryState()
         }
     }
@@ -1085,6 +1210,65 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun addOrUpdateKeyframePoint(
+        clip: TimelineClipEntity,
+        timeOffsetMs: Long,
+        posX: Float,
+        posY: Float,
+        scale: Float,
+        rotation: Float,
+        opacity: Float,
+        easing: String = "Linear"
+    ) {
+        viewModelScope.launch {
+            val existingList = KeyframeHelper.parseKeyframes(clip.keyframeData).toMutableList()
+            // Remove existing keyframe within 50ms tolerance or at the exact timeOffset
+            existingList.removeAll { Math.abs(it.timeOffsetMs - timeOffsetMs) < 60L }
+            existingList.add(
+                KeyframePoint(
+                    timeOffsetMs = timeOffsetMs.coerceIn(0L, clip.durationMs),
+                    posX = posX,
+                    posY = posY,
+                    scale = scale,
+                    rotation = rotation,
+                    opacity = opacity,
+                    easing = easing
+                )
+            )
+            val updatedJson = KeyframeHelper.serializeKeyframes(existingList)
+            repository.updateClip(
+                clip.copy(
+                    hasKeyframe = existingList.isNotEmpty(),
+                    keyframeData = updatedJson,
+                    rotationDegrees = rotation.toInt()
+                )
+            )
+            saveHistoryState()
+        }
+    }
+
+    fun removeKeyframePoint(clip: TimelineClipEntity, timeOffsetMs: Long) {
+        viewModelScope.launch {
+            val existingList = KeyframeHelper.parseKeyframes(clip.keyframeData).toMutableList()
+            existingList.removeAll { Math.abs(it.timeOffsetMs - timeOffsetMs) < 100L }
+            val updatedJson = KeyframeHelper.serializeKeyframes(existingList)
+            repository.updateClip(
+                clip.copy(
+                    hasKeyframe = existingList.isNotEmpty(),
+                    keyframeData = updatedJson
+                )
+            )
+            saveHistoryState()
+        }
+    }
+
+    fun clearAllKeyframes(clip: TimelineClipEntity) {
+        viewModelScope.launch {
+            repository.updateClip(clip.copy(hasKeyframe = false, keyframeData = ""))
+            saveHistoryState()
+        }
+    }
+
     fun updateClipKeyframeTransform(
         clip: TimelineClipEntity,
         posX: Float,
@@ -1103,6 +1287,17 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
                     rotationDegrees = rotation.toInt()
                 )
             )
+            saveHistoryState()
+        }
+    }
+
+    fun applyTransitionToAllClips(transitionType: String) {
+        val projId = _activeProjectId.value ?: return
+        viewModelScope.launch {
+            val allClips = repository.getClipsForProject(projId).firstOrNull() ?: emptyList()
+            allClips.forEach { clip ->
+                repository.updateClip(clip.copy(transitionType = transitionType))
+            }
             saveHistoryState()
         }
     }

@@ -127,5 +127,11 @@ data class TimelineClipEntity(
     val noiseReduction: Boolean = false,
     val vocalEnhance: Boolean = false,
     val proxyUri: String = "",
-    val proxyStatus: String = "IDLE"
+    val proxyStatus: String = "IDLE",
+    val opacity: Float = 1.0f,
+    val blendMode: String = "Normal",
+    val fontFamily: String = "Inter",
+    val fontSize: Int = 24,
+    val fontColor: String = "#FFFFFF",
+    val textAlignment: String = "CENTER"
 )

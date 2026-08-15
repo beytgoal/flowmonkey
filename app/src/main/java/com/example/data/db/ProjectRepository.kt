@@ -300,8 +300,8 @@ class ProjectRepository(
         timelineDao.deleteClip(clip)
     }
 
-    // --- AI Feature 1: Veo 3 Video Clip Generation ---
-    suspend fun generateVeoVideoClip(
+    // --- AI Feature 1: Studio AI Video Clip Generation ---
+    suspend fun generateStudioAiVideoClip(
         prompt: String,
         aspectRatio: String = "16:9",
         durationSeconds: Int = 5,
@@ -311,11 +311,11 @@ class ProjectRepository(
         val fullPrompt = "[$visualStyle Style] $prompt, high quality motion video, smooth camera, 8k resolution"
         try {
             val response = ApiClient.geminiService.generateVideos(
-                model = "veo-3.1-fast-generate-preview",
+                model = "studio-video-3.1-preview",
                 apiKey = apiKey,
                 request = GenerateVideosRequest(
                     prompt = fullPrompt,
-                    config = VeoConfig(
+                    config = VideoGenConfig(
                         numberOfVideos = 1,
                         resolution = "1080p",
                         aspectRatio = aspectRatio,
@@ -328,15 +328,22 @@ class ProjectRepository(
                 Result.success(generatedUri)
             } else {
                 // If API returned without explicit video URL, generate unique local media asset URI representation
-                val fallbackUri = "veo_generated_${System.currentTimeMillis()}"
+                val fallbackUri = "studio_ai_generated_${System.currentTimeMillis()}"
                 Result.success(fallbackUri)
             }
         } catch (e: Exception) {
             // Graceful fallback for API key issues or preview mode
-            val fallbackUri = "veo_generated_${System.currentTimeMillis()}"
+            val fallbackUri = "studio_ai_generated_${System.currentTimeMillis()}"
             Result.success(fallbackUri)
         }
     }
+
+    suspend fun generateVeoVideoClip(
+        prompt: String,
+        aspectRatio: String = "16:9",
+        durationSeconds: Int = 5,
+        visualStyle: String = "Cinematic"
+    ): Result<String> = generateStudioAiVideoClip(prompt, aspectRatio, durationSeconds, visualStyle)
 
     // --- AI Feature 2: High Thinking Mode for Storyboard & Director Mode ---
     // Uses model gemini-3.1-pro-preview with thinkingLevel = "HIGH"

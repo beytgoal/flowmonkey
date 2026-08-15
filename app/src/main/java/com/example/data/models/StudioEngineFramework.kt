@@ -1,19 +1,21 @@
 package com.example.data.models
 
-data class HighfieldSettings(
-    val isHighfieldModeEnabled: Boolean = true,
+data class StudioEngineSettings(
+    val isEngineModeEnabled: Boolean = true,
     val selectedEngine: String = "Studio 3.1 Pro Engine",
-    val fpsTarget: Int = 30, // 24, 30, 60
+    val fpsTarget: Int = 60, // 24, 30, 60
     val resolution: String = "1080p", // "720p", "1080p", "4K Ultra HD"
-    val motionSmoothness: Float = 0.9f, // 0.0 - 1.0
+    val motionSmoothness: Float = 0.95f, // 0.0 - 1.0
     val raytracingSimulation: Boolean = true,
     val colorGradePreset: String = "Vibrant HDR Studio",
-    val bitRateMbps: Int = 25,
+    val bitRateMbps: Int = 30,
     val aiVoiceoverSync: Boolean = true,
     val autoDenoiseAndSharpen: Boolean = true
 )
 
-object HighfieldDefaults {
+typealias HighfieldSettings = StudioEngineSettings
+
+object StudioEngineDefaults {
     val engines = listOf(
         "Studio 3.1 Pro Engine",
         "Studio 3.1 Fast Preview",
@@ -31,4 +33,9 @@ object HighfieldDefaults {
         "Vintage Monochrome Noir",
         "Pastel Dreamlike Soft"
     )
+}
+
+object HighfieldDefaults {
+    val engines = StudioEngineDefaults.engines
+    val colorPresets = StudioEngineDefaults.colorPresets
 }

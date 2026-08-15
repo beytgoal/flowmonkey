@@ -42,7 +42,7 @@ fun ApiKeysAndSettingsDialog(
 
     var selectedEngine by remember { mutableStateOf(highfieldSettings.selectedEngine) }
     var fpsTarget by remember { mutableStateOf(highfieldSettings.fpsTarget) }
-    var highfieldEnabled by remember { mutableStateOf(highfieldSettings.isHighfieldModeEnabled) }
+    var engineEnabled by remember { mutableStateOf(highfieldSettings.isEngineModeEnabled) }
     var raytracingEnabled by remember { mutableStateOf(highfieldSettings.raytracingSimulation) }
 
     var isGAuthLoggedIn by remember { mutableStateOf(userProfile.isGLoggedIn) }
@@ -372,8 +372,8 @@ fun ApiKeysAndSettingsDialog(
                                 }
 
                                 Switch(
-                                    checked = highfieldEnabled,
-                                    onCheckedChange = { highfieldEnabled = it },
+                                    checked = engineEnabled,
+                                    onCheckedChange = { engineEnabled = it },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
                                         checkedTrackColor = Color(0xFF6366F1)
@@ -482,7 +482,7 @@ fun ApiKeysAndSettingsDialog(
                             lumaDreamMachineApiKey = lumaKey
                         )
                         val updatedSettings = highfieldSettings.copy(
-                            isHighfieldModeEnabled = highfieldEnabled,
+                            isEngineModeEnabled = engineEnabled,
                             selectedEngine = selectedEngine,
                             fpsTarget = fpsTarget,
                             raytracingSimulation = raytracingEnabled

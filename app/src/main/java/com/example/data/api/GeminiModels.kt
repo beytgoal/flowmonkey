@@ -55,41 +55,43 @@ data class Candidate(
     val finishReason: String? = null
 )
 
-// --- Veo 3 Video Generation Data Classes ---
+// --- AI Video Generation Data Classes ---
 
 @JsonClass(generateAdapter = true)
 data class GenerateVideosRequest(
     val prompt: String,
-    val config: VeoConfig? = null
+    val config: VideoGenConfig? = null
 )
 
 @JsonClass(generateAdapter = true)
-data class VeoConfig(
+data class VideoGenConfig(
     val numberOfVideos: Int = 1,
     val resolution: String = "1080p",
     val aspectRatio: String = "16:9",
     val durationSeconds: Int = 5
 )
 
+typealias VeoConfig = VideoGenConfig
+
 @JsonClass(generateAdapter = true)
 data class GenerateVideosResponse(
     val name: String? = null,
     val error: Map<String, Any>? = null,
-    val response: VeoResponseContent? = null
+    val response: VideoGenResponseContent? = null
 )
 
 @JsonClass(generateAdapter = true)
-data class VeoResponseContent(
-    val generatedVideos: List<VeoVideoItem>? = null
+data class VideoGenResponseContent(
+    val generatedVideos: List<VideoGenVideoItem>? = null
 )
 
 @JsonClass(generateAdapter = true)
-data class VeoVideoItem(
-    val video: VeoVideoData? = null
+data class VideoGenVideoItem(
+    val video: VideoGenVideoData? = null
 )
 
 @JsonClass(generateAdapter = true)
-data class VeoVideoData(
+data class VideoGenVideoData(
     val uri: String? = null,
     val mimeType: String? = "video/mp4"
 )
