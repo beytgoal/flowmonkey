@@ -8,16 +8,18 @@ import androidx.room.RoomDatabase
 @Database(
     entities = [
         VideoProjectEntity::class,
+        GeneratedVideoSegmentEntity::class,
         StoryboardSceneEntity::class,
         TimelineTrackEntity::class,
         TimelineClipEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun videoProjectDao(): VideoProjectDao
+    abstract fun videoSegmentDao(): VideoSegmentDao
     abstract fun storyboardSceneDao(): StoryboardSceneDao
     abstract fun timelineDao(): TimelineDao
 

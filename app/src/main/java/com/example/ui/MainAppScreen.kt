@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,10 +11,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.media.UnifiedMediaStudioPipeline
 import com.example.ui.screens.*
 import com.example.ui.theme.*
 import com.example.ui.viewmodels.MainTab
@@ -27,6 +30,20 @@ fun MainAppScreen(
     val currentTab by viewModel.currentTab.collectAsState()
     val transcodingJobs by viewModel.transcodingJobs.collectAsState()
     val activeProject by viewModel.activeProject.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        UnifiedMediaStudioPipeline.instance.initialize(context)
+    }
+
+    // Top-Level Device Back Navigation Handler
+    BackHandler(enabled = currentTab != MainTab.PROJECTS_LIST && currentTab != MainTab.TIMELINE_EDITOR) {
+        when (currentTab) {
+            MainTab.EXPORT_STUDIO -> viewModel.selectTab(MainTab.TIMELINE_EDITOR)
+            MainTab.STUDIO_GENERATOR, MainTab.STORYBOARD, MainTab.SETTINGS -> viewModel.selectTab(MainTab.PROJECTS_LIST)
+            else -> viewModel.selectTab(MainTab.PROJECTS_LIST)
+        }
+    }
 
     FlowMonkeyTheme {
         Scaffold(

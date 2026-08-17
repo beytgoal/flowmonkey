@@ -37,9 +37,45 @@
       "isTemplate": false,
       "createdAt": "2026-08-03T14:22:16.698082",
       "updatedAt": "2026-08-03T14:22:16.698088"
+    },
+    {
+      "id": 5,
+      "title": "Buatkan video kinetik dengan tek",
+      "description": "Created automatically by AI Agent from: Buatkan video kinetik dengan teks CYBER EVENT menggunakan Remotion VFX",
+      "aspectRatio": "16:9",
+      "resolution": "1080p FHD",
+      "createdAt": "2026-08-17T11:10:25.840385",
+      "updatedAt": "2026-08-17T11:10:25.840397"
+    },
+    {
+      "id": 6,
+      "title": "Buatkan video kinetik dengan tek",
+      "description": "Created automatically by AI Agent from: Buatkan video kinetik dengan teks CYBER EVENT menggunakan Remotion VFX",
+      "aspectRatio": "16:9",
+      "resolution": "1080p FHD",
+      "createdAt": "2026-08-17T11:10:41.421Z",
+      "updatedAt": "2026-08-17T11:10:41.421Z"
+    },
+    {
+      "id": 7,
+      "title": "Buatkan video kinetik dengan tek",
+      "description": "Created automatically by AI Agent from: Buatkan video kinetik dengan teks CYBER EVENT menggunakan Remotion VFX",
+      "aspectRatio": "16:9",
+      "resolution": "1080p FHD",
+      "createdAt": "2026-08-17T11:10:43.675860",
+      "updatedAt": "2026-08-17T11:10:43.675878"
+    },
+    {
+      "id": 8,
+      "title": "Buatkan video kinetik dengan tek",
+      "description": "Created automatically by AI Agent from: Buatkan video kinetik dengan teks CYBER EVENT menggunakan Remotion VFX",
+      "aspectRatio": "16:9",
+      "resolution": "1080p FHD",
+      "createdAt": "2026-08-17T11:10:50.707943",
+      "updatedAt": "2026-08-17T11:10:50.707957"
     }
   ],
-  "activeProjectId": 4,
+  "activeProjectId": 8,
   "tracks": [
     {
       "id": 1,
@@ -152,6 +188,118 @@
       "trackIndex": 3,
       "type": "TEXT",
       "label": "Subtitel & Teks AI"
+    },
+    {
+      "id": 1786965025841,
+      "projectId": 5,
+      "trackIndex": 0,
+      "type": "VIDEO",
+      "label": "Utama (Video Track 1)"
+    },
+    {
+      "id": 1786965025842,
+      "projectId": 5,
+      "trackIndex": 1,
+      "type": "VIDEO",
+      "label": "Overlay Track"
+    },
+    {
+      "id": 1786965025843,
+      "projectId": 5,
+      "trackIndex": 2,
+      "type": "AUDIO",
+      "label": "Musik & Efek Suara"
+    },
+    {
+      "id": 1786965025844,
+      "projectId": 5,
+      "trackIndex": 3,
+      "type": "TEXT",
+      "label": "Subtitel AI"
+    },
+    {
+      "id": 1786965041422,
+      "projectId": 6,
+      "trackIndex": 0,
+      "type": "VIDEO",
+      "label": "Utama (Video Track 1)"
+    },
+    {
+      "id": 1786965041423,
+      "projectId": 6,
+      "trackIndex": 1,
+      "type": "VIDEO",
+      "label": "Overlay Track"
+    },
+    {
+      "id": 1786965041424,
+      "projectId": 6,
+      "trackIndex": 2,
+      "type": "AUDIO",
+      "label": "Musik & Efek Suara"
+    },
+    {
+      "id": 1786965041425,
+      "projectId": 6,
+      "trackIndex": 3,
+      "type": "TEXT",
+      "label": "Subtitel AI"
+    },
+    {
+      "id": 1786965043676,
+      "projectId": 7,
+      "trackIndex": 0,
+      "type": "VIDEO",
+      "label": "Utama (Video Track 1)"
+    },
+    {
+      "id": 1786965043677,
+      "projectId": 7,
+      "trackIndex": 1,
+      "type": "VIDEO",
+      "label": "Overlay Track"
+    },
+    {
+      "id": 1786965043678,
+      "projectId": 7,
+      "trackIndex": 2,
+      "type": "AUDIO",
+      "label": "Musik & Efek Suara"
+    },
+    {
+      "id": 1786965043679,
+      "projectId": 7,
+      "trackIndex": 3,
+      "type": "TEXT",
+      "label": "Subtitel AI"
+    },
+    {
+      "id": 1786965050708,
+      "projectId": 8,
+      "trackIndex": 0,
+      "type": "VIDEO",
+      "label": "Utama (Video Track 1)"
+    },
+    {
+      "id": 1786965050709,
+      "projectId": 8,
+      "trackIndex": 1,
+      "type": "VIDEO",
+      "label": "Overlay Track"
+    },
+    {
+      "id": 1786965050710,
+      "projectId": 8,
+      "trackIndex": 2,
+      "type": "AUDIO",
+      "label": "Musik & Efek Suara"
+    },
+    {
+      "id": 1786965050711,
+      "projectId": 8,
+      "trackIndex": 3,
+      "type": "TEXT",
+      "label": "Subtitel AI"
     }
   ],
   "clips": [
@@ -284,6 +432,204 @@
         }
       ],
       "hasKeyframe": true
+    },
+    {
+      "id": 1785766936800,
+      "projectId": 5,
+      "trackId": 1786965025844,
+      "title": "[Remotion Cloud] KineticTypography: BUATKAN VIDEO KINETI",
+      "uri": "https://storage.googleapis.com/flowmonkey-vfx-cloud/kinetictypography_remotion_kinetic_1786965025842.mp4",
+      "startTimeMs": 0,
+      "endTimeMs": 4000,
+      "durationMs": 4000,
+      "filterName": "Remotion Cloud HDR",
+      "effectName": "KineticTypography",
+      "speedMultiplier": 1,
+      "speedCurve": "Standard",
+      "hasKeyframe": false,
+      "keyframes": [],
+      "transitionType": "None",
+      "volume": 1,
+      "isMuted": false,
+      "noiseReduction": false,
+      "vocalEnhance": false,
+      "proxyUri": "proxy_remotion_kinetic_1786965025842.mp4",
+      "proxyStatus": "READY",
+      "cloudMetadata": {
+        "renderer": "Vercel Serverless + Remotion GPU Cluster",
+        "compositionId": "KineticTypography",
+        "inputProps": {
+          "title": "BUATKAN VIDEO KINETIK DE",
+          "subtitle": "RENDERED WITH REMOTION ON VERCEL",
+          "themeColor": "#8B5CF6"
+        },
+        "renderedAt": "2026-08-17T11:10:25Z"
+      }
+    },
+    {
+      "id": 1785766936801,
+      "projectId": 6,
+      "trackId": 1786965041425,
+      "title": "[Remotion Cloud] KineticTypography: BUATKAN VIDEO KINETI",
+      "uri": "https://storage.googleapis.com/flowmonkey-vfx-cloud/kinetictypography_remotion_kinetic_1786965041422.mp4",
+      "startTimeMs": 0,
+      "endTimeMs": 4000,
+      "durationMs": 4000,
+      "filterName": "Remotion Cloud HDR",
+      "effectName": "KineticTypography",
+      "speedMultiplier": 1,
+      "speedCurve": "Standard",
+      "hasKeyframe": false,
+      "keyframes": [],
+      "transitionType": "None",
+      "volume": 1,
+      "isMuted": false,
+      "noiseReduction": false,
+      "vocalEnhance": false,
+      "proxyUri": "proxy_1785766936801.mp4",
+      "proxyStatus": "READY",
+      "cloudMetadata": {
+        "renderer": "Vercel Serverless + Remotion GPU Cluster",
+        "compositionId": "KineticTypography",
+        "inputProps": {
+          "title": "BUATKAN VIDEO KINETIK DE",
+          "subtitle": "RENDERED WITH REMOTION ON VERCEL",
+          "themeColor": "#8B5CF6"
+        },
+        "renderedAt": "2026-08-17T11:10:41.422Z"
+      }
+    },
+    {
+      "id": 1785766936802,
+      "projectId": 6,
+      "trackId": 1786965041422,
+      "title": "[AI Veo 2] Buatkan video kinetik den...",
+      "uri": "https://generated.flowmonkey.ai/v/1786965041423.mp4",
+      "startTimeMs": 0,
+      "endTimeMs": 5000,
+      "durationMs": 5000,
+      "filterName": "Cinematic Glow",
+      "speedMultiplier": 1,
+      "transitionType": "Dissolve",
+      "volume": 1,
+      "isMuted": false,
+      "audioFadeInSec": 0.5,
+      "audioFadeOutSec": 0.5,
+      "audioPitch": 1,
+      "noiseReduction": true,
+      "vocalEnhance": false,
+      "proxyUri": "proxy_1785766936802.mp4",
+      "proxyStatus": "READY"
+    },
+    {
+      "id": 1785766936803,
+      "projectId": 7,
+      "trackId": 1786965043679,
+      "title": "[Remotion Cloud] KineticTypography: BUATKAN VIDEO KINETI",
+      "uri": "https://storage.googleapis.com/flowmonkey-vfx-cloud/kinetictypography_remotion_kinetic_1786965043678.mp4",
+      "startTimeMs": 0,
+      "endTimeMs": 4000,
+      "durationMs": 4000,
+      "filterName": "Remotion Cloud HDR",
+      "effectName": "KineticTypography",
+      "speedMultiplier": 1.0,
+      "speedCurve": "Standard",
+      "hasKeyframe": false,
+      "keyframes": [],
+      "transitionType": "None",
+      "volume": 1.0,
+      "isMuted": false,
+      "noiseReduction": false,
+      "vocalEnhance": false,
+      "proxyUri": "proxy_1785766936803.mp4",
+      "proxyStatus": "READY",
+      "cloudMetadata": {
+        "renderer": "Vercel Serverless + Remotion GPU Cluster",
+        "compositionId": "KineticTypography",
+        "inputProps": {
+          "title": "BUATKAN VIDEO KINETIK DE",
+          "subtitle": "RENDERED WITH REMOTION ON VERCEL",
+          "themeColor": "#8B5CF6"
+        },
+        "renderedAt": "2026-08-17T11:10:43Z"
+      }
+    },
+    {
+      "id": 1785766936804,
+      "projectId": 7,
+      "trackId": 1786965043676,
+      "title": "[AI Veo 2] Buatkan video kinetik den...",
+      "uri": "https://generated.flowmonkey.ai/v/1786965043679.mp4",
+      "startTimeMs": 0,
+      "endTimeMs": 5000,
+      "durationMs": 5000,
+      "filterName": "Cinematic Glow",
+      "speedMultiplier": 1.0,
+      "transitionType": "Dissolve",
+      "volume": 1.0,
+      "isMuted": false,
+      "audioFadeInSec": 0.5,
+      "audioFadeOutSec": 0.5,
+      "audioPitch": 1.0,
+      "noiseReduction": true,
+      "vocalEnhance": false,
+      "proxyUri": "proxy_1785766936804.mp4",
+      "proxyStatus": "READY"
+    },
+    {
+      "id": 1785766936805,
+      "projectId": 8,
+      "trackId": 1786965050711,
+      "title": "[Remotion Cloud] KineticTypography: BUATKAN VIDEO KINETI",
+      "uri": "https://storage.googleapis.com/flowmonkey-vfx-cloud/kinetictypography_remotion_kinetic_1786965050710.mp4",
+      "startTimeMs": 0,
+      "endTimeMs": 4000,
+      "durationMs": 4000,
+      "filterName": "Remotion Cloud HDR",
+      "effectName": "KineticTypography",
+      "speedMultiplier": 1.0,
+      "speedCurve": "Standard",
+      "hasKeyframe": false,
+      "keyframes": [],
+      "transitionType": "None",
+      "volume": 1.0,
+      "isMuted": false,
+      "noiseReduction": false,
+      "vocalEnhance": false,
+      "proxyUri": "proxy_1785766936805.mp4",
+      "proxyStatus": "READY",
+      "cloudMetadata": {
+        "renderer": "Vercel Serverless + Remotion GPU Cluster",
+        "compositionId": "KineticTypography",
+        "inputProps": {
+          "title": "BUATKAN VIDEO KINETIK DE",
+          "subtitle": "RENDERED WITH REMOTION ON VERCEL",
+          "themeColor": "#8B5CF6"
+        },
+        "renderedAt": "2026-08-17T11:10:50Z"
+      }
+    },
+    {
+      "id": 1785766936806,
+      "projectId": 8,
+      "trackId": 1786965050708,
+      "title": "[AI Veo 2] Buatkan video kinetik den...",
+      "uri": "https://generated.flowmonkey.ai/v/1786965050711.mp4",
+      "startTimeMs": 0,
+      "endTimeMs": 5000,
+      "durationMs": 5000,
+      "filterName": "Cinematic Glow",
+      "speedMultiplier": 1.0,
+      "transitionType": "Dissolve",
+      "volume": 1.0,
+      "isMuted": false,
+      "audioFadeInSec": 0.5,
+      "audioFadeOutSec": 0.5,
+      "audioPitch": 1.0,
+      "noiseReduction": true,
+      "vocalEnhance": false,
+      "proxyUri": "proxy_1785766936806.mp4",
+      "proxyStatus": "READY"
     }
   ],
   "transcodingJobs": [
@@ -301,6 +647,96 @@
       "id": "job_all_2_1785702625361",
       "clipId": 2,
       "mediaTitle": "[AI Veo 2] Buat video klip 15 detik ...",
+      "originalResolution": "1080p FHD",
+      "targetResolution": "360p Proxy",
+      "progressPercent": 100,
+      "statusMessage": "Proxy Transcoded (360p Proxy)",
+      "isCompleted": true
+    },
+    {
+      "id": "job_1786965041423",
+      "clipId": 1785766936802,
+      "mediaTitle": "[AI Veo 2] Buatkan video kinetik den...",
+      "originalResolution": "1080p FHD",
+      "targetResolution": "360p Proxy",
+      "progressPercent": 100,
+      "statusMessage": "Proxy Low-Res Transcoded (360p Proxy)",
+      "isCompleted": true
+    },
+    {
+      "id": "job_all_1785766936801_1786965041424",
+      "clipId": 1785766936801,
+      "mediaTitle": "[Remotion Cloud] KineticTypography: BUATKAN VIDEO KINETI",
+      "originalResolution": "1080p FHD",
+      "targetResolution": "360p Proxy",
+      "progressPercent": 100,
+      "statusMessage": "Proxy Transcoded (360p Proxy)",
+      "isCompleted": true
+    },
+    {
+      "id": "job_all_1785766936802_1786965041424",
+      "clipId": 1785766936802,
+      "mediaTitle": "[AI Veo 2] Buatkan video kinetik den...",
+      "originalResolution": "1080p FHD",
+      "targetResolution": "360p Proxy",
+      "progressPercent": 100,
+      "statusMessage": "Proxy Transcoded (360p Proxy)",
+      "isCompleted": true
+    },
+    {
+      "id": "job_1786965043679",
+      "clipId": 1785766936804,
+      "mediaTitle": "[AI Veo 2] Buatkan video kinetik den...",
+      "originalResolution": "1080p FHD",
+      "targetResolution": "360p Proxy",
+      "progressPercent": 100,
+      "statusMessage": "Proxy Low-Res Transcoded (360p Proxy)",
+      "isCompleted": true
+    },
+    {
+      "id": "job_all_1785766936803_1786965043681",
+      "clipId": 1785766936803,
+      "mediaTitle": "[Remotion Cloud] KineticTypography: BUATKAN VIDEO KINETI",
+      "originalResolution": "1080p FHD",
+      "targetResolution": "360p Proxy",
+      "progressPercent": 100,
+      "statusMessage": "Proxy Transcoded (360p Proxy)",
+      "isCompleted": true
+    },
+    {
+      "id": "job_all_1785766936804_1786965043681",
+      "clipId": 1785766936804,
+      "mediaTitle": "[AI Veo 2] Buatkan video kinetik den...",
+      "originalResolution": "1080p FHD",
+      "targetResolution": "360p Proxy",
+      "progressPercent": 100,
+      "statusMessage": "Proxy Transcoded (360p Proxy)",
+      "isCompleted": true
+    },
+    {
+      "id": "job_1786965050711",
+      "clipId": 1785766936806,
+      "mediaTitle": "[AI Veo 2] Buatkan video kinetik den...",
+      "originalResolution": "1080p FHD",
+      "targetResolution": "360p Proxy",
+      "progressPercent": 100,
+      "statusMessage": "Proxy Low-Res Transcoded (360p Proxy)",
+      "isCompleted": true
+    },
+    {
+      "id": "job_all_1785766936805_1786965050714",
+      "clipId": 1785766936805,
+      "mediaTitle": "[Remotion Cloud] KineticTypography: BUATKAN VIDEO KINETI",
+      "originalResolution": "1080p FHD",
+      "targetResolution": "360p Proxy",
+      "progressPercent": 100,
+      "statusMessage": "Proxy Transcoded (360p Proxy)",
+      "isCompleted": true
+    },
+    {
+      "id": "job_all_1785766936806_1786965050714",
+      "clipId": 1785766936806,
+      "mediaTitle": "[AI Veo 2] Buatkan video kinetik den...",
       "originalResolution": "1080p FHD",
       "targetResolution": "360p Proxy",
       "progressPercent": 100,
@@ -329,6 +765,86 @@
       "durationSec": 10,
       "outputPath": "/sdcard/Movies/FlowMonkey/FlowMonkey_buat_video_klip_15_detik_tenta_1080_1785702625361.mp4",
       "exportedAt": "2026-08-02T20:30:25.361Z"
+    },
+    {
+      "id": "exp_1786965041425",
+      "projectId": 6,
+      "projectTitle": "Buatkan video kinetik dengan tek",
+      "resolution": "1080p FHD",
+      "fps": 60,
+      "format": "MP4",
+      "bitrate": "High (16 Mbps)",
+      "durationSec": 5,
+      "outputPath": "/sdcard/Movies/FlowMonkey/FlowMonkey_buatkan_video_kinetik_dengan_tek_1080_1786965041425.mp4",
+      "exportedAt": "2026-08-17T11:10:41.425Z"
+    },
+    {
+      "id": "exp_1786965050716",
+      "projectId": 8,
+      "projectTitle": "Buatkan video kinetik dengan tek",
+      "resolution": "1080p FHD",
+      "fps": 60,
+      "format": "MP4",
+      "bitrate": "High (16 Mbps)",
+      "durationSec": 5.0,
+      "outputPath": "/sdcard/Movies/FlowMonkey/FlowMonkey_buatkan_video_kinetik_dengan_tek_1080_1786965050716.mp4",
+      "exportedAt": "2026-08-17T11:10:50.716110"
+    }
+  ],
+  "zeroCopy": {
+    "isEnabled": true,
+    "activeFrameCount": 4,
+    "totalZeroCopyTransfers": 1424,
+    "savedMemoryMegabytes": 500.140625,
+    "bufferPoolSize": 8,
+    "hardwareGpuBufferSupported": true,
+    "lastPipelineSync": "2026-08-17T11:10:14.039Z"
+  },
+  "aiModels": [
+    {
+      "id": "face_mesh_int8",
+      "name": "MediaPipe Face Mesh (Beauty Retouch)",
+      "approxSizeBytes": 2800000,
+      "sizeDisplay": "2.8 MB",
+      "status": "CACHED_ON_DISK",
+      "memoryUsageMb": 0,
+      "description": "468 landmark face geometry untuk penghalusan kulit & lighting"
+    },
+    {
+      "id": "pose_tracker_int8",
+      "name": "MediaPipe Body Pose (Silhouette VFX)",
+      "approxSizeBytes": 3400000,
+      "sizeDisplay": "3.4 MB",
+      "status": "LOADED_IN_GPU_RAM",
+      "memoryUsageMb": 3.4,
+      "description": "33 3D body keypoints untuk kinetic glow & silhouette vfx"
+    },
+    {
+      "id": "bg_segmenter_int8",
+      "name": "AI Background Cutout (Matting)",
+      "approxSizeBytes": 2100000,
+      "sizeDisplay": "2.1 MB",
+      "status": "CACHED_ON_DISK",
+      "memoryUsageMb": 0,
+      "description": "High-precision human matting & background removal"
+    },
+    {
+      "id": "hand_gesture_tracker",
+      "name": "MediaPipe Hand Gesture Tracker",
+      "approxSizeBytes": 1900000,
+      "sizeDisplay": "1.9 MB",
+      "status": "NOT_DOWNLOADED",
+      "memoryUsageMb": 0,
+      "description": "21 keypoint hand tracking untuk stiker interaktif"
+    },
+    {
+      "id": "object_detector_int8",
+      "name": "AI Smart Object Tracker",
+      "approxSizeBytes": 3800000,
+      "sizeDisplay": "3.8 MB",
+      "status": "NOT_DOWNLOADED",
+      "memoryUsageMb": 0,
+      "description": "Real-time bounding box tracking untuk pinning teks & visual stickers"
     }
   ]
 }

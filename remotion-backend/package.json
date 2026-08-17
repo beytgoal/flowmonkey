@@ -1,0 +1,30 @@
+{
+  "name": "flowmonkey-remotion-vfx-backend",
+  "version": "1.0.0",
+  "description": "Vercel Serverless Cloud Rendering Engine for Heavy Video Effects, Kinetic Typography, Glitch Transitions, HUD Infographics, and Particle Systems with Remotion",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "remotion preview src/index.ts",
+    "build": "remotion bundle src/index.ts",
+    "render": "remotion render src/index.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.120",
+    "@remotion/cli": "^4.0.120",
+    "@remotion/renderer": "^4.0.120",
+    "@vercel/node": "^3.0.0",
+    "framer-motion": "^11.0.0",
+    "lucide-react": "^0.344.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "remotion": "^4.0.120",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.3.3"
+  }
+}

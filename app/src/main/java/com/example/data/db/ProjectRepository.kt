@@ -13,12 +13,27 @@ import java.util.Locale
 class ProjectRepository(
     private val projectDao: VideoProjectDao,
     private val sceneDao: StoryboardSceneDao,
-    private val timelineDao: TimelineDao
+    private val timelineDao: TimelineDao,
+    private val videoSegmentDao: VideoSegmentDao? = null
 ) {
     val allProjects: Flow<List<VideoProjectEntity>> = projectDao.getAllProjects()
 
     fun getProjectByIdFlow(id: Long): Flow<VideoProjectEntity?> = projectDao.getProjectByIdFlow(id)
     suspend fun getProjectById(id: Long): VideoProjectEntity? = projectDao.getProjectById(id)
+
+    fun getProjectWithSegments(projectId: Long): Flow<VideoProjectWithSegments?> =
+        projectDao.getProjectWithSegments(projectId)
+
+    fun getAllProjectsWithSegments(): Flow<List<VideoProjectWithSegments>> =
+        projectDao.getAllProjectsWithSegments()
+
+    fun getSegmentsForProject(projectId: Long): Flow<List<GeneratedVideoSegmentEntity>> =
+        videoSegmentDao?.getSegmentsForProject(projectId) ?: kotlinx.coroutines.flow.flowOf(emptyList())
+
+    suspend fun getSegmentsListForProject(projectId: Long): List<GeneratedVideoSegmentEntity> =
+        withContext(Dispatchers.IO) {
+            videoSegmentDao?.getSegmentsListForProject(projectId) ?: emptyList()
+        }
 
     fun getScenesForProject(projectId: Long): Flow<List<StoryboardSceneEntity>> =
         sceneDao.getScenesForProject(projectId)
@@ -46,89 +61,15 @@ class ProjectRepository(
         )
         val projectId = projectDao.insertProject(project)
 
-        // Create default tracks
-        val videoTrackId = timelineDao.insertTrack(
+        // Create default multitrack layout (empty timeline ready for manual media import)
+        timelineDao.insertTrack(
             TimelineTrackEntity(projectId = projectId, trackType = "VIDEO", trackName = "Klip Video", trackIndex = 0)
         )
-        val textTrackId = timelineDao.insertTrack(
+        timelineDao.insertTrack(
             TimelineTrackEntity(projectId = projectId, trackType = "TEXT", trackName = "Subjudul / Teks", trackIndex = 1)
         )
-        val audioTrackId = timelineDao.insertTrack(
+        timelineDao.insertTrack(
             TimelineTrackEntity(projectId = projectId, trackType = "AUDIO", trackName = "Musik & Suara", trackIndex = 2)
-        )
-
-        // Seed 2 default scenes for storyboard
-        sceneDao.insertScenes(
-            listOf(
-                StoryboardSceneEntity(
-                    projectId = projectId,
-                    sceneIndex = 0,
-                    title = "Adegan 1: Pembuka",
-                    scriptText = "Kamera bergerak maju memperlihatkan lanskap kota futuristik saat matahari terbit.",
-                    visualPrompt = "Futuristic neon city skyline at golden hour sunrise, ultra high detail, 8k cinematic shot",
-                    cameraMovement = "Zoom In",
-                    durationSeconds = 5,
-                    status = "READY"
-                ),
-                StoryboardSceneEntity(
-                    projectId = projectId,
-                    sceneIndex = 1,
-                    title = "Adegan 2: Fokus Karakter",
-                    scriptText = "Sosok pahlawan cybernetic berdiri di atas gedung memandang lanskap neon.",
-                    visualPrompt = "Cybernetic hero standing on top of a skyscraper, reflection of neon city on visor, cinematic lighting",
-                    cameraMovement = "Pan Right",
-                    durationSeconds = 5,
-                    status = "READY"
-                )
-            )
-        )
-
-        // Seed default timeline clips
-        timelineDao.insertClips(
-            listOf(
-                TimelineClipEntity(
-                    trackId = videoTrackId,
-                    projectId = projectId,
-                    title = "Adegan 1 - Kota Futuristik",
-                    mediaUri = "sample_clip_1",
-                    startTimeMs = 0,
-                    endTimeMs = 5000,
-                    durationMs = 5000,
-                    filterName = "Cinematic Glow",
-                    transitionType = "Fade"
-                ),
-                TimelineClipEntity(
-                    trackId = videoTrackId,
-                    projectId = projectId,
-                    title = "Adegan 2 - Karakter Neon",
-                    mediaUri = "sample_clip_2",
-                    startTimeMs = 5000,
-                    endTimeMs = 10000,
-                    durationMs = 5000,
-                    filterName = "Cyberpunk Neon",
-                    transitionType = "Crossfade"
-                ),
-                TimelineClipEntity(
-                    trackId = textTrackId,
-                    projectId = projectId,
-                    title = "Judul Pembuka",
-                    mediaUri = "",
-                    startTimeMs = 500,
-                    endTimeMs = 4500,
-                    durationMs = 4000,
-                    textContent = "FLOWMONKEY STUDIO: MASA DEPAN VIDEO"
-                ),
-                TimelineClipEntity(
-                    trackId = audioTrackId,
-                    projectId = projectId,
-                    title = "Musik Synthwave Ambient",
-                    mediaUri = "audio_synthwave",
-                    startTimeMs = 0,
-                    endTimeMs = 10000,
-                    durationMs = 10000,
-                    volume = 0.8f
-                )
-            )
         )
 
         projectId
@@ -201,6 +142,21 @@ class ProjectRepository(
             sceneDao.insertScenes(clonedScenes)
         }
 
+        // Copy generated segments
+        videoSegmentDao?.let { sDao ->
+            val existingSegments = sDao.getSegmentsListForProject(sourceProject.id)
+            val clonedSegments = existingSegments.map { segment ->
+                segment.copy(
+                    id = 0,
+                    projectId = templateId,
+                    title = if (segment.title.contains("Placeholder")) segment.title else "Placeholder - ${segment.title}"
+                )
+            }
+            if (clonedSegments.isNotEmpty()) {
+                sDao.insertSegments(clonedSegments)
+            }
+        }
+
         templateId
     }
 
@@ -261,6 +217,21 @@ class ProjectRepository(
             sceneDao.insertScenes(clonedScenes)
         }
 
+        // Copy segments
+        videoSegmentDao?.let { sDao ->
+            val templateSegments = sDao.getSegmentsListForProject(template.id)
+            val clonedSegments = templateSegments.map { segment ->
+                segment.copy(
+                    id = 0,
+                    projectId = newProjectId,
+                    title = segment.title.removePrefix("Placeholder - ")
+                )
+            }
+            if (clonedSegments.isNotEmpty()) {
+                sDao.insertSegments(clonedSegments)
+            }
+        }
+
         newProjectId
     }
 
@@ -298,6 +269,43 @@ class ProjectRepository(
 
     suspend fun deleteClip(clip: TimelineClipEntity) = withContext(Dispatchers.IO) {
         timelineDao.deleteClip(clip)
+    }
+
+    // Generated Video Segment operations (Metadata & local file paths)
+    suspend fun addSegment(segment: GeneratedVideoSegmentEntity): Long = withContext(Dispatchers.IO) {
+        videoSegmentDao?.insertSegment(segment) ?: 0L
+    }
+
+    suspend fun addSegments(segments: List<GeneratedVideoSegmentEntity>) = withContext(Dispatchers.IO) {
+        videoSegmentDao?.insertSegments(segments)
+    }
+
+    suspend fun updateSegment(segment: GeneratedVideoSegmentEntity) = withContext(Dispatchers.IO) {
+        videoSegmentDao?.updateSegment(segment)
+    }
+
+    suspend fun deleteSegment(segment: GeneratedVideoSegmentEntity) = withContext(Dispatchers.IO) {
+        videoSegmentDao?.deleteSegment(segment)
+    }
+
+    suspend fun updateSegmentFilePath(segmentId: Long, localPath: String, status: String = "READY") = withContext(Dispatchers.IO) {
+        videoSegmentDao?.updateSegmentFilePath(segmentId, localPath, status)
+    }
+
+    suspend fun updateProjectMetadata(
+        projectId: Long,
+        title: String? = null,
+        durationSeconds: Int? = null,
+        durationMs: Long? = null,
+        localFilePath: String? = null
+    ) = withContext(Dispatchers.IO) {
+        title?.let { projectDao.updateProjectTitle(projectId, it) }
+        if (durationSeconds != null || durationMs != null) {
+            val sec = durationSeconds ?: ((durationMs ?: 0L) / 1000L).toInt()
+            val ms = durationMs ?: (sec * 1000L)
+            projectDao.updateProjectDuration(projectId, sec, ms)
+        }
+        localFilePath?.let { projectDao.updateProjectFilePath(projectId, it) }
     }
 
     // --- AI Feature 1: Studio AI Video Clip Generation ---

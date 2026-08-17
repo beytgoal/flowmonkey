@@ -56,6 +56,25 @@ android {
     compose = true
     buildConfig = true
   }
+  packaging {
+    jniLibs {
+      useLegacyPackaging = false
+      keepDebugSymbols.clear()
+      excludes += listOf(
+        "**/libopencv_java4.so.debug",
+        "**/gstreamer_android.so.debug",
+        "**/libffmpeg.so.debug",
+        "**/libmediapipe_jni.so.debug"
+      )
+    }
+    resources {
+      excludes += listOf(
+        "META-INF/DEPENDENCIES",
+        "META-INF/LICENSE*",
+        "META-INF/NOTICE*"
+      )
+    }
+  }
   testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 

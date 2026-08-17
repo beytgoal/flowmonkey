@@ -35,6 +35,13 @@ interface GeminiApiService {
 object ApiClient {
     private const val BASE_URL = "https://generativelanguage.googleapis.com/"
 
+    @Volatile
+    private var directedUserApiKey: String? = null
+
+    fun setUserApiKey(key: String?) {
+        directedUserApiKey = key?.trim()?.takeIf { it.isNotBlank() }
+    }
+
     private val moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())
         .build()
@@ -58,6 +65,10 @@ object ApiClient {
     }
 
     fun getApiKey(): String {
+        val userKey = directedUserApiKey
+        if (!userKey.isNullOrBlank()) {
+            return userKey
+        }
         return BuildConfig.GEMINI_API_KEY
     }
 }

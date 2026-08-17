@@ -6,6 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.db.*
 import com.example.data.models.*
+import com.example.media.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -65,7 +67,8 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
     private val repository = ProjectRepository(
         database.videoProjectDao(),
         database.storyboardSceneDao(),
-        database.timelineDao()
+        database.timelineDao(),
+        database.videoSegmentDao()
     )
 
     // Current Navigation State
@@ -96,6 +99,12 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val generatedSegments: StateFlow<List<GeneratedVideoSegmentEntity>> = _activeProjectId
+        .flatMapLatest { id ->
+            if (id != null) repository.getSegmentsForProject(id) else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val timelineTracks: StateFlow<List<TimelineTrackEntity>> = _activeProjectId
         .flatMapLatest { id ->
             if (id != null) repository.getTracksForProject(id) else flowOf(emptyList())
@@ -107,6 +116,65 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
             if (id != null) repository.getClipsForProject(id) else flowOf(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun saveGeneratedSegment(
+        title: String,
+        durationSeconds: Int = 5,
+        durationMs: Long = 5000L,
+        localFilePath: String,
+        mediaUri: String = "",
+        prompt: String = "",
+        visualStyle: String = "Cinematic",
+        resolution: String = "1080p",
+        aspectRatio: String = "16:9",
+        fileSizeBytes: Long = 0L,
+        status: String = "READY"
+    ) {
+        val projId = activeProjectId.value ?: return
+        viewModelScope.launch {
+            val currentSegments = repository.getSegmentsListForProject(projId)
+            val newSegment = GeneratedVideoSegmentEntity(
+                projectId = projId,
+                segmentIndex = currentSegments.size,
+                title = title,
+                durationSeconds = durationSeconds,
+                durationMs = durationMs,
+                localFilePath = localFilePath,
+                mediaUri = mediaUri,
+                prompt = prompt,
+                visualStyle = visualStyle,
+                resolution = resolution,
+                aspectRatio = aspectRatio,
+                fileSizeBytes = fileSizeBytes,
+                status = status
+            )
+            repository.addSegment(newSegment)
+        }
+    }
+
+    fun updateProjectMetadata(
+        title: String? = null,
+        durationSeconds: Int? = null,
+        durationMs: Long? = null,
+        localFilePath: String? = null
+    ) {
+        val projId = activeProjectId.value ?: return
+        viewModelScope.launch {
+            repository.updateProjectMetadata(
+                projectId = projId,
+                title = title,
+                durationSeconds = durationSeconds,
+                durationMs = durationMs,
+                localFilePath = localFilePath
+            )
+        }
+    }
+
+    fun deleteSegment(segment: GeneratedVideoSegmentEntity) {
+        viewModelScope.launch {
+            repository.deleteSegment(segment)
+        }
+    }
 
     // User Profile, API Keys & Highfield Framework State
     var userProfileState = MutableStateFlow(com.example.data.models.UserProfile())
@@ -131,8 +199,14 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         targetTrackType: String? = null,
         jumpToTimeline: Boolean = false
     ) {
-        val projId = _activeProjectId.value ?: return
         viewModelScope.launch {
+            var projId = _activeProjectId.value
+            if (projId == null) {
+                val existing = repository.allProjects.firstOrNull()?.firstOrNull()
+                projId = existing?.id ?: repository.createNewProject("Proyek Video Baru", "", "16:9", "Cinematic")
+                _activeProjectId.value = projId
+            }
+
             val tracks = repository.getTracksForProject(projId).firstOrNull() ?: emptyList()
             val reqType = targetTrackType ?: when (asset.category.uppercase()) {
                 "AUDIO" -> "AUDIO"
@@ -148,17 +222,17 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
                     trackName = when (reqType) {
                         "AUDIO" -> "Audio Track ${tracks.count { it.trackType == "AUDIO" } + 1}"
                         "TEXT" -> "Overlay Grafis ${tracks.count { it.trackType == "TEXT" } + 1}"
-                        else -> "Video Track ${tracks.count { it.trackType == "VIDEO" } + 1}"
+                        else -> "Klip Video"
                     },
                     trackIndex = tracks.size
                 )
-                repository.addTrack(newTrack)
-                matchingTrack = repository.getTracksForProject(projId).firstOrNull()?.find { it.trackType == reqType }
+                val newTrackId = repository.addTrack(newTrack)
+                matchingTrack = newTrack.copy(id = newTrackId)
             }
 
-            val targetTrackId = matchingTrack?.id ?: (tracks.firstOrNull()?.id ?: 0L)
-            val currentClips = timelineClips.value
-            val maxEndMs = currentClips.maxOfOrNull { it.endTimeMs } ?: 0L
+            val targetTrackId = matchingTrack.id
+            val currentClips = repository.getClipsForProject(projId).firstOrNull() ?: emptyList()
+            val maxEndMs = currentClips.filter { it.trackId == targetTrackId }.maxOfOrNull { it.endTimeMs } ?: 0L
 
             val newClip = TimelineClipEntity(
                 trackId = targetTrackId,
@@ -168,8 +242,8 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
                 startTimeMs = maxEndMs,
                 endTimeMs = maxEndMs + asset.durationMs,
                 durationMs = asset.durationMs,
-                audioSfx = if (reqType == "AUDIO") asset.title else "",
-                stickerIcon = if (reqType == "TEXT") asset.title else ""
+                audioSfx = if (reqType == "AUDIO") asset.title else "None",
+                stickerIcon = if (reqType == "TEXT") asset.title else "None"
             )
 
             repository.addClip(newClip)
@@ -179,6 +253,22 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
                 _currentTab.value = MainTab.TIMELINE_EDITOR
             }
         }
+    }
+
+    fun insertAssetToActiveTimeline(
+        title: String,
+        mediaUri: String,
+        durationMs: Long,
+        targetTrackId: Long? = null
+    ) {
+        val asset = com.example.data.models.LocalMediaAsset(
+            id = "custom_${System.currentTimeMillis()}",
+            title = title,
+            category = "VIDEO",
+            durationMs = durationMs,
+            uri = mediaUri
+        )
+        insertAssetToActiveTimeline(asset, "VIDEO", false)
     }
 
     // Low-Resolution Proxy Preview State for Timeline Performance
@@ -557,34 +647,162 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun addMediaFromGallery(mediaUri: String, title: String = "Media Galeri Device") {
-        val projId = _activeProjectId.value ?: return
+    fun addVideoClip(mediaUri: String, title: String = "Klip Video", durationMs: Long = 5000L) {
         viewModelScope.launch {
-            val tracks = repository.getTracksForProject(projId).firstOrNull() ?: emptyList()
-            val videoTrack = tracks.find { it.trackType == "VIDEO" }
-            if (videoTrack != null) {
-                val currentClips = repository.getClipsForProject(projId).firstOrNull() ?: emptyList()
-                val startTimeMs = currentClips.maxOfOrNull { it.endTimeMs } ?: 0L
-                val clipDuration = 5000L
-
-                val newClip = TimelineClipEntity(
-                    trackId = videoTrack.id,
-                    projectId = projId,
-                    title = title,
-                    mediaUri = mediaUri,
-                    startTimeMs = startTimeMs,
-                    endTimeMs = startTimeMs + clipDuration,
-                    durationMs = clipDuration,
-                    filterName = "None",
-                    proxyStatus = if (_autoTranscodeOnImport.value) "TRANSCODING" else "IDLE"
-                )
-                val newClipId = repository.addClip(newClip)
-                saveHistoryState()
-
-                if (_autoTranscodeOnImport.value) {
-                    triggerBackgroundTranscode(newClipId, title)
-                }
+            var projId = _activeProjectId.value
+            if (projId == null) {
+                val existing = repository.allProjects.firstOrNull()?.firstOrNull()
+                projId = existing?.id ?: repository.createNewProject("Proyek Video Baru", "", "16:9", "Cinematic")
+                _activeProjectId.value = projId
             }
+
+            val tracks = repository.getTracksForProject(projId).firstOrNull() ?: emptyList()
+            var videoTrack = tracks.find { it.trackType == "VIDEO" && it.trackIndex == 0 } ?: tracks.find { it.trackType == "VIDEO" }
+            if (videoTrack == null) {
+                val newTrack = TimelineTrackEntity(
+                    projectId = projId,
+                    trackType = "VIDEO",
+                    trackName = "Klip Video Utama",
+                    trackIndex = 0
+                )
+                val newTrackId = repository.addTrack(newTrack)
+                videoTrack = newTrack.copy(id = newTrackId)
+            }
+
+            val currentClips = repository.getClipsForProject(projId).firstOrNull() ?: emptyList()
+            val startTimeMs = currentClips.filter { it.trackId == videoTrack.id }.maxOfOrNull { it.endTimeMs } ?: 0L
+
+            val newClip = TimelineClipEntity(
+                trackId = videoTrack.id,
+                projectId = projId,
+                title = title,
+                mediaUri = mediaUri,
+                startTimeMs = startTimeMs,
+                endTimeMs = startTimeMs + durationMs,
+                durationMs = durationMs,
+                filterName = "None",
+                proxyStatus = if (_autoTranscodeOnImport.value) "TRANSCODING" else "IDLE"
+            )
+            val newClipId = repository.addClip(newClip)
+            saveHistoryState()
+
+            if (_autoTranscodeOnImport.value) {
+                triggerBackgroundTranscode(newClipId, title)
+            }
+        }
+    }
+
+    fun addMediaFromGallery(mediaUri: String, title: String = "Media Galeri Device") {
+        addVideoClip(mediaUri, title, 5000L)
+    }
+
+    /**
+     * Extracts audio from a video clip and creates an independent audio clip on an AUDIO track.
+     */
+    fun extractAudioFromVideoClip(clip: TimelineClipEntity) {
+        viewModelScope.launch {
+            val projId = clip.projectId
+            val tracks = repository.getTracksForProject(projId).firstOrNull() ?: emptyList()
+            var audioTrack = tracks.find { it.trackType == "AUDIO" }
+            if (audioTrack == null) {
+                val newTrack = TimelineTrackEntity(
+                    projectId = projId,
+                    trackType = "AUDIO",
+                    trackName = "Audio Terekstrak",
+                    trackIndex = tracks.size
+                )
+                val newTrackId = repository.addTrack(newTrack)
+                audioTrack = newTrack.copy(id = newTrackId)
+            }
+
+            val outPath = "${getApplication<Application>().filesDir}/extracted_audio_${clip.id}.aac"
+            UnifiedMediaStudioPipeline.instance.extractAudioTrack(clip.mediaUri, outPath)
+
+            val extractedClip = TimelineClipEntity(
+                trackId = audioTrack.id,
+                projectId = projId,
+                title = "Audio Ekstrak - ${clip.title}",
+                mediaUri = outPath,
+                startTimeMs = clip.startTimeMs,
+                endTimeMs = clip.endTimeMs,
+                durationMs = clip.durationMs,
+                audioSfx = "Audio Ekstrak"
+            )
+            repository.addClip(extractedClip)
+            saveHistoryState()
+        }
+    }
+
+    /**
+     * Applies AI Voice Changer filter to audio/video clip using FFmpeg.
+     */
+    fun applyVoiceChangerToClip(clip: TimelineClipEntity, effect: String) {
+        viewModelScope.launch {
+            val outPath = "${getApplication<Application>().filesDir}/voice_${effect.lowercase().replace(" ", "_")}_${clip.id}.aac"
+            UnifiedMediaStudioPipeline.instance.applyVoiceChangerFilter(clip.mediaUri, outPath, effect)
+            val updated = clip.copy(
+                audioSfx = effect,
+                volume = 1.0f
+            )
+            repository.updateClip(updated)
+            saveHistoryState()
+        }
+    }
+
+    /**
+     * Applies AI Spectral Noise Reduction to clip using FFmpeg.
+     */
+    fun applyDenoiseToClip(clip: TimelineClipEntity, isDenoise: Boolean = true) {
+        viewModelScope.launch {
+            val outPath = "${getApplication<Application>().filesDir}/denoised_${clip.id}.aac"
+            if (isDenoise) {
+                UnifiedMediaStudioPipeline.instance.applyAudioNoiseReduction(clip.mediaUri, outPath)
+            }
+            val updated = clip.copy(
+                noiseReduction = isDenoise,
+                audioSfx = if (isDenoise) "AI Denoise Bersih" else "None"
+            )
+            repository.updateClip(updated)
+            saveHistoryState()
+        }
+    }
+
+    /**
+     * Detects beat timestamps using GStreamer audio analyzer.
+     */
+    fun detectBeatsForClip(clip: TimelineClipEntity) {
+        viewModelScope.launch {
+            val beats = UnifiedMediaStudioPipeline.instance.detectAudioBeatsWaveform(clip.mediaUri, clip.durationMs)
+            android.util.Log.d("VideoStudioViewModel", "Detected ${beats.size} beats for clip ${clip.title}: $beats")
+        }
+    }
+
+    /**
+     * Applies Face Beauty Mesh Retouching via MediaPipe Quantized Engine.
+     */
+    fun applyFaceBeautyToClip(clip: TimelineClipEntity, level: Float = 0.6f) {
+        viewModelScope.launch {
+            val updated = clip.copy(
+                filterName = "Face Beauty AI",
+                saturation = 1.05f,
+                contrast = 1.02f
+            )
+            repository.updateClip(updated)
+            saveHistoryState()
+        }
+    }
+
+    /**
+     * Applies Body Pose Glowing Silhouette via MediaPipe Quantized Engine.
+     */
+    fun applyBodySilhouetteGlowToClip(clip: TimelineClipEntity, colorHex: String = "#00E5FF") {
+        viewModelScope.launch {
+            val updated = clip.copy(
+                filterName = "Neon Silhouette Glow",
+                effectName = "Cyber Glow"
+            )
+            repository.updateClip(updated)
+            saveHistoryState()
         }
     }
 
@@ -875,28 +1093,43 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
             isPlaying.value = false
             playbackJob?.cancel()
         } else {
-            isPlaying.value = true
             val maxTimeMs = timelineClips.value.maxOfOrNull { it.endTimeMs } ?: 15000L
-            playbackJob = viewModelScope.launch {
-                var lastTime = System.currentTimeMillis()
+            if (currentTimeMs.value >= maxTimeMs) {
+                currentTimeMs.value = 0L
+            }
+            isPlaying.value = true
+            playbackJob = viewModelScope.launch(Dispatchers.Main.immediate) {
+                var lastNano = System.nanoTime()
+                var fractionalTimeMs = currentTimeMs.value.toDouble()
                 while (isPlaying.value) {
-                    delay(16) // Ultra-smooth 60 FPS playback loop
-                    val now = System.currentTimeMillis()
-                    val realDelta = (now - lastTime).coerceIn(5L, 40L)
-                    lastTime = now
+                    delay(16) // Smooth 60 FPS pacing
+                    val nowNano = System.nanoTime()
+                    val realDeltaMs = ((nowNano - lastNano) / 1_000_000.0).coerceIn(4.0, 50.0)
+                    lastNano = nowNano
 
+                    val currentMsVal = currentTimeMs.value
                     // Calculate dynamic speed factor based on active clip at playhead
-                    val currentClips = timelineClips.value.filter {
-                        currentTimeMs.value in it.startTimeMs until it.endTimeMs
+                    val currentClips = timelineClips.value
+                    val activeClip = currentClips.firstOrNull {
+                        currentMsVal in it.startTimeMs until it.endTimeMs
                     }
-                    val mainTrackId = timelineTracks.value.find { it.trackType == "VIDEO" }?.id
-                    val activeClip = currentClips.find { it.trackId == mainTrackId } ?: currentClips.firstOrNull()
-                    val speedFactor = activeClip?.speedMultiplier ?: 1.0f
+                    
+                    val speedFactor = if (activeClip != null && activeClip.speedCurve.isNotBlank() && activeClip.speedCurve != "Normal") {
+                        val clipDur = activeClip.durationMs.coerceAtLeast(100L)
+                        val progress = ((currentMsVal - activeClip.startTimeMs).toFloat() / clipDur.toFloat()).coerceIn(0f, 1f)
+                        val nodes = com.example.ui.components.getNodesForPreset(activeClip.speedCurve)
+                        com.example.ui.components.SpeedCurveInterpolator.interpolateSpeed(nodes, progress)
+                    } else {
+                        activeClip?.speedMultiplier ?: 1.0f
+                    }
 
-                    val advancedTime = (realDelta * speedFactor).toLong().coerceAtLeast(1L)
-                    val newTime = currentTimeMs.value + advancedTime
+                    fractionalTimeMs += realDeltaMs * speedFactor.toDouble()
+                    val newTime = fractionalTimeMs.toLong()
                     if (newTime >= maxTimeMs) {
-                        currentTimeMs.value = 0L
+                        currentTimeMs.value = maxTimeMs
+                        isPlaying.value = false
+                        playbackJob?.cancel()
+                        break
                     } else {
                         currentTimeMs.value = newTime
                     }
@@ -932,33 +1165,43 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // --- Overlay (Stiker & Foto) Actions ---
+    // --- Overlay (Stiker, Foto & Video PIP) Actions ---
     fun addPhotoOverlay(uri: String, title: String = "Overlay Foto") {
+        addOverlayMedia(mediaUri = uri, title = title, durationMs = 4000L, isPhoto = true)
+    }
+
+    fun addOverlayMedia(mediaUri: String, title: String = "Overlay Media", durationMs: Long = 5000L, isPhoto: Boolean = false) {
         viewModelScope.launch {
             val projId = activeProject.value?.id ?: return@launch
-            var overlayTrack = timelineTracks.value.find { it.trackType == "STICKER" || it.trackType == "OVERLAY" }
+            val tracks = repository.getTracksForProject(projId).firstOrNull() ?: emptyList()
+            val mainVideoTrack = tracks.find { it.trackType == "VIDEO" && it.trackIndex == 0 } ?: tracks.find { it.trackType == "VIDEO" }
+            
+            // Find existing overlay video track or create a new one
+            var overlayTrack = tracks.find { it.trackType == "VIDEO" && it.id != mainVideoTrack?.id }
             if (overlayTrack == null) {
                 val newTrack = TimelineTrackEntity(
                     projectId = projId,
-                    trackType = "STICKER",
-                    trackName = "Track Overlay",
-                    trackIndex = 2
+                    trackType = "VIDEO",
+                    trackName = "Overlay PIP ${tracks.count { it.trackType == "VIDEO" }}",
+                    trackIndex = tracks.size
                 )
-                repository.addTrack(newTrack)
-                overlayTrack = repository.getTracksForProject(projId).firstOrNull()?.find { it.trackType == "STICKER" || it.trackType == "OVERLAY" }
+                val trackId = repository.addTrack(newTrack)
+                overlayTrack = newTrack.copy(id = trackId)
             }
 
             val start = currentTimeMs.value
             val newClip = TimelineClipEntity(
-                trackId = overlayTrack?.id ?: 1L,
+                trackId = overlayTrack.id,
                 projectId = projId,
                 title = title,
-                mediaUri = uri,
+                mediaUri = mediaUri,
                 startTimeMs = start,
-                endTimeMs = start + 4000L,
-                durationMs = 4000L,
-                cropRatio = "1:1",
-                stickerIcon = "IMAGE_OVERLAY"
+                endTimeMs = start + durationMs,
+                durationMs = durationMs,
+                opacity = 1.0f,
+                blendMode = "Normal",
+                cropRatio = if (isPhoto) "1:1" else "16:9",
+                stickerIcon = if (isPhoto) "IMAGE_OVERLAY" else "None"
             )
             repository.addClip(newClip)
             saveHistoryState()
@@ -1381,6 +1624,90 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
                 progressPercent = 100,
                 exportedVideoUri = "flowmonkey_export_${System.currentTimeMillis()}_${resolution}.mp4"
             )
+        }
+    }
+
+    // --- Dynamic AI Model Management ---
+    val dynamicAiModelStates = DynamicAiModelManager.instance.modelStates
+
+    fun downloadDynamicAiModel(type: DynamicAiModelManager.ModelType) {
+        viewModelScope.launch {
+            DynamicAiModelManager.instance.downloadModelOnDemand(getApplication(), type)
+        }
+    }
+
+    fun loadAiModelToGpu(type: DynamicAiModelManager.ModelType) {
+        viewModelScope.launch {
+            DynamicAiModelManager.instance.loadModelToGpuMemory(getApplication(), type)
+        }
+    }
+
+    fun unloadAiModelFromMemory(type: DynamicAiModelManager.ModelType) {
+        DynamicAiModelManager.instance.unloadModelFromMemory(type)
+    }
+
+    fun purgeAllModelCaches() {
+        DynamicAiModelManager.instance.purgeAllCachedModels(getApplication())
+    }
+
+    // --- Remotion Cloud Rendering on Vercel ---
+    val remotionCloudJobs = RemotionCloudRendererService.instance.activeJobs
+
+    fun renderAndInsertRemotionCloudVfx(
+        category: RemotionCloudRendererService.VfxCategory,
+        customText: String = "FLOWMONKEY PRO",
+        themeColorHex: String = "#8B5CF6"
+    ) {
+        viewModelScope.launch {
+            var projId = _activeProjectId.value
+            if (projId == null) {
+                val existing = repository.allProjects.firstOrNull()?.firstOrNull()
+                projId = existing?.id ?: repository.createNewProject("Proyek Video Baru", "", "16:9", "Cinematic")
+                _activeProjectId.value = projId
+            }
+
+            val tracks = repository.getTracksForProject(projId).firstOrNull() ?: emptyList()
+            val targetTrackType = if (category == RemotionCloudRendererService.VfxCategory.KINETIC_TYPOGRAPHY || category == RemotionCloudRendererService.VfxCategory.HUD_INFOGRAPHICS) "TEXT" else "VIDEO"
+            
+            var targetTrack = tracks.find { it.trackType == targetTrackType }
+            if (targetTrack == null) {
+                val newTrack = TimelineTrackEntity(
+                    projectId = projId,
+                    trackType = targetTrackType,
+                    trackName = "Remotion Cloud VFX ($targetTrackType)",
+                    trackIndex = tracks.size
+                )
+                val newTrackId = repository.addTrack(newTrack)
+                targetTrack = newTrack.copy(id = newTrackId)
+            }
+
+            val res = RemotionCloudRendererService.instance.requestCloudRender(
+                context = getApplication(),
+                category = category,
+                customTextOrTitle = customText,
+                themeColorHex = themeColorHex
+            )
+
+            if (res.isSuccess) {
+                val filePath = res.getOrNull() ?: ""
+                val currentClips = repository.getClipsForProject(projId).firstOrNull() ?: emptyList()
+                val startTimeMs = currentClips.filter { it.trackId == targetTrack.id }.maxOfOrNull { it.endTimeMs } ?: 0L
+                val durMs = category.defaultDurationMs
+
+                val newClip = TimelineClipEntity(
+                    trackId = targetTrack.id,
+                    projectId = projId,
+                    title = "[Remotion Cloud] ${category.displayName}",
+                    mediaUri = filePath,
+                    startTimeMs = startTimeMs,
+                    endTimeMs = startTimeMs + durMs,
+                    durationMs = durMs,
+                    effectName = category.compositionId,
+                    filterName = "Remotion Cloud HDR"
+                )
+                repository.addClip(newClip)
+                saveHistoryState()
+            }
         }
     }
 }

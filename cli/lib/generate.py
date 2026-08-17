@@ -6,7 +6,14 @@ STYLES = ["Cinematic", "Anime", "Cyberpunk", "3D Render", "Hyper-Realistic", "Ph
 MODELS = ["Veo 2", "Veo Fast", "Highfield Pro"]
 RATIOS = ["16:9", "9:16", "1:1", "4:3", "21:9"]
 
-def generate_ai_video(options):
+def generate_ai_video(options=None, **kwargs):
+    if options is None:
+        options = kwargs
+    elif isinstance(options, dict) and kwargs:
+        options = {**options, **kwargs}
+    elif not isinstance(options, dict):
+        options = kwargs
+
     prompt = options.get("prompt", "A aesthetic cinematic drone clip over neon cyberpunk metropolis")
     style = options.get("style", "Cinematic")
     model = options.get("model", "Veo 2")

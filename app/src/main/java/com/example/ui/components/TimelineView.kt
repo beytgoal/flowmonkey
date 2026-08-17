@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -15,7 +16,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -44,13 +48,13 @@ enum class TimelineScope(val title: String, val subtitle: String, val themeColor
     STICKER_SUBTIMELINE("Sub-Timeline Stiker & Overlay Foto", "Stiker Grafis, Emoji, & Badge Foto", Color(0xFFFFB74D))
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimelineView(
     tracks: List<TimelineTrackEntity>,
     clips: List<TimelineClipEntity>,
     currentTimeMs: Long,
     totalDurationMs: Long = 15000L,
+    isPlaying: Boolean = false,
     timelineScope: TimelineScope = TimelineScope.MAIN,
     selectedClip: TimelineClipEntity? = null,
     onScopeChanged: (TimelineScope) -> Unit = {},
@@ -72,9 +76,8 @@ fun TimelineView(
     // Track last haptic step to deliver tactile feedback at discrete scrub ticks
     var lastHapticTick by remember { mutableLongStateOf(-1L) }
 
-    // Dynamic horizontal timeline canvas scale (0.02f = Overview / Zoom Out, 0.08f = Normal 1s, 0.45f = 0.1s Ultra-Precision)
+    // Dynamic horizontal timeline canvas scale (0.03f = Overview, 0.08f = Normal 1s, 0.35f = Detail, 0.70f = 0.10s Ultra-Precision: 1.00s-1.90s)
     var pxPerMs by remember { mutableFloatStateOf(0.08f) }
-    val timelineWidthDp = (totalDurationMs * pxPerMs).dp.coerceAtLeast(360.dp)
 
     val mainVideoTrack = tracks.find { it.trackType == "VIDEO" && it.trackIndex == 0 } ?: tracks.find { it.trackType == "VIDEO" }
     val overlayVideoTracks = tracks.filter { it.trackType == "VIDEO" && it.id != mainVideoTrack?.id }
@@ -82,17 +85,28 @@ fun TimelineView(
     val stickerTracksAll = tracks.filter { it.trackType == "STICKER" }
     val audioTracksAll = tracks.filter { it.trackType == "AUDIO" }
 
-    // Auto-scroll timeline smoothly to follow playhead when playing or seeking
-    LaunchedEffect(currentTimeMs) {
-        val playheadPx = with(density) { (currentTimeMs * pxPerMs).dp.toPx() }
-        val visibleStartPx = scrollState.value.toFloat()
-        val visibleEndPx = visibleStartPx + scrollState.viewportSize.toFloat()
+    // Synchronize scroll position smoothly when playing or seeking externally
+    LaunchedEffect(currentTimeMs, pxPerMs) {
+        if (!scrollState.isScrollInProgress) {
+            val targetPx = with(density) { (currentTimeMs * pxPerMs).dp.toPx() }
+            scrollState.scrollTo(targetPx.roundToInt().coerceIn(0, scrollState.maxValue))
+        }
+    }
 
-        if (visibleEndPx > 0f) {
-            if (playheadPx > visibleEndPx - 80f) {
-                scrollState.animateScrollTo((playheadPx - 80f).toInt().coerceAtLeast(0))
-            } else if (playheadPx < visibleStartPx) {
-                scrollState.animateScrollTo((playheadPx - 20f).toInt().coerceAtLeast(0))
+    // Two-way sync: when user swipes / scrolls the timeline with finger, seek the video
+    LaunchedEffect(scrollState.value) {
+        if (scrollState.isScrollInProgress) {
+            val pxPerMsDensity = with(density) { pxPerMs.dp.toPx() }
+            if (pxPerMsDensity > 0.0001f) {
+                val scrolledMs = (scrollState.value / pxPerMsDensity).toLong().coerceIn(0L, totalDurationMs)
+                if (scrolledMs != currentTimeMs) {
+                    val tick = scrolledMs / 100L
+                    if (tick != lastHapticTick) {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        lastHapticTick = tick
+                    }
+                    onSeek(scrolledMs)
+                }
             }
         }
     }
@@ -100,7 +114,7 @@ fun TimelineView(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, timelineScope.themeColor.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
             .pointerInput(Unit) {
                 awaitEachGesture {
                     do {
@@ -118,12 +132,13 @@ fun TimelineView(
                             if (prevDist > 6f && currentDist > 6f) {
                                 val factor = currentDist / prevDist
                                 if (kotlin.math.abs(factor - 1f) > 0.0015f) {
-                                    val newPx = (pxPerMs * factor).coerceIn(0.02f, 0.45f)
+                                    val newPx = (pxPerMs * factor).coerceIn(0.02f, 0.75f)
                                     if (newPx != pxPerMs) {
                                         pxPerMs = newPx
                                     }
                                 }
                             }
+                            event.changes.forEach { it.consume() }
                         }
                     } while (event.changes.any { it.pressed })
                 }
@@ -131,682 +146,377 @@ fun TimelineView(
             .testTag("timeline_editor_container"),
         colors = CardDefaults.cardColors(containerColor = StudioCardBg)
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(6.dp)) {
+            val containerWidth = maxWidth
+            // Playhead is fixed at 1/3 of the visible timeline width
+            val fixedPlayheadOffsetDp = (containerWidth / 3f).coerceIn(90.dp, 160.dp)
+            val endPaddingDp = (containerWidth - fixedPlayheadOffsetDp).coerceAtLeast(120.dp)
+            val timelineWidthDp = fixedPlayheadOffsetDp + (totalDurationMs * pxPerMs).dp + endPaddingDp
 
-            // --- TIMELINE HEADER (NO BUTTONS, MULTI-TOUCH PINCH TO ZOOM) ---
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Scope Badge & Return Affordance
+            Column(modifier = Modifier.fillMaxSize()) {
+
+                // Zoom Quick Controls Header
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        color = timelineScope.themeColor.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(6.dp),
-                        border = BorderStroke(1.dp, timelineScope.themeColor.copy(alpha = 0.5f))
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = timelineScope.title,
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                    Text(
+                        text = if (pxPerMs >= 0.25f) "Zoom: Presisi 0.1s (1.00s - 1.90s)" else "Timeline Editor",
+                        color = if (pxPerMs >= 0.25f) StudioSecondaryTeal else Color.White.copy(alpha = 0.6f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
 
-                    if (timelineScope != TimelineScope.MAIN) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Zoom Out Button
                         Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color.White.copy(alpha = 0.1f),
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { onScopeChanged(TimelineScope.MAIN) },
-                            color = StudioSurfaceDark,
-                            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.3f))
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable {
+                                    pxPerMs = (pxPerMs * 0.7f).coerceIn(0.02f, 0.75f)
+                                }
                         ) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowBack,
-                                    contentDescription = "Kembali ke Timeline Utama",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text(
-                                    text = "Utama",
-                                    color = Color.White,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Icon(Icons.Default.ZoomOut, contentDescription = "Zoom Out", tint = Color.White, modifier = Modifier.size(12.dp))
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text("-", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        // Zoom In Button (Zoom into 0.10s precision)
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = if (pxPerMs >= 0.25f) StudioSecondaryTeal.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.1f),
+                            border = if (pxPerMs >= 0.25f) BorderStroke(1.dp, StudioSecondaryTeal) else null,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable {
+                                    pxPerMs = (pxPerMs * 1.4f).coerceIn(0.02f, 0.75f)
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.ZoomIn, contentDescription = "Zoom In", tint = if (pxPerMs >= 0.25f) StudioSecondaryTeal else Color.White, modifier = Modifier.size(12.dp))
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text("+ Zoom", color = if (pxPerMs >= 0.25f) StudioSecondaryTeal else Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
 
-                // Dynamic Scale Indicator (Pinch Gesture Feedback)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    when {
-                        pxPerMs >= 0.25f -> {
-                            Surface(
-                                color = StudioSecondaryTeal.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(6.dp),
-                                border = BorderStroke(0.8.dp, StudioSecondaryTeal)
-                            ) {
-                                Text(
-                                    text = "🎯 Skala 0.1s Presisi",
-                                    color = StudioSecondaryTeal,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
-                        }
-                        pxPerMs <= 0.04f -> {
-                            Surface(
-                                color = StudioPrimaryViolet.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(6.dp),
-                                border = BorderStroke(0.8.dp, StudioPrimaryViolet)
-                            ) {
-                                Text(
-                                    text = "🌐 Tampilan Penuh",
-                                    color = StudioPrimaryViolet,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
-                        }
-                        else -> {
-                            Surface(
-                                color = StudioSurfaceDark,
-                                shape = RoundedCornerShape(6.dp),
-                                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
-                            ) {
-                                Text(
-                                    text = "🤏 Cubit 2 Jari Zoom",
-                                    color = StudioTextSecondary,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Multitrack Container with Anchored Track Headers on Left & Synchronized Scrollable Canvas on Right
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                // Fixed Left Track Controls Column (Anchored Width: 105.dp)
-                Column(
-                    modifier = Modifier.width(105.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    // Top Time Ruler Corner Anchor
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(28.dp)
-                            .background(StudioSurfaceDark, RoundedCornerShape(topStart = 8.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = formatTimeMsPrecise(currentTimeMs, showTenths = pxPerMs >= 0.18f),
-                            fontSize = 11.sp,
-                            color = StudioSecondaryTeal,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Render Left Track Headers according to timelineScope
-                    when (timelineScope) {
-                        TimelineScope.MAIN -> {
-                            // 1. Video Utama Track Header
-                            TrackHeaderCard(
-                                title = "1. Video Utama",
-                                subtitle = if (overlayVideoTracks.isNotEmpty()) "+${overlayVideoTracks.size} Overlay" else "Main Track",
-                                trackType = "VIDEO",
-                                color = StudioPrimaryViolet,
-                                icon = Icons.Default.Movie,
-                                isSelected = selectedClip?.let { it.trackId == mainVideoTrack?.id } == true,
-                                onClick = { onScopeChanged(TimelineScope.VIDEO_SUBTIMELINE) }
-                            )
-
-                            // 2. Sound / Musik Track Header
-                            TrackHeaderCard(
-                                title = "2. Sound / Musik",
-                                subtitle = if (audioTracksAll.size > 1) "${audioTracksAll.size} Trek Audio" else "BGM & Voice",
-                                trackType = "AUDIO",
-                                color = StudioAccentPink,
-                                icon = Icons.Default.Audiotrack,
-                                isSelected = selectedClip?.let { clip -> audioTracksAll.any { it.id == clip.trackId } } == true,
-                                onClick = { onScopeChanged(TimelineScope.AUDIO_SUBTIMELINE) }
-                            )
-
-                            // 3. Tipografi & Caption Track Header
-                            TrackHeaderCard(
-                                title = "3. Teks & Caption",
-                                subtitle = if (textTracksAll.size > 1) "${textTracksAll.size} Trek Teks" else "Subjudul",
-                                trackType = "TEXT",
-                                color = StudioSecondaryTeal,
-                                icon = Icons.Default.Subtitles,
-                                isSelected = selectedClip?.let { clip -> textTracksAll.any { it.id == clip.trackId } || clip.textContent != null } == true,
-                                onClick = { onScopeChanged(TimelineScope.TEXT_SUBTIMELINE) }
-                            )
-
-                            // 4. Stiker & Overlay Foto Track Header
-                            TrackHeaderCard(
-                                title = "4. Stiker & Foto",
-                                subtitle = "Grafis FX",
-                                trackType = "STICKER",
-                                color = Color(0xFFFFB74D),
-                                icon = Icons.Default.AutoAwesome,
-                                isSelected = selectedClip?.let { clip -> stickerTracksAll.any { it.id == clip.trackId } || clip.stickerIcon.isNotBlank() } == true,
-                                onClick = { onScopeChanged(TimelineScope.STICKER_SUBTIMELINE) }
-                            )
-                        }
-
-                        TimelineScope.VIDEO_SUBTIMELINE -> {
-                            // Main Video Track Header
-                            if (mainVideoTrack != null) {
-                                TrackHeaderCard(
-                                    title = "Video Utama",
-                                    subtitle = "Track #1",
-                                    trackType = "VIDEO",
-                                    color = StudioPrimaryViolet,
-                                    icon = Icons.Default.Movie,
-                                    isSelected = selectedClip?.trackId == mainVideoTrack.id,
-                                    onClick = {}
-                                )
-                            }
-                            // Overlay Video & Photo Tracks Headers
-                            overlayVideoTracks.forEachIndexed { idx, trk ->
-                                TrackHeaderCard(
-                                    title = "Overlay #${idx + 1}",
-                                    subtitle = "PIP Video / Foto",
-                                    trackType = "VIDEO",
-                                    color = StudioSecondaryTeal,
-                                    icon = Icons.Default.Layers,
-                                    isSelected = selectedClip?.trackId == trk.id,
-                                    onClick = {}
-                                )
-                            }
-                        }
-
-                        TimelineScope.AUDIO_SUBTIMELINE -> {
-                            if (audioTracksAll.isNotEmpty()) {
-                                audioTracksAll.forEachIndexed { idx, trk ->
-                                    TrackHeaderCard(
-                                        title = if (idx == 0) "Musik BGM" else if (idx == 1) "Voiceover AI" else "SFX #${idx + 1}",
-                                        subtitle = "Audio Track",
-                                        trackType = "AUDIO",
-                                        color = StudioAccentPink,
-                                        icon = Icons.Default.Audiotrack,
-                                        isSelected = selectedClip?.trackId == trk.id,
-                                        onClick = {}
-                                    )
-                                }
-                            } else {
-                                TrackHeaderCard(
-                                    title = "Musik Utama",
-                                    subtitle = "Belum ada audio",
-                                    trackType = "AUDIO",
-                                    color = StudioAccentPink,
-                                    icon = Icons.Default.Audiotrack,
-                                    isSelected = false,
-                                    onClick = onAddSoundRequested
-                                )
-                            }
-                        }
-
-                        TimelineScope.TEXT_SUBTIMELINE -> {
-                            if (textTracksAll.isNotEmpty()) {
-                                textTracksAll.forEachIndexed { idx, trk ->
-                                    TrackHeaderCard(
-                                        title = if (idx == 0) "Subjudul Utama" else if (idx == 1) "Judul Heading" else "Auto-Caption #${idx + 1}",
-                                        subtitle = "Tipografi",
-                                        trackType = "TEXT",
-                                        color = StudioSecondaryTeal,
-                                        icon = Icons.Default.Subtitles,
-                                        isSelected = selectedClip?.trackId == trk.id,
-                                        onClick = {}
-                                    )
-                                }
-                            } else {
-                                TrackHeaderCard(
-                                    title = "Subjudul Teks",
-                                    subtitle = "Belum ada teks",
-                                    trackType = "TEXT",
-                                    color = StudioSecondaryTeal,
-                                    icon = Icons.Default.Subtitles,
-                                    isSelected = false,
-                                    onClick = onAddTextRequested
-                                )
-                            }
-                        }
-
-                        TimelineScope.STICKER_SUBTIMELINE -> {
-                            if (stickerTracksAll.isNotEmpty()) {
-                                stickerTracksAll.forEachIndexed { idx, trk ->
-                                    TrackHeaderCard(
-                                        title = "Stiker #${idx + 1}",
-                                        subtitle = "Badge FX",
-                                        trackType = "STICKER",
-                                        color = Color(0xFFFFB74D),
-                                        icon = Icons.Default.AutoAwesome,
-                                        isSelected = selectedClip?.trackId == trk.id,
-                                        onClick = {}
-                                    )
-                                }
-                            } else {
-                                TrackHeaderCard(
-                                    title = "Stiker & Foto",
-                                    subtitle = "Belum ada stiker",
-                                    trackType = "STICKER",
-                                    color = Color(0xFFFFB74D),
-                                    icon = Icons.Default.AutoAwesome,
-                                    isSelected = false,
-                                    onClick = onAddStickerRequested
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                // Right Scrollable Multitrack Canvas
+                // Main Multitrack Scrollable Timeline Canvas
                 Box(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .weight(1f)
                         .horizontalScroll(scrollState)
-                        .pointerInput(Unit) {
-                            awaitEachGesture {
-                                do {
-                                    val event = awaitPointerEvent()
-                                    val downPointers = event.changes.filter { it.pressed }
-                                    if (downPointers.size >= 2) {
-                                        val p1 = downPointers[0].position
-                                        val p2 = downPointers[1].position
-                                        val prevP1 = downPointers[0].previousPosition
-                                        val prevP2 = downPointers[1].previousPosition
-
-                                        val currentDist = hypot((p1.x - p2.x).toDouble(), (p1.y - p2.y).toDouble()).toFloat()
-                                        val prevDist = hypot((prevP1.x - prevP2.x).toDouble(), (prevP1.y - prevP2.y).toDouble()).toFloat()
-
-                                        if (prevDist > 6f && currentDist > 6f) {
-                                            val factor = currentDist / prevDist
-                                            if (kotlin.math.abs(factor - 1f) > 0.0015f) {
-                                                val newPx = (pxPerMs * factor).coerceIn(0.02f, 0.45f)
-                                                if (newPx != pxPerMs) {
-                                                    pxPerMs = newPx
-                                                }
-                                            }
-                                        }
-                                    }
-                                } while (event.changes.any { it.pressed })
-                            }
-                        }
-                        .pointerInput(totalDurationMs, pxPerMs) {
-                            val densityPxPerMs = pxPerMs.dp.toPx()
-                            detectTapGestures { offset ->
-                                val targetMs = (offset.x / densityPxPerMs).toLong().coerceIn(0L, totalDurationMs)
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onSeek(targetMs)
-                            }
-                        }
+                        .verticalScroll(rememberScrollState())
                 ) {
                     Column(
                         modifier = Modifier.width(timelineWidthDp)
                     ) {
-                        // High-Precision Adaptive Time Ruler
+                        // Time Ruler
                         TimeRulerCanvas(
+                            startOffsetDp = fixedPlayheadOffsetDp,
                             totalDurationMs = totalDurationMs,
                             pxPerMs = pxPerMs,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(28.dp)
-                                .background(Color.Black.copy(alpha = 0.5f))
-                        )
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(26.dp)
+                            .background(StudioSurfaceDark.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
+                    )
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                        // Multitrack Rows according to timelineScope
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            when (timelineScope) {
-                                TimelineScope.MAIN -> {
-                                    // Row 1: Main Video Track Clips
-                                    val mainVideoClips = if (mainVideoTrack != null) clips.filter { it.trackId == mainVideoTrack.id } else emptyList()
-                                    TrackClipsRow(
-                                        trackId = mainVideoTrack?.id ?: 0L,
+                    // Multitrack Rows
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        when (timelineScope) {
+                            TimelineScope.MAIN -> {
+                                // 1. Video Track Row
+                                val mainVideoClips = if (mainVideoTrack != null) clips.filter { it.trackId == mainVideoTrack.id } else emptyList()
+                                TrackClipsRowWithIcon(
+                                    icon = Icons.Default.Movie,
+                                    trackId = mainVideoTrack?.id ?: 0L,
+                                    trackType = "VIDEO",
+                                    trackColor = StudioPrimaryViolet,
+                                    clips = mainVideoClips,
+                                    selectedClipId = selectedClip?.id,
+                                    allTracks = tracks,
+                                    pxPerMs = pxPerMs,
+                                    startOffsetDp = fixedPlayheadOffsetDp,
+                                    onClipSelected = onClipSelected,
+                                    onClipMoved = onClipMoved,
+                                    onTransitionClicked = onTransitionClicked,
+                                    onSeek = onSeek,
+                                    onIconClick = { onScopeChanged(TimelineScope.VIDEO_SUBTIMELINE) },
+                                    onAddClick = onAddClipRequested
+                                )
+
+                                // 2. Audio / Sound Track Row
+                                val audioClips = clips.filter { clip ->
+                                    audioTracksAll.any { it.id == clip.trackId } || clip.audioSfx != "None" || clip.isVoiceover
+                                }
+                                TrackClipsRowWithIcon(
+                                    icon = Icons.Default.Audiotrack,
+                                    trackId = audioTracksAll.firstOrNull()?.id ?: -10L,
+                                    trackType = "AUDIO",
+                                    trackColor = StudioAccentPink,
+                                    clips = audioClips,
+                                    selectedClipId = selectedClip?.id,
+                                    allTracks = tracks,
+                                    pxPerMs = pxPerMs,
+                                    startOffsetDp = fixedPlayheadOffsetDp,
+                                    onClipSelected = onClipSelected,
+                                    onClipMoved = onClipMoved,
+                                    onTransitionClicked = onTransitionClicked,
+                                    onSeek = onSeek,
+                                    onIconClick = { onScopeChanged(TimelineScope.AUDIO_SUBTIMELINE) },
+                                    onAddClick = onAddSoundRequested
+                                )
+
+                                // 3. Text / Caption Track Row
+                                val textClips = clips.filter { clip ->
+                                    textTracksAll.any { it.id == clip.trackId } || clip.textContent != null
+                                }
+                                TrackClipsRowWithIcon(
+                                    icon = Icons.Default.Subtitles,
+                                    trackId = textTracksAll.firstOrNull()?.id ?: -20L,
+                                    trackType = "TEXT",
+                                    trackColor = StudioSecondaryTeal,
+                                    clips = textClips,
+                                    selectedClipId = selectedClip?.id,
+                                    allTracks = tracks,
+                                    pxPerMs = pxPerMs,
+                                    startOffsetDp = fixedPlayheadOffsetDp,
+                                    onClipSelected = onClipSelected,
+                                    onClipMoved = onClipMoved,
+                                    onTransitionClicked = onTransitionClicked,
+                                    onSeek = onSeek,
+                                    onIconClick = { onScopeChanged(TimelineScope.TEXT_SUBTIMELINE) },
+                                    onAddClick = onAddTextRequested
+                                )
+
+                                // 4. Sticker / Overlay Photo Track Row
+                                val stickerClips = clips.filter { clip ->
+                                    stickerTracksAll.any { it.id == clip.trackId } || clip.stickerIcon.isNotBlank()
+                                }
+                                TrackClipsRowWithIcon(
+                                    icon = Icons.Default.AutoAwesome,
+                                    trackId = stickerTracksAll.firstOrNull()?.id ?: -30L,
+                                    trackType = "STICKER",
+                                    trackColor = Color(0xFFFFB74D),
+                                    clips = stickerClips,
+                                    selectedClipId = selectedClip?.id,
+                                    allTracks = tracks,
+                                    pxPerMs = pxPerMs,
+                                    startOffsetDp = fixedPlayheadOffsetDp,
+                                    onClipSelected = onClipSelected,
+                                    onClipMoved = onClipMoved,
+                                    onTransitionClicked = onTransitionClicked,
+                                    onSeek = onSeek,
+                                    onIconClick = { onScopeChanged(TimelineScope.STICKER_SUBTIMELINE) },
+                                    onAddClick = onAddStickerRequested
+                                )
+                            }
+
+                            TimelineScope.VIDEO_SUBTIMELINE -> {
+                                if (mainVideoTrack != null) {
+                                    val mainClips = clips.filter { it.trackId == mainVideoTrack.id }
+                                    TrackClipsRowWithIcon(
+                                        icon = Icons.Default.Movie,
+                                        trackId = mainVideoTrack.id,
                                         trackType = "VIDEO",
                                         trackColor = StudioPrimaryViolet,
-                                        clips = mainVideoClips,
+                                        clips = mainClips,
                                         selectedClipId = selectedClip?.id,
-                                        currentTimeMs = currentTimeMs,
                                         allTracks = tracks,
                                         pxPerMs = pxPerMs,
-                                        onClipSelected = { clip ->
-                                            onClipSelected(clip)
-                                            onScopeChanged(TimelineScope.VIDEO_SUBTIMELINE)
-                                        },
+                                        startOffsetDp = fixedPlayheadOffsetDp,
+                                        onClipSelected = onClipSelected,
                                         onClipMoved = onClipMoved,
                                         onTransitionClicked = onTransitionClicked,
-                                        onSeek = onSeek
+                                        onSeek = onSeek,
+                                        onIconClick = onAddClipRequested,
+                                        onAddClick = onAddClipRequested
                                     )
+                                }
 
-                                    // Row 2: Sound & Audio Track Clips
-                                    val audioClips = clips.filter { clip ->
-                                        audioTracksAll.any { it.id == clip.trackId } || clip.audioSfx != "None" || clip.isVoiceover
-                                    }
-                                    TrackClipsRow(
-                                        trackId = audioTracksAll.firstOrNull()?.id ?: -10L,
-                                        trackType = "AUDIO",
-                                        trackColor = StudioAccentPink,
-                                        clips = audioClips,
-                                        selectedClipId = selectedClip?.id,
-                                        currentTimeMs = currentTimeMs,
-                                        allTracks = tracks,
-                                        pxPerMs = pxPerMs,
-                                        onClipSelected = { clip ->
-                                            onClipSelected(clip)
-                                            onScopeChanged(TimelineScope.AUDIO_SUBTIMELINE)
-                                        },
-                                        onClipMoved = onClipMoved,
-                                        onTransitionClicked = onTransitionClicked,
-                                        onSeek = onSeek
-                                    )
-
-                                    // Row 3: Typography & Text Track Clips
-                                    val textClips = clips.filter { clip ->
-                                        textTracksAll.any { it.id == clip.trackId } || clip.textContent != null
-                                    }
-                                    TrackClipsRow(
-                                        trackId = textTracksAll.firstOrNull()?.id ?: -20L,
-                                        trackType = "TEXT",
+                                overlayVideoTracks.forEach { trk ->
+                                    val overlayClips = clips.filter { it.trackId == trk.id }
+                                    TrackClipsRowWithIcon(
+                                        icon = Icons.Default.Layers,
+                                        trackId = trk.id,
+                                        trackType = "VIDEO",
                                         trackColor = StudioSecondaryTeal,
-                                        clips = textClips,
+                                        clips = overlayClips,
                                         selectedClipId = selectedClip?.id,
-                                        currentTimeMs = currentTimeMs,
                                         allTracks = tracks,
                                         pxPerMs = pxPerMs,
-                                        onClipSelected = { clip ->
-                                            onClipSelected(clip)
-                                            onScopeChanged(TimelineScope.TEXT_SUBTIMELINE)
-                                        },
+                                        startOffsetDp = fixedPlayheadOffsetDp,
+                                        onClipSelected = onClipSelected,
                                         onClipMoved = onClipMoved,
                                         onTransitionClicked = onTransitionClicked,
-                                        onSeek = onSeek
-                                    )
-
-                                    // Row 4: Sticker & Photo Overlay Clips
-                                    val stickerClips = clips.filter { clip ->
-                                        stickerTracksAll.any { it.id == clip.trackId } || clip.stickerIcon.isNotBlank()
-                                    }
-                                    TrackClipsRow(
-                                        trackId = stickerTracksAll.firstOrNull()?.id ?: -30L,
-                                        trackType = "STICKER",
-                                        trackColor = Color(0xFFFFB74D),
-                                        clips = stickerClips,
-                                        selectedClipId = selectedClip?.id,
-                                        currentTimeMs = currentTimeMs,
-                                        allTracks = tracks,
-                                        pxPerMs = pxPerMs,
-                                        onClipSelected = { clip ->
-                                            onClipSelected(clip)
-                                            onScopeChanged(TimelineScope.STICKER_SUBTIMELINE)
-                                        },
-                                        onClipMoved = onClipMoved,
-                                        onTransitionClicked = onTransitionClicked,
-                                        onSeek = onSeek
+                                        onSeek = onSeek,
+                                        onIconClick = onAddClipRequested,
+                                        onAddClick = onAddClipRequested
                                     )
                                 }
+                            }
 
-                                TimelineScope.VIDEO_SUBTIMELINE -> {
-                                    // Main Video Track Row
-                                    if (mainVideoTrack != null) {
-                                        val mainVideoClips = clips.filter { it.trackId == mainVideoTrack.id }
-                                        TrackClipsRow(
-                                            trackId = mainVideoTrack.id,
-                                            trackType = "VIDEO",
-                                            trackColor = StudioPrimaryViolet,
-                                            clips = mainVideoClips,
-                                            selectedClipId = selectedClip?.id,
-                                            currentTimeMs = currentTimeMs,
-                                            allTracks = tracks,
-                                            pxPerMs = pxPerMs,
-                                            onClipSelected = onClipSelected,
-                                            onClipMoved = onClipMoved,
-                                            onTransitionClicked = onTransitionClicked,
-                                            onSeek = onSeek
-                                        )
-                                    }
-
-                                    // Overlay Video & Photo Rows
-                                    overlayVideoTracks.forEach { trk ->
-                                        val overlayClips = clips.filter { it.trackId == trk.id }
-                                        TrackClipsRow(
+                            TimelineScope.AUDIO_SUBTIMELINE -> {
+                                if (audioTracksAll.isNotEmpty()) {
+                                    audioTracksAll.forEach { trk ->
+                                        val audioClips = clips.filter { it.trackId == trk.id }
+                                        TrackClipsRowWithIcon(
+                                            icon = Icons.Default.Audiotrack,
                                             trackId = trk.id,
-                                            trackType = "VIDEO",
-                                            trackColor = StudioSecondaryTeal,
-                                            clips = overlayClips,
+                                            trackType = "AUDIO",
+                                            trackColor = StudioAccentPink,
+                                            clips = audioClips,
                                             selectedClipId = selectedClip?.id,
-                                            currentTimeMs = currentTimeMs,
                                             allTracks = tracks,
                                             pxPerMs = pxPerMs,
+                                            startOffsetDp = fixedPlayheadOffsetDp,
                                             onClipSelected = onClipSelected,
                                             onClipMoved = onClipMoved,
                                             onTransitionClicked = onTransitionClicked,
-                                            onSeek = onSeek
+                                            onSeek = onSeek,
+                                            onIconClick = onAddSoundRequested,
+                                            onAddClick = onAddSoundRequested
                                         )
                                     }
+                                } else {
+                                    EmptyTrackPlaceholder(
+                                        title = "+ Tambah Musik",
+                                        color = StudioAccentPink,
+                                        onClick = onAddSoundRequested
+                                    )
                                 }
+                            }
 
-                                TimelineScope.AUDIO_SUBTIMELINE -> {
-                                    if (audioTracksAll.isNotEmpty()) {
-                                        audioTracksAll.forEach { trk ->
-                                            val audioClips = clips.filter { it.trackId == trk.id }
-                                            TrackClipsRow(
-                                                trackId = trk.id,
-                                                trackType = "AUDIO",
-                                                trackColor = StudioAccentPink,
-                                                clips = audioClips,
-                                                selectedClipId = selectedClip?.id,
-                                                currentTimeMs = currentTimeMs,
-                                                allTracks = tracks,
-                                                pxPerMs = pxPerMs,
-                                                onClipSelected = onClipSelected,
-                                                onClipMoved = onClipMoved,
-                                                onTransitionClicked = onTransitionClicked,
-                                                onSeek = onSeek
-                                            )
-                                        }
-                                    } else {
-                                        EmptyTrackPlaceholder(
-                                            title = "+ Tambah Musik atau Voiceover AI",
-                                            color = StudioAccentPink,
-                                            onClick = onAddSoundRequested
+                            TimelineScope.TEXT_SUBTIMELINE -> {
+                                if (textTracksAll.isNotEmpty()) {
+                                    textTracksAll.forEach { trk ->
+                                        val textClips = clips.filter { it.trackId == trk.id || (trk == textTracksAll.first() && it.textContent != null) }
+                                        TrackClipsRowWithIcon(
+                                            icon = Icons.Default.Subtitles,
+                                            trackId = trk.id,
+                                            trackType = "TEXT",
+                                            trackColor = StudioSecondaryTeal,
+                                            clips = textClips,
+                                            selectedClipId = selectedClip?.id,
+                                            allTracks = tracks,
+                                            pxPerMs = pxPerMs,
+                                            startOffsetDp = fixedPlayheadOffsetDp,
+                                            onClipSelected = onClipSelected,
+                                            onClipMoved = onClipMoved,
+                                            onTransitionClicked = onTransitionClicked,
+                                            onSeek = onSeek,
+                                            onIconClick = onAddTextRequested,
+                                            onAddClick = onAddTextRequested
                                         )
                                     }
+                                } else {
+                                    EmptyTrackPlaceholder(
+                                        title = "+ Tambah Teks",
+                                        color = StudioSecondaryTeal,
+                                        onClick = onAddTextRequested
+                                    )
                                 }
+                            }
 
-                                TimelineScope.TEXT_SUBTIMELINE -> {
-                                    if (textTracksAll.isNotEmpty()) {
-                                        textTracksAll.forEach { trk ->
-                                            val textClips = clips.filter { it.trackId == trk.id || (trk == textTracksAll.first() && it.textContent != null) }
-                                            TrackClipsRow(
-                                                trackId = trk.id,
-                                                trackType = "TEXT",
-                                                trackColor = StudioSecondaryTeal,
-                                                clips = textClips,
-                                                selectedClipId = selectedClip?.id,
-                                                currentTimeMs = currentTimeMs,
-                                                allTracks = tracks,
-                                                pxPerMs = pxPerMs,
-                                                onClipSelected = onClipSelected,
-                                                onClipMoved = onClipMoved,
-                                                onTransitionClicked = onTransitionClicked,
-                                                onSeek = onSeek
-                                            )
-                                        }
-                                    } else {
-                                        EmptyTrackPlaceholder(
-                                            title = "+ Tambah Judul atau Subjudul Caption",
-                                            color = StudioSecondaryTeal,
-                                            onClick = onAddTextRequested
-                                        )
-                                    }
-                                }
-
-                                TimelineScope.STICKER_SUBTIMELINE -> {
-                                    if (stickerTracksAll.isNotEmpty()) {
-                                        stickerTracksAll.forEach { trk ->
-                                            val stickerClips = clips.filter { it.trackId == trk.id || it.stickerIcon.isNotBlank() }
-                                            TrackClipsRow(
-                                                trackId = trk.id,
-                                                trackType = "STICKER",
-                                                trackColor = Color(0xFFFFB74D),
-                                                clips = stickerClips,
-                                                selectedClipId = selectedClip?.id,
-                                                currentTimeMs = currentTimeMs,
-                                                allTracks = tracks,
-                                                pxPerMs = pxPerMs,
-                                                onClipSelected = onClipSelected,
-                                                onClipMoved = onClipMoved,
-                                                onTransitionClicked = onTransitionClicked,
-                                                onSeek = onSeek
-                                            )
-                                        }
-                                    } else {
-                                        val stickerClips = clips.filter { it.stickerIcon.isNotBlank() }
-                                        TrackClipsRow(
-                                            trackId = -999L,
+                            TimelineScope.STICKER_SUBTIMELINE -> {
+                                if (stickerTracksAll.isNotEmpty()) {
+                                    stickerTracksAll.forEach { trk ->
+                                        val stickerClips = clips.filter { it.trackId == trk.id || it.stickerIcon.isNotBlank() }
+                                        TrackClipsRowWithIcon(
+                                            icon = Icons.Default.AutoAwesome,
+                                            trackId = trk.id,
                                             trackType = "STICKER",
                                             trackColor = Color(0xFFFFB74D),
                                             clips = stickerClips,
                                             selectedClipId = selectedClip?.id,
-                                            currentTimeMs = currentTimeMs,
                                             allTracks = tracks,
                                             pxPerMs = pxPerMs,
+                                            startOffsetDp = fixedPlayheadOffsetDp,
                                             onClipSelected = onClipSelected,
                                             onClipMoved = onClipMoved,
                                             onTransitionClicked = onTransitionClicked,
-                                            onSeek = onSeek
+                                            onSeek = onSeek,
+                                            onIconClick = onAddStickerRequested,
+                                            onAddClick = onAddStickerRequested
                                         )
                                     }
+                                } else {
+                                    val stickerClips = clips.filter { it.stickerIcon.isNotBlank() }
+                                    TrackClipsRowWithIcon(
+                                        icon = Icons.Default.AutoAwesome,
+                                        trackId = -999L,
+                                        trackType = "STICKER",
+                                        trackColor = Color(0xFFFFB74D),
+                                        clips = stickerClips,
+                                        selectedClipId = selectedClip?.id,
+                                        allTracks = tracks,
+                                        pxPerMs = pxPerMs,
+                                        startOffsetDp = fixedPlayheadOffsetDp,
+                                        onClipSelected = onClipSelected,
+                                        onClipMoved = onClipMoved,
+                                        onTransitionClicked = onTransitionClicked,
+                                        onSeek = onSeek,
+                                        onIconClick = onAddStickerRequested,
+                                        onAddClick = onAddStickerRequested
+                                    )
                                 }
                             }
                         }
                     }
-
-                    // Precision Playhead Red Line Overlay with tactile dragging
-                    val playheadOffsetDp = (currentTimeMs * pxPerMs).dp
-                    PlayheadOverlay(
-                        offsetDp = playheadOffsetDp,
-                        currentTimeMs = currentTimeMs,
-                        pxPerMs = pxPerMs,
-                        totalDurationMs = totalDurationMs,
-                        onSeek = { newMs ->
-                            val tick = newMs / 200L
-                            if (tick != lastHapticTick) {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                lastHapticTick = tick
-                            }
-                            onSeek(newMs)
-                        }
-                    )
                 }
-            }
-        }
-    }
-}
+            } // Close horizontal/vertical scroll Box
+        } // Close Column
 
-@Composable
-fun TrackHeaderCard(
-    title: String,
-    subtitle: String,
-    trackType: String,
-    color: Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    isSelected: Boolean = false,
-    onClick: () -> Unit = {}
-) {
-    Surface(
-        modifier = Modifier
-            .width(105.dp)
-            .height(48.dp)
-            .clickable { onClick() },
-        color = if (isSelected) color.copy(alpha = 0.35f) else color.copy(alpha = 0.15f),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) color else color.copy(alpha = 0.4f))
-    ) {
-        Row(
+        // Fixed stationary playhead positioned at exactly 1/3 of the screen (completely motionless, timeline glides beneath)
+        StaticFixedPlayhead(
+            offsetDp = fixedPlayheadOffsetDp,
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(14.dp)
-            )
-            Spacer(modifier = Modifier.width(5.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
-                Text(
-                    text = subtitle,
-                    color = color.copy(alpha = 0.9f),
-                    fontSize = 8.sp,
-                    maxLines = 1
-                )
-            }
-        }
-    }
-}
+                .fillMaxHeight()
+                .padding(top = 28.dp)
+        )
+    } // Close BoxWithConstraints
+} // Close Card
+} // Close TimelineView
 
 @Composable
-fun TrackClipsRow(
+fun TrackClipsRowWithIcon(
+    icon: ImageVector,
     trackId: Long,
     trackType: String,
     trackColor: Color,
     clips: List<TimelineClipEntity>,
     selectedClipId: Long?,
-    currentTimeMs: Long,
     allTracks: List<TimelineTrackEntity>,
     pxPerMs: Float,
+    startOffsetDp: Dp,
     onClipSelected: (TimelineClipEntity) -> Unit,
     onClipMoved: (clipId: Long, newStartTimeMs: Long, newTrackId: Long) -> Unit,
     onTransitionClicked: (clipA: TimelineClipEntity, clipB: TimelineClipEntity) -> Unit,
-    onSeek: (Long) -> Unit
+    onSeek: (Long) -> Unit,
+    onIconClick: () -> Unit,
+    onAddClick: () -> Unit = onIconClick
 ) {
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
@@ -816,118 +526,174 @@ fun TrackClipsRow(
         modifier = Modifier
             .fillMaxWidth()
             .height(48.dp)
-            .background(StudioSurfaceLight.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
     ) {
-        sortedClips.forEachIndexed { index, clip ->
-            val startDp = (clip.startTimeMs * pxPerMs).dp
-            val widthDp = (clip.durationMs * pxPerMs).dp.coerceAtLeast(36.dp)
-            val isSelected = clip.id == selectedClipId
-
-            var isDragging by remember { mutableStateOf(false) }
-            var dragOffsetX by remember { mutableFloatStateOf(0f) }
-            var dragOffsetY by remember { mutableFloatStateOf(0f) }
-
-            val keyframes = remember(clip.keyframeData) {
-                KeyframeHelper.parseKeyframes(clip.keyframeData)
-            }
-
+        // Track Icon Badge (Icon only, inside the scroll canvas so it scrolls naturally)
+        Surface(
+            modifier = Modifier
+                .offset(x = 2.dp, y = 2.dp)
+                .size(34.dp, 44.dp)
+                .clip(RoundedCornerShape(6.dp))
+            .clickable { onIconClick() },
+            color = trackColor.copy(alpha = 0.22f),
+            border = BorderStroke(1.dp, trackColor.copy(alpha = 0.6f))
+        ) {
             Box(
-                modifier = Modifier
-                    .offset(x = startDp)
-                    .offset { IntOffset(dragOffsetX.roundToInt(), dragOffsetY.roundToInt()) }
-                    .width(widthDp)
-                    .fillMaxHeight()
-                    .padding(vertical = 2.dp, horizontal = 1.dp)
-                    .zIndex(if (isDragging) 10f else if (isSelected) 5f else 1f)
-                    .pointerInput(clip.id) {
-                        detectTapGestures(
-                            onTap = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onClipSelected(clip)
-                            }
-                        )
-                    }
-                    .pointerInput(clip.id, allTracks, pxPerMs) {
-                        detectDragGestures(
-                            onDragStart = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                isDragging = true
-                                dragOffsetX = 0f
-                                dragOffsetY = 0f
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                dragOffsetX += dragAmount.x
-                                dragOffsetY += dragAmount.y
-                            },
-                            onDragEnd = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                if (isDragging) {
-                                    val densityPxPerMs = pxPerMs.dp.toPx()
-                                    val deltaMs = (dragOffsetX / densityPxPerMs).toLong()
-                                    val newStartMs = (clip.startTimeMs + deltaMs).coerceAtLeast(0L)
-
-                                    val trackHeightPx = with(density) { 54.dp.toPx() }
-                                    val indexShift = (dragOffsetY / trackHeightPx).roundToInt()
-
-                                    val sameTypeTracks = allTracks.filter { it.trackType == trackType }
-                                    val currentTrackIdx = sameTypeTracks.indexOfFirst { it.id == trackId }.coerceAtLeast(0)
-                                    val targetTrackIdx = (currentTrackIdx + indexShift).coerceIn(0, sameTypeTracks.lastIndex)
-                                    val targetTrackId = sameTypeTracks.getOrNull(targetTrackIdx)?.id ?: trackId
-
-                                    onClipMoved(clip.id, newStartMs, targetTrackId)
-                                }
-                                isDragging = false
-                                dragOffsetX = 0f
-                                dragOffsetY = 0f
-                            },
-                            onDragCancel = {
-                                isDragging = false
-                                dragOffsetX = 0f
-                                dragOffsetY = 0f
-                            }
-                        )
-                    }
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Surface(
+                Icon(
+                    imageVector = icon,
+                    contentDescription = trackType,
+                    tint = trackColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        // Track Clips Canvas Row
+        Box(
+            modifier = Modifier
+                .offset(x = startOffsetDp)
+                .fillMaxWidth()
+                .height(48.dp)
+                .background(StudioSurfaceLight.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+        ) {
+            if (sortedClips.isEmpty()) {
+                Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(6.dp))
-                        .testTag("clip_item_${clip.id}"),
-                    color = if (isDragging) {
-                        StudioSecondaryTeal.copy(alpha = 0.95f)
-                    } else if (isSelected) {
-                        trackColor.copy(alpha = 1f)
-                    } else {
-                        trackColor.copy(alpha = 0.75f)
-                    },
-                    border = BorderStroke(
-                        if (isDragging || isSelected) 2.dp else 1.dp,
-                        if (isDragging) Color.Yellow else if (isSelected) Color.White else Color.White.copy(alpha = 0.35f)
-                    ),
-                    shadowElevation = if (isDragging || isSelected) 6.dp else 0.dp
+                        .padding(horizontal = 12.dp)
+                        .clickable { onAddClick() },
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Row(
-                            modifier = Modifier
-                                .padding(horizontal = 6.dp)
-                                .fillMaxSize(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = if (trackType == "TEXT") clip.textContent ?: clip.title else clip.title,
-                                color = Color.White,
-                                fontSize = 10.sp,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
-                                maxLines = 1,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        tint = trackColor.copy(alpha = 0.7f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = when (trackType) {
+                            "VIDEO" -> "+ Tambah Klip Video"
+                            "AUDIO" -> "+ Tambah Musik / Audio"
+                            "TEXT" -> "+ Tambah Teks / Subjudul"
+                            "STICKER" -> "+ Tambah Stiker / Foto"
+                            else -> "+ Tambah Media"
+                        },
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = trackColor.copy(alpha = 0.75f)
+                    )
+                }
+            }
 
+            sortedClips.forEachIndexed { index, clip ->
+                val startDp = (clip.startTimeMs * pxPerMs).dp
+                val widthDp = (clip.durationMs * pxPerMs).dp.coerceAtLeast(36.dp)
+                val isSelected = clip.id == selectedClipId
+
+                var isDragging by remember { mutableStateOf(false) }
+                var dragOffsetX by remember { mutableFloatStateOf(0f) }
+                var dragOffsetY by remember { mutableFloatStateOf(0f) }
+
+                val keyframes = remember(clip.keyframeData) {
+                    KeyframeHelper.parseKeyframes(clip.keyframeData)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .offset(x = startDp)
+                        .offset { IntOffset(dragOffsetX.roundToInt(), dragOffsetY.roundToInt()) }
+                        .width(widthDp)
+                        .fillMaxHeight()
+                        .padding(vertical = 2.dp, horizontal = 1.dp)
+                        .zIndex(if (isDragging) 10f else if (isSelected) 5f else 1f)
+                        .pointerInput(clip.id) {
+                            detectTapGestures(
+                                onTap = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onClipSelected(clip)
+                                }
+                            )
+                        }
+                        .pointerInput(clip.id, allTracks, pxPerMs) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    isDragging = true
+                                    dragOffsetX = 0f
+                                    dragOffsetY = 0f
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragOffsetX += dragAmount.x
+                                    dragOffsetY += dragAmount.y
+                                },
+                                onDragEnd = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    if (isDragging) {
+                                        val densityPxPerMs = pxPerMs.dp.toPx()
+                                        val deltaMs = (dragOffsetX / densityPxPerMs).toLong()
+                                        val newStartMs = (clip.startTimeMs + deltaMs).coerceAtLeast(0L)
+
+                                        val trackHeightPx = with(density) { 54.dp.toPx() }
+                                        val indexShift = (dragOffsetY / trackHeightPx).roundToInt()
+
+                                        val sameTypeTracks = allTracks.filter { it.trackType == trackType }
+                                        val currentTrackIdx = sameTypeTracks.indexOfFirst { it.id == trackId }.coerceAtLeast(0)
+                                        val targetTrackIdx = (currentTrackIdx + indexShift).coerceIn(0, sameTypeTracks.lastIndex)
+                                        val targetTrackId = sameTypeTracks.getOrNull(targetTrackIdx)?.id ?: trackId
+
+                                        onClipMoved(clip.id, newStartMs, targetTrackId)
+                                    }
+                                    isDragging = false
+                                    dragOffsetX = 0f
+                                    dragOffsetY = 0f
+                                },
+                                onDragCancel = {
+                                    isDragging = false
+                                    dragOffsetX = 0f
+                                    dragOffsetY = 0f
+                                }
+                            )
+                        }
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(6.dp))
+                            .testTag("clip_item_${clip.id}"),
+                        color = if (isDragging) {
+                            StudioSecondaryTeal.copy(alpha = 0.95f)
+                        } else if (isSelected) {
+                            trackColor.copy(alpha = 1f)
+                        } else {
+                            trackColor.copy(alpha = 0.75f)
+                        },
+                        border = BorderStroke(
+                            if (isDragging || isSelected) 2.dp else 1.dp,
+                            if (isDragging) Color.Yellow else if (isSelected) Color.White else Color.White.copy(alpha = 0.35f)
+                        ),
+                        shadowElevation = if (isDragging || isSelected) 6.dp else 0.dp
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
                             Row(
+                                modifier = Modifier
+                                    .padding(horizontal = 6.dp)
+                                    .fillMaxSize(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
+                                Text(
+                                    text = if (trackType == "TEXT") clip.textContent ?: clip.title else clip.title,
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+                                    maxLines = 1,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+
                                 if (clip.speedMultiplier != 1.0f) {
                                     Surface(
                                         color = Color.Black.copy(alpha = 0.6f),
@@ -942,60 +708,59 @@ fun TrackClipsRow(
                                     }
                                 }
                             }
-                        }
 
-                        // --- KEYFRAME DIAMOND MARKERS (◆) ON TIMELINE CLIP ---
-                        if (keyframes.isNotEmpty()) {
-                            keyframes.forEach { kf ->
-                                val kfOffsetDp = (kf.timeOffsetMs * pxPerMs).dp
-                                val isKfActive = Math.abs(currentTimeMs - (clip.startTimeMs + kf.timeOffsetMs)) < 50L
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .offset(x = kfOffsetDp - 4.dp, y = (-2).dp)
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isKfActive) Color.White else StudioAccentAmber)
-                                        .border(0.5.dp, Color.Black, CircleShape)
-                                        .clickable {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            onSeek(clip.startTimeMs + kf.timeOffsetMs)
-                                        }
-                                )
+                            // Keyframe diamond markers (◆)
+                            if (keyframes.isNotEmpty()) {
+                                keyframes.forEach { kf ->
+                                    val kfOffsetDp = (kf.timeOffsetMs * pxPerMs).dp
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomStart)
+                                            .offset(x = kfOffsetDp - 4.dp, y = (-2).dp)
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(StudioAccentAmber)
+                                            .border(0.5.dp, Color.Black, CircleShape)
+                                            .clickable {
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                onSeek(clip.startTimeMs + kf.timeOffsetMs)
+                                            }
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // --- TRANSITION JUNCTION BUTTON BETWEEN TWO ADJACENT CLIPS ---
-            if (index < sortedClips.size - 1) {
-                val nextClip = sortedClips[index + 1]
-                val junctionTimeMs = clip.endTimeMs
-                val junctionOffsetDp = (junctionTimeMs * pxPerMs).dp - 11.dp
+                // Transition junction button between adjacent clips
+                if (index < sortedClips.size - 1) {
+                    val nextClip = sortedClips[index + 1]
+                    val junctionTimeMs = clip.endTimeMs
+                    val junctionOffsetDp = (junctionTimeMs * pxPerMs).dp - 11.dp
 
-                Surface(
-                    modifier = Modifier
-                        .offset(x = junctionOffsetDp, y = 13.dp)
-                        .size(22.dp)
-                        .clip(CircleShape)
-                        .zIndex(6f)
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onTransitionClicked(clip, nextClip)
+                    Surface(
+                        modifier = Modifier
+                            .offset(x = junctionOffsetDp, y = 13.dp)
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .zIndex(6f)
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onTransitionClicked(clip, nextClip)
+                            }
+                            .testTag("transition_button_${clip.id}_${nextClip.id}"),
+                        color = if (clip.transitionType.isNotBlank() && clip.transitionType != "None") StudioSecondaryTeal else StudioCardBg,
+                        border = BorderStroke(1.dp, if (clip.transitionType.isNotBlank() && clip.transitionType != "None") StudioSecondaryTeal else Color.White.copy(alpha = 0.6f)),
+                        shadowElevation = 3.dp
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.CompareArrows,
+                                contentDescription = "Transisi ${clip.transitionType}",
+                                tint = if (clip.transitionType.isNotBlank() && clip.transitionType != "None") Color.Black else Color.White,
+                                modifier = Modifier.size(12.dp)
+                            )
                         }
-                        .testTag("transition_button_${clip.id}_${nextClip.id}"),
-                    color = if (clip.transitionType.isNotBlank() && clip.transitionType != "None") StudioSecondaryTeal else StudioCardBg,
-                    border = BorderStroke(1.dp, if (clip.transitionType.isNotBlank() && clip.transitionType != "None") StudioSecondaryTeal else Color.White.copy(alpha = 0.6f)),
-                    shadowElevation = 3.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.CompareArrows,
-                            contentDescription = "Transisi ${clip.transitionType}",
-                            tint = if (clip.transitionType.isNotBlank() && clip.transitionType != "None") Color.Black else Color.White,
-                            modifier = Modifier.size(12.dp)
-                        )
                     }
                 }
             }
@@ -1034,6 +799,7 @@ fun EmptyTrackPlaceholder(
 
 @Composable
 fun TimeRulerCanvas(
+    startOffsetDp: Dp = 0.dp,
     totalDurationMs: Long,
     pxPerMs: Float,
     modifier: Modifier = Modifier
@@ -1042,7 +808,8 @@ fun TimeRulerCanvas(
 
     Canvas(modifier = modifier) {
         val densityPxPerMs = pxPerMs.dp.toPx()
-        val totalWidthPx = totalDurationMs * densityPxPerMs
+        val startOffsetPx = startOffsetDp.toPx()
+        val totalWidthPx = startOffsetPx + (totalDurationMs * densityPxPerMs)
 
         // Draw horizontal baseline along bottom of ruler
         drawLine(
@@ -1052,8 +819,8 @@ fun TimeRulerCanvas(
             strokeWidth = 1.dp.toPx()
         )
 
-        val isUltraZoom = pxPerMs >= 0.25f          // 0.1s (100ms) resolution mode
-        val isMediumZoom = pxPerMs in 0.10f..0.249f // 0.5s resolution mode
+        val isUltraZoom = pxPerMs >= 0.22f          // 0.1s (100ms) resolution mode with 1.00s..1.90s labels
+        val isMediumZoom = pxPerMs in 0.10f..0.219f // 0.5s resolution mode
 
         val stepMs: Long = when {
             isUltraZoom -> 100L   // Subdivide every 0.1s (100ms)
@@ -1063,23 +830,25 @@ fun TimeRulerCanvas(
 
         var currentMs = 0L
         while (currentMs <= totalDurationMs) {
-            val xPx = currentMs * densityPxPerMs
+            val xPx = startOffsetPx + (currentMs * densityPxPerMs)
+            val sec = currentMs / 1000
+            val centis = ((currentMs % 1000) / 10).toInt() // 00, 10, 20, 30... 90
 
             if (isUltraZoom) {
-                // --- ULTRA ZOOM MODE (0.1s per tick) ---
                 val isSecond = currentMs % 1000L == 0L
                 val isHalfSecond = currentMs % 500L == 0L
 
+                val timeLabel = String.format(java.util.Locale.US, "%d.%02ds", sec, centis)
+
                 if (isSecond) {
-                    // Full Second Major Tick (1.0s, 2.0s, etc.)
                     drawLine(
                         color = StudioSecondaryTeal,
-                        start = Offset(xPx, size.height - 18.dp.toPx()),
+                        start = Offset(xPx, size.height - 16.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 2.dp.toPx()
                     )
                     val textResult = textMeasurer.measure(
-                        text = formatTimeMsPrecise(currentMs, showTenths = true),
+                        text = timeLabel,
                         style = androidx.compose.ui.text.TextStyle(
                             color = StudioSecondaryTeal,
                             fontSize = 9.sp,
@@ -1088,55 +857,57 @@ fun TimeRulerCanvas(
                     )
                     drawText(
                         textLayoutResult = textResult,
-                        topLeft = Offset((xPx + 3.dp.toPx()).coerceAtMost(totalWidthPx - textResult.size.width), 1.dp.toPx())
+                        topLeft = Offset((xPx + 2.dp.toPx()).coerceAtMost(totalWidthPx - textResult.size.width), 1.dp.toPx())
                     )
                 } else if (isHalfSecond) {
-                    // Half-Second Medium Tick (0.5s)
                     drawLine(
-                        color = Color.White.copy(alpha = 0.85f),
-                        start = Offset(xPx, size.height - 12.dp.toPx()),
+                        color = Color.White.copy(alpha = 0.9f),
+                        start = Offset(xPx, size.height - 13.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 1.5.dp.toPx()
                     )
                     val textResult = textMeasurer.measure(
-                        text = ".5s",
+                        text = timeLabel,
                         style = androidx.compose.ui.text.TextStyle(
-                            color = Color.White.copy(alpha = 0.9f),
+                            color = Color.White.copy(alpha = 0.95f),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold
                         )
                     )
                     drawText(
                         textLayoutResult = textResult,
-                        topLeft = Offset((xPx + 2.dp.toPx()).coerceAtMost(totalWidthPx - textResult.size.width), 3.dp.toPx())
+                        topLeft = Offset((xPx + 2.dp.toPx()).coerceAtMost(totalWidthPx - textResult.size.width), 2.dp.toPx())
                     )
                 } else {
-                    // 0.1s Minor Graduation Tick (.1, .2, .3, .4, .6, .7, .8, .9)
+                    // Fractional subdivisions: 1.10s, 1.20s, 1.30s, 1.40s, 1.60s, 1.70s, 1.80s, 1.90s
                     drawLine(
-                        color = Color.White.copy(alpha = 0.4f),
-                        start = Offset(xPx, size.height - 7.dp.toPx()),
+                        color = Color.White.copy(alpha = 0.5f),
+                        start = Offset(xPx, size.height - 8.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 1.dp.toPx()
                     )
-                    val tenths = (currentMs % 1000L) / 100L
-                    if (tenths % 2L == 0L) {
+
+                    // Draw text label on every 0.10s when zoomed in
+                    if (pxPerMs >= 0.32f || (pxPerMs >= 0.22f && centis % 20 == 0)) {
                         val textResult = textMeasurer.measure(
-                            text = ".${tenths}",
+                            text = timeLabel,
                             style = androidx.compose.ui.text.TextStyle(
-                                color = StudioTextSecondary,
-                                fontSize = 7.sp,
-                                fontWeight = FontWeight.Normal
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontSize = 7.5.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         )
                         drawText(
                             textLayoutResult = textResult,
-                            topLeft = Offset((xPx + 2.dp.toPx()).coerceAtMost(totalWidthPx - textResult.size.width), 6.dp.toPx())
+                            topLeft = Offset((xPx + 2.dp.toPx()).coerceAtMost(totalWidthPx - textResult.size.width), 3.dp.toPx())
                         )
                     }
                 }
             } else if (isMediumZoom) {
-                // --- MEDIUM ZOOM MODE (0.5s / 1.0s) ---
                 val isSecond = currentMs % 1000L == 0L
+                val isHalfSecond = currentMs % 500L == 0L
+                val timeLabel = String.format(java.util.Locale.US, "%d.%02ds", sec, centis)
+
                 if (isSecond) {
                     drawLine(
                         color = StudioSecondaryTeal,
@@ -1145,7 +916,7 @@ fun TimeRulerCanvas(
                         strokeWidth = 1.5.dp.toPx()
                     )
                     val textResult = textMeasurer.measure(
-                        text = formatTimeMs(currentMs),
+                        text = timeLabel,
                         style = androidx.compose.ui.text.TextStyle(
                             color = StudioSecondaryTeal,
                             fontSize = 9.sp,
@@ -1156,40 +927,61 @@ fun TimeRulerCanvas(
                         textLayoutResult = textResult,
                         topLeft = Offset((xPx + 3.dp.toPx()).coerceAtMost(totalWidthPx - textResult.size.width), 2.dp.toPx())
                     )
+                } else if (isHalfSecond) {
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.6f),
+                        start = Offset(xPx, size.height - 9.dp.toPx()),
+                        end = Offset(xPx, size.height),
+                        strokeWidth = 1.2.dp.toPx()
+                    )
+                    val textResult = textMeasurer.measure(
+                        text = timeLabel,
+                        style = androidx.compose.ui.text.TextStyle(
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Normal
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = textResult,
+                        topLeft = Offset((xPx + 2.dp.toPx()).coerceAtMost(totalWidthPx - textResult.size.width), 3.dp.toPx())
+                    )
                 } else {
                     drawLine(
-                        color = Color.White.copy(alpha = 0.5f),
-                        start = Offset(xPx, size.height - 8.dp.toPx()),
+                        color = Color.White.copy(alpha = 0.35f),
+                        start = Offset(xPx, size.height - 6.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 1.dp.toPx()
                     )
                 }
             } else {
-                // --- NORMAL / OVERVIEW ZOOM MODE ---
                 val isMajor = currentMs % 5000L == 0L
-                if (isMajor) {
+                val isSecond = currentMs % 1000L == 0L
+                if (isMajor || isSecond) {
                     drawLine(
-                        color = StudioSecondaryTeal,
-                        start = Offset(xPx, size.height - 14.dp.toPx()),
+                        color = if (isMajor) StudioSecondaryTeal else Color.White.copy(alpha = 0.7f),
+                        start = Offset(xPx, size.height - (if (isMajor) 14.dp.toPx() else 10.dp.toPx())),
                         end = Offset(xPx, size.height),
-                        strokeWidth = 1.5.dp.toPx()
+                        strokeWidth = if (isMajor) 1.5.dp.toPx() else 1.dp.toPx()
                     )
-                    val textResult = textMeasurer.measure(
-                        text = formatTimeMs(currentMs),
-                        style = androidx.compose.ui.text.TextStyle(
-                            color = StudioSecondaryTeal,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold
+                    if (isMajor || pxPerMs >= 0.06f) {
+                        val textResult = textMeasurer.measure(
+                            text = formatTimeMs(currentMs),
+                            style = androidx.compose.ui.text.TextStyle(
+                                color = if (isMajor) StudioSecondaryTeal else Color.White.copy(alpha = 0.8f),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         )
-                    )
-                    drawText(
-                        textLayoutResult = textResult,
-                        topLeft = Offset((xPx + 4.dp.toPx()).coerceAtMost(totalWidthPx - textResult.size.width), 2.dp.toPx())
-                    )
+                        drawText(
+                            textLayoutResult = textResult,
+                            topLeft = Offset((xPx + 4.dp.toPx()).coerceAtMost(totalWidthPx - textResult.size.width), 2.dp.toPx())
+                        )
+                    }
                 } else {
                     drawLine(
                         color = Color.White.copy(alpha = 0.3f),
-                        start = Offset(xPx, size.height - 6.dp.toPx()),
+                        start = Offset(xPx, size.height - 5.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 1.dp.toPx()
                     )
@@ -1202,95 +994,35 @@ fun TimeRulerCanvas(
 }
 
 @Composable
-fun PlayheadOverlay(
+fun StaticFixedPlayhead(
     offsetDp: Dp,
-    currentTimeMs: Long,
-    pxPerMs: Float,
-    totalDurationMs: Long,
-    onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val showTenths = pxPerMs >= 0.18f
+    val playheadRed = Color(0xFFFF2247) // Vibrant bright neon red
 
-    // 44dp wide touch hitbox centered directly over the needle at offsetDp
     Box(
         modifier = modifier
-            .offset(x = offsetDp - 22.dp)
-            .width(44.dp)
-            .fillMaxHeight()
-            .zIndex(20f)
-            .pointerInput(pxPerMs, totalDurationMs) {
-                val densityPxPerMs = pxPerMs.dp.toPx()
-                detectDragGestures { change, dragAmount ->
-                    change.consume()
-                    val deltaMs = (dragAmount.x / densityPxPerMs).toLong()
-                    onSeek((currentTimeMs + deltaMs).coerceIn(0L, totalDurationMs))
-                }
-            }
+            .offset(x = offsetDp - 1.dp)
+            .width(4.dp)
+            .zIndex(600f)
     ) {
-        // 1. Vertical Glow / Aura Line (3dp wide, centered)
+        // 1. Red glow aura behind the line (4dp)
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 20.dp)
-                .width(3.dp)
+                .width(4.dp)
                 .fillMaxHeight()
-                .background(StudioSecondaryTeal.copy(alpha = 0.45f))
+                .background(playheadRed.copy(alpha = 0.35f))
         )
 
-        // 2. Main Crisp White Playhead Needle (1.5dp wide, centered)
+        // 2. Crisp straight vertical RED playhead line fixed at 1/3 of the timeline
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 20.dp)
-                .width(1.5.dp)
+                .width(2.dp)
                 .fillMaxHeight()
-                .background(Color.White)
+                .background(playheadRed)
         )
-
-        // 3. Top Playhead Head Pointer / Handle Badge (Centered at top)
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (-2).dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = StudioSecondaryTeal,
-                shadowElevation = 6.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(5.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black)
-                    )
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text(
-                        text = formatTimeMsPrecise(currentTimeMs, showTenths = showTenths),
-                        color = Color.Black,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            }
-
-            // Downward Pointer Triangle Tip
-            Icon(
-                imageVector = Icons.Default.ArrowDropDown,
-                contentDescription = null,
-                tint = StudioSecondaryTeal,
-                modifier = Modifier
-                    .size(14.dp)
-                    .offset(y = (-4).dp)
-            )
-        }
     }
 }
 

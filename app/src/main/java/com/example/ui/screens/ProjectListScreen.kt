@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -52,6 +53,14 @@ fun ProjectListScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    BackHandler(enabled = showCreateDialog || selectedTemplateForMediaReplace != null || selectedSubTab != 0) {
+        when {
+            showCreateDialog -> showCreateDialog = false
+            selectedTemplateForMediaReplace != null -> selectedTemplateForMediaReplace = null
+            selectedSubTab != 0 -> selectedSubTab = 0
+        }
+    }
+
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let { msg ->
             snackbarHostState.showSnackbar(msg)
@@ -81,11 +90,11 @@ fun ProjectListScreen(
                         imageVector = Icons.Default.VideoLibrary,
                         contentDescription = null,
                         tint = StudioPrimaryViolet,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Column {
-                        Text("Daftar Proyek, Template & Media", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Proyek, Template & Media", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Text(
                             text = when (selectedSubTab) {
                                 0 -> "${userProjects.size} proyek aktif"
@@ -93,7 +102,7 @@ fun ProjectListScreen(
                                 else -> "${mediaAssets.size} aset media di pustaka"
                             },
                             color = StudioTextSecondary,
-                            fontSize = 12.sp
+                            fontSize = 11.sp
                         )
                     }
                 }
@@ -102,13 +111,13 @@ fun ProjectListScreen(
                     onClick = { showCreateDialog = true },
                     containerColor = StudioPrimaryViolet,
                     contentColor = Color.White,
-                    modifier = Modifier.size(44.dp).testTag("fab_new_project")
+                    modifier = Modifier.size(40.dp).testTag("fab_new_project")
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "New Project")
+                    Icon(imageVector = Icons.Default.Add, contentDescription = "New Project", modifier = Modifier.size(20.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Sub Tab Navigation (Proyek vs Template vs Pustaka Media)
             TabRow(
@@ -117,17 +126,17 @@ fun ProjectListScreen(
                 contentColor = Color.White,
                 divider = {},
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, StudioCardBorder, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.dp, StudioCardBorder, RoundedCornerShape(10.dp))
             ) {
                 Tab(
                     selected = selectedSubTab == 0,
                     onClick = { selectedSubTab = 0 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.Movie, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Proyek (${userProjects.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Icon(imageVector = Icons.Default.Movie, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Proyek (${userProjects.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         }
                     },
                     selectedContentColor = StudioSecondaryTeal,
@@ -138,9 +147,9 @@ fun ProjectListScreen(
                     onClick = { selectedSubTab = 1 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.Bookmark, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Template (${templateProjects.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Icon(imageVector = Icons.Default.Bookmark, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Template (${templateProjects.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         }
                     },
                     selectedContentColor = StudioPrimaryViolet,
@@ -151,9 +160,9 @@ fun ProjectListScreen(
                     onClick = { selectedSubTab = 2 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Pustaka (${mediaAssets.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Pustaka (${mediaAssets.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         }
                     },
                     selectedContentColor = StudioSecondaryTeal,
@@ -720,69 +729,54 @@ fun LocalMediaLibraryView(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Header Actions
+        // Compact Search & Action Bar (Clean layout without space-wasting header banner)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = "Aset Media Tersimpan (${filteredAssets.size})",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-                Text(
-                    text = "Tarik atau klik 'Sisipkan & Buka Editor' untuk memasukkan klip ke timeline",
-                    color = StudioTextSecondary,
-                    fontSize = 11.sp
-                )
-            }
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Cari aset video, musik, SFX, stiker...", fontSize = 11.sp) },
+                leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = StudioTextSecondary, modifier = Modifier.size(16.dp)) },
+                trailingIcon = if (searchQuery.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
+                            Icon(imageVector = Icons.Default.Close, contentDescription = "Clear", tint = StudioTextSecondary, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                } else null,
+                singleLine = true,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = StudioSurfaceDark,
+                    unfocusedContainerColor = StudioSurfaceDark,
+                    focusedBorderColor = StudioSecondaryTeal,
+                    unfocusedBorderColor = StudioCardBorder,
+                    focusedTextColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp)
+            )
 
             Button(
                 onClick = { showImportDialog = true },
                 colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                 shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.testTag("button_import_media")
+                modifier = Modifier
+                    .height(44.dp)
+                    .testTag("button_import_media")
             ) {
-                Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("+ Impor Media", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Color.Black, modifier = Modifier.size(15.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("+ Impor", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Search Bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = { Text("Cari aset video, musik, SFX, stiker...", fontSize = 12.sp) },
-            leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = StudioTextSecondary) },
-            trailingIcon = if (searchQuery.isNotEmpty()) {
-                {
-                    IconButton(onClick = { searchQuery = "" }) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Clear", tint = StudioTextSecondary)
-                    }
-                }
-            } else null,
-            singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = StudioSurfaceDark,
-                unfocusedContainerColor = StudioSurfaceDark,
-                focusedBorderColor = StudioSecondaryTeal,
-                unfocusedBorderColor = StudioCardBorder,
-                focusedTextColor = Color.White
-            ),
-            shape = RoundedCornerShape(10.dp)
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Category Filter Chips
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

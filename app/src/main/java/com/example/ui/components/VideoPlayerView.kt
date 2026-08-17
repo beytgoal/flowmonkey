@@ -264,6 +264,30 @@ fun VideoPlayerView(
                         )
                     }
 
+                    // Transition Dynamic Effect Layer (Active at clip boundaries)
+                    val activeMainClip = activeClips.find { it.trackId == (clips.firstOrNull { c -> c.mediaUri.contains("video", ignoreCase = true) || c.trackId == 1L }?.trackId ?: 1L) }
+                    if (activeMainClip != null && activeMainClip.transitionType.isNotBlank() && activeMainClip.transitionType != "None") {
+                        val transDurationMs = 600L
+                        val timeFromStart = currentTimeMs - activeMainClip.startTimeMs
+                        val timeToEnd = activeMainClip.endTimeMs - currentTimeMs
+
+                        if (timeFromStart in 0..transDurationMs) {
+                            val progress = (timeFromStart.toFloat() / transDurationMs).coerceIn(0f, 1f)
+                            RenderSmoothTransition(
+                                transitionType = activeMainClip.transitionType,
+                                progress = 1f - progress, // Transition In
+                                isIncoming = true
+                            )
+                        } else if (timeToEnd in 0..transDurationMs) {
+                            val progress = (1f - (timeToEnd.toFloat() / transDurationMs)).coerceIn(0f, 1f)
+                            RenderSmoothTransition(
+                                transitionType = activeMainClip.transitionType,
+                                progress = progress, // Transition Out
+                                isIncoming = false
+                            )
+                        }
+                    }
+
                     // --- KEYFRAME ANIMATED OVERLAYS, TEXT & STICKERS LAYER ---
                     activeClips.forEach { clip ->
                         val isSelected = clip.id == selectedClipId
@@ -272,7 +296,8 @@ fun VideoPlayerView(
                             KeyframeHelper.parseKeyframes(clip.keyframeData)
                         }
 
-                        val transform = remember(keyframes, clipOffsetMs, clip.rotationDegrees, clip.opacity) {
+                        // Base transform from keyframe interpolation
+                        val baseTransform = remember(keyframes, clipOffsetMs, clip.rotationDegrees, clip.opacity) {
                             KeyframeHelper.evaluateTransform(
                                 keyframes = keyframes,
                                 clipTimeOffsetMs = clipOffsetMs,
@@ -281,14 +306,21 @@ fun VideoPlayerView(
                             )
                         }
 
+                        // Apply smooth in/out/combo animation modifier
+                        val animatedTransform = evaluateSmoothClipAnimation(
+                            clip = clip,
+                            clipOffsetMs = clipOffsetMs,
+                            baseTransform = baseTransform
+                        )
+
                         // Video Overlay PIP / Graphic Layer
                         if (clip.mediaUri.contains("overlay", ignoreCase = true) || clip.title.startsWith("Overlay")) {
                             KeyframeOverlayItem(
                                 clip = clip,
-                                transform = transform,
+                                transform = animatedTransform,
                                 isSelected = isSelected,
                                 onTransformChanged = { x, y, s, r ->
-                                    onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, transform.opacity)
+                                    onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, animatedTransform.opacity)
                                 }
                             )
                         }
@@ -298,10 +330,10 @@ fun VideoPlayerView(
                             KeyframeTextItem(
                                 clip = clip,
                                 text = clip.textContent,
-                                transform = transform,
+                                transform = animatedTransform,
                                 isSelected = isSelected,
                                 onTransformChanged = { x, y, s, r ->
-                                    onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, transform.opacity)
+                                    onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, animatedTransform.opacity)
                                 }
                             )
                         }
@@ -311,10 +343,10 @@ fun VideoPlayerView(
                             KeyframeStickerItem(
                                 clip = clip,
                                 sticker = clip.stickerIcon,
-                                transform = transform,
+                                transform = animatedTransform,
                                 isSelected = isSelected,
                                 onTransformChanged = { x, y, s, r ->
-                                    onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, transform.opacity)
+                                    onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, animatedTransform.opacity)
                                 }
                             )
                         }
@@ -341,122 +373,6 @@ fun VideoPlayerView(
                         }
                     }
                 }
-
-                // --- FLOATING KEYFRAME HUD TOOLBAR OVERLAY FOR ACTIVE/SELECTED CLIP ---
-                if (activeSelectedClip != null && (activeSelectedClip.hasKeyframe || activeSelectedClip.textContent != null || activeSelectedClip.stickerIcon.isNotBlank() || activeSelectedClip.mediaUri.contains("overlay"))) {
-                    val clip = activeSelectedClip
-                    val clipOffsetMs = (currentTimeMs - clip.startTimeMs).coerceIn(0L, clip.durationMs)
-                    val keyframes = remember(clip.keyframeData) {
-                        KeyframeHelper.parseKeyframes(clip.keyframeData)
-                    }
-                    val isAtKeyframe = keyframes.any { Math.abs(it.timeOffsetMs - clipOffsetMs) < 70L }
-                    val currentTransform = KeyframeHelper.evaluateTransform(keyframes, clipOffsetMs, defaultRotation = clip.rotationDegrees.toFloat(), defaultOpacity = clip.opacity)
-
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 8.dp)
-                            .testTag("keyframe_hud_panel"),
-                        color = Color.Black.copy(alpha = 0.75f),
-                        shape = RoundedCornerShape(20.dp),
-                        border = BorderStroke(1.dp, StudioAccentAmber.copy(alpha = 0.6f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            // Prev Keyframe Button
-                            IconButton(
-                                onClick = {
-                                    val prev = keyframes.filter { it.timeOffsetMs < clipOffsetMs - 50L }.maxByOrNull { it.timeOffsetMs }
-                                    if (prev != null) {
-                                        onSeek?.invoke(clip.startTimeMs + prev.timeOffsetMs)
-                                    }
-                                },
-                                enabled = keyframes.any { it.timeOffsetMs < clipOffsetMs - 50L },
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.SkipPrevious,
-                                    contentDescription = "Prev Keyframe",
-                                    tint = if (keyframes.any { it.timeOffsetMs < clipOffsetMs - 50L }) StudioAccentAmber else Color.Gray,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-
-                            // Add / Remove Keyframe Diamond Button
-                            Surface(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable {
-                                        if (isAtKeyframe) {
-                                            onRemoveKeyframe?.invoke(clip, clipOffsetMs)
-                                        } else {
-                                            onAddOrUpdateKeyframe?.invoke(
-                                                clip,
-                                                clipOffsetMs,
-                                                currentTransform.posX,
-                                                currentTransform.posY,
-                                                currentTransform.scale,
-                                                currentTransform.rotation,
-                                                currentTransform.opacity
-                                            )
-                                        }
-                                    }
-                                    .testTag("add_remove_keyframe_hud_button"),
-                                color = if (isAtKeyframe) StudioAccentAmber else StudioCardBg,
-                                border = BorderStroke(1.dp, StudioAccentAmber)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = if (isAtKeyframe) Icons.Default.Delete else Icons.Default.Add,
-                                        contentDescription = null,
-                                        tint = if (isAtKeyframe) Color.Black else StudioAccentAmber,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = if (isAtKeyframe) "◆ Keyframe" else "+ Keyframe",
-                                        color = if (isAtKeyframe) Color.Black else StudioAccentAmber,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-
-                            // Next Keyframe Button
-                            IconButton(
-                                onClick = {
-                                    val next = keyframes.filter { it.timeOffsetMs > clipOffsetMs + 50L }.minByOrNull { it.timeOffsetMs }
-                                    if (next != null) {
-                                        onSeek?.invoke(clip.startTimeMs + next.timeOffsetMs)
-                                    }
-                                },
-                                enabled = keyframes.any { it.timeOffsetMs > clipOffsetMs + 50L },
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.SkipNext,
-                                    contentDescription = "Next Keyframe",
-                                    tint = if (keyframes.any { it.timeOffsetMs > clipOffsetMs + 50L }) StudioAccentAmber else Color.Gray,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-
-                            // Keyframe counter badge
-                            Text(
-                                text = "KF: ${keyframes.size}",
-                                color = Color.White.copy(alpha = 0.8f),
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
             }
         }
     }
@@ -469,32 +385,27 @@ fun KeyframeOverlayItem(
     isSelected: Boolean,
     onTransformChanged: (posX: Float, posY: Float, scale: Float, rotation: Float) -> Unit
 ) {
-    var localDragX by remember(transform.posX) { mutableFloatStateOf(transform.posX) }
-    var localDragY by remember(transform.posY) { mutableFloatStateOf(transform.posY) }
-    var localScale by remember(transform.scale) { mutableFloatStateOf(transform.scale) }
-    var localRot by remember(transform.rotation) { mutableFloatStateOf(transform.rotation) }
-
     Box(
-        modifier = Modifier
-            .fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .offset { IntOffset(localDragX.roundToInt(), localDragY.roundToInt()) }
                 .graphicsLayer {
-                    scaleX = localScale
-                    scaleY = localScale
-                    rotationZ = localRot
+                    translationX = transform.posX
+                    translationY = transform.posY
+                    scaleX = transform.scale
+                    scaleY = transform.scale
+                    rotationZ = transform.rotation
                     alpha = transform.opacity
                 }
                 .pointerInput(clip.id) {
                     detectTransformGestures { _, pan, zoom, rotation ->
-                        localDragX += pan.x
-                        localDragY += pan.y
-                        localScale = (localScale * zoom).coerceIn(0.2f, 4f)
-                        localRot += rotation
-                        onTransformChanged(localDragX, localDragY, localScale, localRot)
+                        val newX = transform.posX + pan.x
+                        val newY = transform.posY + pan.y
+                        val newScale = (transform.scale * zoom).coerceIn(0.2f, 4f)
+                        val newRot = transform.rotation + rotation
+                        onTransformChanged(newX, newY, newScale, newRot)
                     }
                 }
                 .clip(RoundedCornerShape(8.dp))
@@ -536,11 +447,6 @@ fun KeyframeTextItem(
     isSelected: Boolean,
     onTransformChanged: (posX: Float, posY: Float, scale: Float, rotation: Float) -> Unit
 ) {
-    var localDragX by remember(transform.posX) { mutableFloatStateOf(transform.posX) }
-    var localDragY by remember(transform.posY) { mutableFloatStateOf(transform.posY) }
-    var localScale by remember(transform.scale) { mutableFloatStateOf(transform.scale) }
-    var localRot by remember(transform.rotation) { mutableFloatStateOf(transform.rotation) }
-
     val parsedColor = remember(clip.fontColor) {
         try {
             Color(android.graphics.Color.parseColor(clip.fontColor))
@@ -555,20 +461,21 @@ fun KeyframeTextItem(
     ) {
         Box(
             modifier = Modifier
-                .offset { IntOffset(localDragX.roundToInt(), localDragY.roundToInt()) }
                 .graphicsLayer {
-                    scaleX = localScale
-                    scaleY = localScale
-                    rotationZ = localRot
+                    translationX = transform.posX
+                    translationY = transform.posY
+                    scaleX = transform.scale
+                    scaleY = transform.scale
+                    rotationZ = transform.rotation
                     alpha = transform.opacity
                 }
                 .pointerInput(clip.id) {
                     detectTransformGestures { _, pan, zoom, rotation ->
-                        localDragX += pan.x
-                        localDragY += pan.y
-                        localScale = (localScale * zoom).coerceIn(0.2f, 4f)
-                        localRot += rotation
-                        onTransformChanged(localDragX, localDragY, localScale, localRot)
+                        val newX = transform.posX + pan.x
+                        val newY = transform.posY + pan.y
+                        val newScale = (transform.scale * zoom).coerceIn(0.2f, 4f)
+                        val newRot = transform.rotation + rotation
+                        onTransformChanged(newX, newY, newScale, newRot)
                     }
                 }
                 .border(
@@ -602,31 +509,27 @@ fun KeyframeStickerItem(
     isSelected: Boolean,
     onTransformChanged: (posX: Float, posY: Float, scale: Float, rotation: Float) -> Unit
 ) {
-    var localDragX by remember(transform.posX) { mutableFloatStateOf(transform.posX) }
-    var localDragY by remember(transform.posY) { mutableFloatStateOf(transform.posY) }
-    var localScale by remember(transform.scale) { mutableFloatStateOf(transform.scale) }
-    var localRot by remember(transform.rotation) { mutableFloatStateOf(transform.rotation) }
-
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .offset { IntOffset(localDragX.roundToInt(), localDragY.roundToInt()) }
                 .graphicsLayer {
-                    scaleX = localScale
-                    scaleY = localScale
-                    rotationZ = localRot
+                    translationX = transform.posX
+                    translationY = transform.posY
+                    scaleX = transform.scale
+                    scaleY = transform.scale
+                    rotationZ = transform.rotation
                     alpha = transform.opacity
                 }
                 .pointerInput(clip.id) {
                     detectTransformGestures { _, pan, zoom, rotation ->
-                        localDragX += pan.x
-                        localDragY += pan.y
-                        localScale = (localScale * zoom).coerceIn(0.2f, 4f)
-                        localRot += rotation
-                        onTransformChanged(localDragX, localDragY, localScale, localRot)
+                        val newX = transform.posX + pan.x
+                        val newY = transform.posY + pan.y
+                        val newScale = (transform.scale * zoom).coerceIn(0.2f, 4f)
+                        val newRot = transform.rotation + rotation
+                        onTransformChanged(newX, newY, newScale, newRot)
                     }
                 }
                 .border(
@@ -667,4 +570,177 @@ fun formatTimeMs(ms: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return String.format("%02d:%02d", minutes, seconds)
+}
+
+@Composable
+fun RenderSmoothTransition(
+    transitionType: String,
+    progress: Float, // 0.0f to 1.0f
+    isIncoming: Boolean
+) {
+    val smoothProgress = (progress * progress * (3f - 2f * progress)).coerceIn(0f, 1f)
+    when {
+        transitionType.contains("Crossfade", ignoreCase = true) || transitionType.contains("Dissolve", ignoreCase = true) -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = (smoothProgress * 0.7f).coerceIn(0f, 0.85f)))
+            )
+        }
+        transitionType.contains("Fade In", ignoreCase = true) || transitionType.contains("Fade Out", ignoreCase = true) -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = smoothProgress))
+            )
+        }
+        transitionType.contains("Zoom", ignoreCase = true) -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = 1f + smoothProgress * 0.35f
+                        scaleY = 1f + smoothProgress * 0.35f
+                        alpha = (1f - smoothProgress * 0.4f).coerceIn(0f, 1f)
+                    }
+                    .background(StudioSecondaryTeal.copy(alpha = smoothProgress * 0.25f))
+            )
+        }
+        transitionType.contains("Pan", ignoreCase = true) || transitionType.contains("Whip", ignoreCase = true) -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationX = (if (isIncoming) -1f else 1f) * smoothProgress * 150f
+                        alpha = (1f - smoothProgress * 0.3f).coerceIn(0f, 1f)
+                    }
+                    .background(StudioPrimaryViolet.copy(alpha = smoothProgress * 0.2f))
+            )
+        }
+        transitionType.contains("Glitch", ignoreCase = true) -> {
+            val glitchAlpha = if ((smoothProgress * 10).toInt() % 2 == 0) 0.45f else 0.1f
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(StudioAccentPink.copy(alpha = glitchAlpha * smoothProgress))
+            )
+        }
+        else -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = smoothProgress * 0.5f))
+            )
+        }
+    }
+}
+
+fun evaluateSmoothClipAnimation(
+    clip: TimelineClipEntity,
+    clipOffsetMs: Long,
+    baseTransform: KeyframeTransform
+): KeyframeTransform {
+    var posX = baseTransform.posX
+    var posY = baseTransform.posY
+    var scale = baseTransform.scale
+    var rotation = baseTransform.rotation
+    var opacity = baseTransform.opacity
+
+    val inDurationMs = 500L
+    val outDurationMs = 500L
+    val totalDur = clip.durationMs.coerceAtLeast(100L)
+
+    // 1. In-Animation Easing
+    if (clip.animationIn.isNotBlank() && clip.animationIn != "None" && clipOffsetMs < inDurationMs) {
+        val t = (clipOffsetMs.toFloat() / inDurationMs.toFloat()).coerceIn(0f, 1f)
+        val smoothT = t * t * (3f - 2f * t) // Hermite smoothstep
+        when {
+            clip.animationIn.contains("Fade In", ignoreCase = true) -> {
+                opacity *= smoothT
+            }
+            clip.animationIn.contains("Slide Right", ignoreCase = true) -> {
+                posX += (1f - smoothT) * -220f
+                opacity *= smoothT
+            }
+            clip.animationIn.contains("Zoom In", ignoreCase = true) -> {
+                scale *= (0.3f + smoothT * 0.7f)
+                opacity *= smoothT
+            }
+            clip.animationIn.contains("Bounce In", ignoreCase = true) -> {
+                // Spring overshoot bounce formula
+                val bounce = kotlin.math.sin(t * kotlin.math.PI * 1.5).toFloat()
+                scale *= (0.2f + bounce * 0.8f).coerceAtLeast(0.1f)
+                opacity *= smoothT
+            }
+            clip.animationIn.contains("Rotate Entrance", ignoreCase = true) -> {
+                rotation += (1f - smoothT) * -180f
+                scale *= (0.4f + smoothT * 0.6f)
+                opacity *= smoothT
+            }
+            clip.animationIn.contains("Kedip", ignoreCase = true) || clip.animationIn.contains("Flash", ignoreCase = true) -> {
+                val strobeCount = (t * 8).toInt()
+                opacity = if (strobeCount % 2 == 0) opacity else 0.1f
+            }
+        }
+    }
+
+    // 2. Out-Animation Easing
+    val timeToEnd = totalDur - clipOffsetMs
+    if (clip.animationOut.isNotBlank() && clip.animationOut != "None" && timeToEnd < outDurationMs) {
+        val t = ((outDurationMs - timeToEnd).toFloat() / outDurationMs.toFloat()).coerceIn(0f, 1f)
+        val smoothT = t * t * (3f - 2f * t)
+        when {
+            clip.animationOut.contains("Fade Out", ignoreCase = true) -> {
+                opacity *= (1f - smoothT)
+            }
+            clip.animationOut.contains("Slide Left", ignoreCase = true) -> {
+                posX += smoothT * -220f
+                opacity *= (1f - smoothT)
+            }
+            clip.animationOut.contains("Zoom Out", ignoreCase = true) -> {
+                scale *= (1f - smoothT * 0.7f)
+                opacity *= (1f - smoothT)
+            }
+            clip.animationOut.contains("Dissolve Out", ignoreCase = true) -> {
+                opacity *= (1f - smoothT)
+                scale *= (1f + smoothT * 0.15f)
+            }
+            clip.animationOut.contains("Glitch Exit", ignoreCase = true) -> {
+                posX += (if ((smoothT * 12).toInt() % 2 == 0) 12f else -12f)
+                opacity *= (1f - smoothT)
+            }
+        }
+    }
+
+    // 3. Combo Animation Easing (Continuous motion along the clip)
+    if (clip.animationCombo.isNotBlank() && clip.animationCombo != "None") {
+        val progress = (clipOffsetMs.toFloat() / totalDur.toFloat()).coerceIn(0f, 1f)
+        when {
+            clip.animationCombo.contains("Spin", ignoreCase = true) -> {
+                rotation += progress * 360f
+            }
+            clip.animationCombo.contains("Flash Kedip", ignoreCase = true) || clip.animationCombo.contains("Strobe", ignoreCase = true) -> {
+                val cycle = (progress * 16).toInt()
+                if (cycle % 2 != 0) {
+                    opacity *= 0.35f
+                }
+            }
+            clip.animationCombo.contains("Elastic Pop", ignoreCase = true) || clip.animationCombo.contains("Pulse", ignoreCase = true) -> {
+                val popWave = kotlin.math.sin(progress * kotlin.math.PI * 6).toFloat()
+                scale *= (1.0f + popWave * 0.12f)
+            }
+            clip.animationCombo.contains("Bounce", ignoreCase = true) -> {
+                val bounceWave = kotlin.math.abs(kotlin.math.sin(progress * kotlin.math.PI * 4)).toFloat()
+                posY += bounceWave * -25f
+            }
+        }
+    }
+
+    return KeyframeTransform(
+        posX = posX,
+        posY = posY,
+        scale = scale.coerceIn(0.1f, 5f),
+        rotation = rotation,
+        opacity = opacity.coerceIn(0f, 1f)
+    )
 }

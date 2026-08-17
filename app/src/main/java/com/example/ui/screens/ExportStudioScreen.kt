@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -42,6 +43,10 @@ fun ExportStudioScreen(
     var selectedPlatform by remember { mutableStateOf("TikTok 9:16") }
     var selectedResolution by remember { mutableStateOf("1080p") }
     var selectedFps by remember { mutableStateOf(30) }
+
+    BackHandler(enabled = true) {
+        viewModel.selectTab(com.example.ui.viewmodels.MainTab.TIMELINE_EDITOR)
+    }
 
     val platforms = listOf(
         PlatformPreset("TikTok", "9:16", Icons.Default.MusicNote, "1080p Full HD"),

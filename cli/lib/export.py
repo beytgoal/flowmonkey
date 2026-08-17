@@ -4,7 +4,14 @@ import time
 from datetime import datetime
 from .store import get_db, save_db
 
-def export_video(options):
+def export_video(options=None, **kwargs):
+    if options is None:
+        options = kwargs
+    elif isinstance(options, dict) and kwargs:
+        options = {**options, **kwargs}
+    elif not isinstance(options, dict):
+        options = kwargs
+
     resolution = options.get("resolution", "1080p FHD")
     fps = int(options.get("fps", 60))
     fmt = options.get("format", "MP4")

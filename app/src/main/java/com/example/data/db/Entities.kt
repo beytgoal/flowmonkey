@@ -1,9 +1,11 @@
 package com.example.data.db
 
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.Relation
 
 @Entity(tableName = "video_projects")
 data class VideoProjectEntity(
@@ -15,10 +17,52 @@ data class VideoProjectEntity(
     val exportResolution: String = "1080p", // "720p", "1080p", "4K"
     val fps: Int = 30, // 24, 30, 60
     val durationSeconds: Int = 15,
+    val durationMs: Long = 15000L,
+    val localFilePath: String? = null, // Local storage file path for exported/rendered project video
+    val thumbnailPath: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
-    val thumbnailPath: String? = null,
     val isTemplate: Boolean = false
+)
+
+@Entity(
+    tableName = "generated_video_segments",
+    foreignKeys = [
+        ForeignKey(
+            entity = VideoProjectEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["projectId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("projectId")]
+)
+data class GeneratedVideoSegmentEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val projectId: Long,
+    val segmentIndex: Int = 0,
+    val title: String,
+    val durationSeconds: Int = 5,
+    val durationMs: Long = 5000L,
+    val localFilePath: String = "", // Local disk/internal storage file path for generated video segment
+    val mediaUri: String = "",
+    val prompt: String = "",
+    val visualStyle: String = "Cinematic",
+    val resolution: String = "1080p",
+    val aspectRatio: String = "16:9",
+    val fileSizeBytes: Long = 0L,
+    val status: String = "READY", // "PENDING", "GENERATING", "READY", "ERROR"
+    val thumbnailPath: String? = null,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+data class VideoProjectWithSegments(
+    @Embedded val project: VideoProjectEntity,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "projectId"
+    )
+    val segments: List<GeneratedVideoSegmentEntity>
 )
 
 @Entity(
