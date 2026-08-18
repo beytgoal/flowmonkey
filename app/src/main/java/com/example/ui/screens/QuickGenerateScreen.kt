@@ -54,7 +54,6 @@ fun QuickGenerateScreen(
     val highfieldSettings by viewModel.highfieldSettingsState.collectAsState()
 
     var showMicDialog by remember { mutableStateOf(false) }
-    var showSettingsDialog by remember { mutableStateOf(false) }
 
     // Image Picker Launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -78,13 +77,14 @@ fun QuickGenerateScreen(
             .padding(16.dp)
     ) {
 
-        // Hero Banner Header with Engine Status & Settings Button
+        // Hero Banner Header
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
-                .clip(RoundedCornerShape(16.dp)),
-            colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                .height(115.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .border(1.dp, StudioCardHairline, RoundedCornerShape(22.dp)),
+            colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 Image(
@@ -98,72 +98,54 @@ fun QuickGenerateScreen(
                         .fillMaxSize()
                         .background(
                             androidx.compose.ui.graphics.Brush.horizontalGradient(
-                                listOf(Color.Black.copy(alpha = 0.9f), Color.Black.copy(alpha = 0.3f))
+                                listOf(Color.Black.copy(alpha = 0.82f), Color.Black.copy(alpha = 0.35f))
                             )
                         )
-                        .padding(14.dp),
+                        .padding(16.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(
-                                    color = Color(0xFF6366F1),
-                                    shape = RoundedCornerShape(12.dp)
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                color = StudioElectricBlue,
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.AutoAwesome,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(10.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Text(
-                                            text = "STUDIO AI",
-                                            color = Color.White,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "STUDIO AI PRO",
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = 0.5.sp
+                                    )
                                 }
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = highfieldSettings.selectedEngine.take(18) + "...",
-                                    color = StudioSecondaryTeal,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Ubah Teks & Gambar Jadi Video Ultra High-End",
-                                color = Color.White,
-                                fontSize = 15.sp,
+                                text = "Kualitas Sinematik",
+                                color = StudioEmeraldGreen,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
-
-                        // Settings Button
-                        IconButton(
-                            onClick = { showSettingsDialog = true },
-                            modifier = Modifier
-                                .background(Color(0x33FFFFFF), CircleShape)
-                                .testTag("open_settings_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Key,
-                                contentDescription = "API Keys & Settings",
-                                tint = Color.White
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Ubah Teks & Gambar Jadi Video Sinematik",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.3).sp
+                        )
                     }
                 }
             }
@@ -182,16 +164,16 @@ fun QuickGenerateScreen(
                 onClick = { viewModel.generatorMode.value = GeneratorMode.TEXT_TO_VIDEO },
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                 colors = SegmentedButtonDefaults.colors(
-                    activeContainerColor = StudioPrimaryViolet,
+                    activeContainerColor = StudioDarkCTA,
                     activeContentColor = Color.White,
-                    inactiveContainerColor = StudioCardBg,
-                    inactiveContentColor = StudioTextSecondary
+                    inactiveContainerColor = StudioGlassWhite,
+                    inactiveContentColor = StudioTextMuted
                 ),
                 icon = {
                     Icon(imageVector = Icons.Default.TextFields, contentDescription = "Text to Video")
                 }
             ) {
-                Text("Teks Ke Video", fontWeight = FontWeight.Bold)
+                Text("Teks Ke Video", fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
 
             SegmentedButton(
@@ -199,16 +181,16 @@ fun QuickGenerateScreen(
                 onClick = { viewModel.generatorMode.value = GeneratorMode.IMAGE_TO_VIDEO },
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                 colors = SegmentedButtonDefaults.colors(
-                    activeContainerColor = StudioPrimaryViolet,
+                    activeContainerColor = StudioDarkCTA,
                     activeContentColor = Color.White,
-                    inactiveContainerColor = StudioCardBg,
-                    inactiveContentColor = StudioTextSecondary
+                    inactiveContainerColor = StudioGlassWhite,
+                    inactiveContentColor = StudioTextMuted
                 ),
                 icon = {
                     Icon(imageVector = Icons.Default.Image, contentDescription = "Image to Video")
                 }
             ) {
-                Text("Gambar Ke Video", fontWeight = FontWeight.Bold)
+                Text("Gambar Ke Video", fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }
 
@@ -219,8 +201,8 @@ fun QuickGenerateScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, StudioCardBorder, RoundedCornerShape(16.dp)),
-                colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                    .border(1.dp, StudioCardHairline, RoundedCornerShape(20.dp)),
+                colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -231,7 +213,7 @@ fun QuickGenerateScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(160.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(16.dp))
                         ) {
                             androidx.compose.foundation.Image(
                                 bitmap = selectedBitmap!!.asImageBitmap(),
@@ -245,19 +227,20 @@ fun QuickGenerateScreen(
                             onClick = { imagePickerLauncher.launch("image/*") },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(100.dp)
+                                .height(94.dp)
                                 .testTag("upload_image_button"),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioSecondaryTeal),
-                            border = BorderStroke(1.dp, StudioSecondaryTeal)
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
+                            border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     imageVector = Icons.Default.AddPhotoAlternate,
                                     contentDescription = "Pick Image",
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text("Pilih Foto Dari Galeri", fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Pilih Foto Dari Galeri", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }
@@ -269,14 +252,17 @@ fun QuickGenerateScreen(
                         enabled = selectedBitmap != null && !imageAnalysisState.isGenerating,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(46.dp)
                             .testTag("analyze_image_gemini_button"),
-                        colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal, contentColor = Color.Black)
+                        colors = ButtonDefaults.buttonColors(containerColor = StudioElectricBlue, contentColor = Color.White),
+                        shape = RoundedCornerShape(24.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.DocumentScanner, contentDescription = "Analyze")
+                        Icon(imageVector = Icons.Default.DocumentScanner, contentDescription = "Analyze", modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (imageAnalysisState.isGenerating) "Menganalisis Gambar Gemini 3.1 Pro..." else "Analisis Gambar Untuk Prompt Video",
-                            fontWeight = FontWeight.Bold
+                            text = if (imageAnalysisState.isGenerating) "Menganalisis Gambar Gemini..." else "Analisis Gambar Untuk Prompt Video",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
                         )
                     }
                 }
@@ -288,8 +274,8 @@ fun QuickGenerateScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, StudioCardBorder, RoundedCornerShape(16.dp)),
-            colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                .border(1.dp, StudioCardHairline, RoundedCornerShape(20.dp)),
+            colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
 
@@ -300,7 +286,7 @@ fun QuickGenerateScreen(
                 ) {
                     Text(
                         text = "Deskripsi Visual Prompt Video",
-                        color = Color.White,
+                        color = StudioTextDark,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -308,33 +294,38 @@ fun QuickGenerateScreen(
                     // Audio Mic Transcriber button
                     IconButton(
                         onClick = { showMicDialog = true },
-                        modifier = Modifier.testTag("mic_transcribe_button")
+                        modifier = Modifier
+                            .background(StudioPastelRose.copy(alpha = 0.6f), CircleShape)
+                            .testTag("mic_transcribe_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Mic,
                             contentDescription = "Transcribe Audio",
-                            tint = StudioAccentPink
+                            tint = StudioRosePink,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 OutlinedTextField(
                     value = prompt,
                     onValueChange = { viewModel.promptText.value = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(110.dp)
+                        .height(115.dp)
                         .testTag("prompt_text_field"),
-                    placeholder = { Text("Ketik instruksi gerakan video AI di sini...") },
+                    placeholder = { Text("Ketik instruksi gerakan video AI di sini...", color = StudioTextSubtle, fontSize = 13.sp) },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = StudioPrimaryViolet,
-                        unfocusedBorderColor = StudioCardBorder,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedBorderColor = StudioElectricBlue,
+                        unfocusedBorderColor = StudioCardHairline,
+                        focusedTextColor = StudioTextDark,
+                        unfocusedTextColor = StudioTextDark,
+                        focusedContainerColor = StudioCleanCanvas,
+                        unfocusedContainerColor = StudioCleanCanvas
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(16.dp)
                 )
             }
         }
@@ -361,26 +352,32 @@ fun QuickGenerateScreen(
                 Icon(
                     imageVector = Icons.Default.Palette,
                     contentDescription = null,
-                    tint = StudioPrimaryViolet,
-                    modifier = Modifier.size(16.dp)
+                    tint = StudioElectricBlue,
+                    modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Gaya Visual Studio",
-                    color = Color.White,
+                    color = StudioTextDark,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
-            Text(
-                text = style,
-                color = StudioSecondaryTeal,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Surface(
+                color = StudioElectricBlue.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = style,
+                    color = StudioElectricBlue,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -390,17 +387,17 @@ fun QuickGenerateScreen(
                 val isSelected = style.contains(item.first, ignoreCase = true) || item.first.contains(style, ignoreCase = true)
                 Card(
                     modifier = Modifier
-                        .width(130.dp)
-                        .height(80.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .width(134.dp)
+                        .height(84.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .border(
                             2.dp,
-                            if (isSelected) StudioPrimaryViolet else Color.Transparent,
-                            RoundedCornerShape(12.dp)
+                            if (isSelected) StudioElectricBlue else Color.Transparent,
+                            RoundedCornerShape(16.dp)
                         )
                         .clickable { viewModel.selectedStyle.value = item.first }
                         .testTag("style_item_${item.first}"),
-                    colors = CardDefaults.cardColors(containerColor = StudioSurfaceDark)
+                    colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         Image(
@@ -413,8 +410,8 @@ fun QuickGenerateScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(
-                                    if (isSelected) StudioPrimaryViolet.copy(alpha = 0.65f)
-                                    else Color.Black.copy(alpha = 0.55f)
+                                    if (isSelected) StudioElectricBlue.copy(alpha = 0.65f)
+                                    else Color.Black.copy(alpha = 0.45f)
                                 )
                                 .padding(8.dp),
                             contentAlignment = Alignment.BottomStart
@@ -442,13 +439,13 @@ fun QuickGenerateScreen(
             Card(
                 modifier = Modifier
                     .weight(1f)
-                    .border(1.dp, StudioCardBorder, RoundedCornerShape(12.dp)),
-                colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                    .border(1.dp, StudioCardHairline, RoundedCornerShape(18.dp)),
+                colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
                         text = "Rasio Layar",
-                        color = StudioTextSecondary,
+                        color = StudioTextMuted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -459,9 +456,12 @@ fun QuickGenerateScreen(
                                 selected = aspectRatio == ratio,
                                 onClick = { viewModel.selectedAspectRatio.value = ratio },
                                 label = { Text(ratio, fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                                shape = RoundedCornerShape(12.dp),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = StudioPrimaryViolet,
-                                    selectedLabelColor = Color.White
+                                    selectedContainerColor = StudioDarkCTA,
+                                    selectedLabelColor = Color.White,
+                                    containerColor = StudioPillBg,
+                                    labelColor = StudioTextDark
                                 )
                             )
                         }
@@ -473,13 +473,13 @@ fun QuickGenerateScreen(
             Card(
                 modifier = Modifier
                     .weight(1f)
-                    .border(1.dp, StudioCardBorder, RoundedCornerShape(12.dp)),
-                colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                    .border(1.dp, StudioCardHairline, RoundedCornerShape(18.dp)),
+                colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
                         text = "Durasi Klip",
-                        color = StudioTextSecondary,
+                        color = StudioTextMuted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -490,9 +490,12 @@ fun QuickGenerateScreen(
                                 selected = duration == dur,
                                 onClick = { viewModel.selectedDuration.value = dur },
                                 label = { Text("${dur}s", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                                shape = RoundedCornerShape(12.dp),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = StudioSecondaryTeal,
-                                    selectedLabelColor = Color.Black
+                                    selectedContainerColor = StudioDarkCTA,
+                                    selectedLabelColor = Color.White,
+                                    containerColor = StudioPillBg,
+                                    labelColor = StudioTextDark
                                 )
                             )
                         }
@@ -503,7 +506,7 @@ fun QuickGenerateScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Main Generate Button
+        // Main Generate Button (iOS Large Pill CTA)
         Button(
             onClick = { viewModel.generateVideoClip() },
             enabled = !clipGenState.isGenerating && prompt.isNotBlank(),
@@ -512,10 +515,10 @@ fun QuickGenerateScreen(
                 .height(54.dp)
                 .testTag("generate_clip_button"),
             colors = ButtonDefaults.buttonColors(
-                containerColor = StudioPrimaryViolet,
+                containerColor = StudioDarkCTA,
                 contentColor = Color.White
             ),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(26.dp)
         ) {
             if (clipGenState.isGenerating) {
                 CircularProgressIndicator(
@@ -526,22 +529,40 @@ fun QuickGenerateScreen(
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(text = clipGenState.progressMessage, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             } else {
-                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = "Generate")
+                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = "Generate", tint = StudioAmberGold)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "GENERATE KLIP VIDEO AI", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(text = "GENERATE KLIP VIDEO AI", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, letterSpacing = 0.3.sp)
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
         // Video Result Preview Player
-        Text(
-            text = "Pratinjau Klip Ter-generate",
-            color = Color.White,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Pratinjau Klip Ter-generate",
+                color = StudioTextDark,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Surface(
+                color = StudioElectricBlue.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(
+                    text = "Rasio $aspectRatio",
+                    color = StudioElectricBlue,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
 
         VideoPlayerView(
             aspectRatioStr = aspectRatio,
@@ -604,21 +625,6 @@ fun QuickGenerateScreen(
                 TextButton(onClick = { showMicDialog = false }) {
                     Text("Batal")
                 }
-            }
-        )
-    }
-
-    // Settings & API Keys Dialog
-    if (showSettingsDialog) {
-        com.example.ui.components.ApiKeysAndSettingsDialog(
-            userProfile = userProfile,
-            apiKeys = apiKeys,
-            highfieldSettings = highfieldSettings,
-            onDismiss = { showSettingsDialog = false },
-            onSaveProfileAndKeys = { updatedProfile, updatedKeys, updatedSettings ->
-                viewModel.userProfileState.value = updatedProfile
-                viewModel.apiKeysState.value = updatedKeys
-                viewModel.highfieldSettingsState.value = updatedSettings
             }
         )
     }

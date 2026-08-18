@@ -190,6 +190,16 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         _localMediaAssets.value = listOf(asset) + _localMediaAssets.value
     }
 
+    fun duplicateMediaAsset(asset: com.example.data.models.LocalMediaAsset) {
+        val duplicated = asset.copy(
+            id = java.util.UUID.randomUUID().toString(),
+            title = "${asset.title} (Salin)",
+            dateAdded = "Baru Saja"
+        )
+        // Reuses identical cache URI - 0 additional disk or RAM consumption
+        _localMediaAssets.value = listOf(duplicated) + _localMediaAssets.value
+    }
+
     fun deleteMediaAsset(assetId: String) {
         _localMediaAssets.value = _localMediaAssets.value.filter { it.id != assetId }
     }
@@ -1093,7 +1103,19 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
             isPlaying.value = false
             playbackJob?.cancel()
         } else {
-            val maxTimeMs = timelineClips.value.maxOfOrNull { it.endTimeMs } ?: 15000L
+            val currentClips = timelineClips.value
+            if (currentClips.isEmpty()) {
+                // If timeline media/assets are empty, playback is strictly disabled
+                isPlaying.value = false
+                playbackJob?.cancel()
+                return
+            }
+            val maxTimeMs = currentClips.maxOfOrNull { it.endTimeMs } ?: 0L
+            if (maxTimeMs <= 0L) {
+                isPlaying.value = false
+                playbackJob?.cancel()
+                return
+            }
             if (currentTimeMs.value >= maxTimeMs) {
                 currentTimeMs.value = 0L
             }
@@ -1109,8 +1131,13 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
 
                     val currentMsVal = currentTimeMs.value
                     // Calculate dynamic speed factor based on active clip at playhead
-                    val currentClips = timelineClips.value
-                    val activeClip = currentClips.firstOrNull {
+                    val clipsNow = timelineClips.value
+                    if (clipsNow.isEmpty()) {
+                        isPlaying.value = false
+                        playbackJob?.cancel()
+                        break
+                    }
+                    val activeClip = clipsNow.firstOrNull {
                         currentMsVal in it.startTimeMs until it.endTimeMs
                     }
                     
@@ -1327,6 +1354,22 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
     fun mirrorClip(clip: TimelineClipEntity) {
         viewModelScope.launch {
             repository.updateClip(clip.copy(isMirrored = !clip.isMirrored))
+            saveHistoryState()
+        }
+    }
+
+    fun duplicateClip(clip: TimelineClipEntity) {
+        val projId = _activeProjectId.value ?: return
+        viewModelScope.launch {
+            val duplicatedClip = clip.copy(
+                id = 0L,
+                title = "${clip.title} (Salin)",
+                startTimeMs = clip.endTimeMs,
+                endTimeMs = clip.endTimeMs + clip.durationMs,
+                mediaUri = clip.mediaUri,
+                proxyUri = clip.proxyUri
+            )
+            repository.addClip(duplicatedClip)
             saveHistoryState()
         }
     }

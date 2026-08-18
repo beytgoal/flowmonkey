@@ -233,13 +233,13 @@ fun TimelineEditorScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, StudioCardBorder, RoundedCornerShape(10.dp)),
-            colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                .border(1.dp, StudioCardHairline, RoundedCornerShape(12.dp)),
+            colors = CardDefaults.cardColors(containerColor = StudioCardWhite)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
                 // Top Row: Time, Undo/Redo, Playback Controls, Aspect Ratio
                 Row(
@@ -252,7 +252,7 @@ fun TimelineEditorScreen(
                     val formattedTotal = formatTimeMs(totalDurationMs)
                     Text(
                         text = "$formattedCurrent / $formattedTotal",
-                        color = Color.White,
+                        color = StudioTextDark,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -270,7 +270,7 @@ fun TimelineEditorScreen(
                             Icon(
                                 imageVector = Icons.Default.Undo,
                                 contentDescription = "Undo",
-                                tint = if (canUndo) Color.White else Color.Gray.copy(alpha = 0.4f),
+                                tint = if (canUndo) StudioTextDark else StudioTextMuted.copy(alpha = 0.4f),
                                 modifier = Modifier.size(17.dp)
                             )
                         }
@@ -283,7 +283,7 @@ fun TimelineEditorScreen(
                             Icon(
                                 imageVector = Icons.Default.Redo,
                                 contentDescription = "Redo",
-                                tint = if (canRedo) Color.White else Color.Gray.copy(alpha = 0.4f),
+                                tint = if (canRedo) StudioTextDark else StudioTextMuted.copy(alpha = 0.4f),
                                 modifier = Modifier.size(17.dp)
                             )
                         }
@@ -291,38 +291,56 @@ fun TimelineEditorScreen(
                         Spacer(modifier = Modifier.width(4.dp))
 
                         IconButton(
-                            onClick = { viewModel.seekTo(0L) },
+                            onClick = { if (clips.isNotEmpty()) viewModel.seekTo(0L) },
+                            enabled = clips.isNotEmpty(),
                             modifier = Modifier.size(30.dp)
                         ) {
-                            Icon(imageVector = Icons.Default.SkipPrevious, contentDescription = "Rewind", tint = Color.White, modifier = Modifier.size(17.dp))
+                            Icon(
+                                imageVector = Icons.Default.SkipPrevious,
+                                contentDescription = "Rewind",
+                                tint = if (clips.isNotEmpty()) StudioTextDark else StudioTextMuted.copy(alpha = 0.3f),
+                                modifier = Modifier.size(17.dp)
+                            )
                         }
 
                         FilledIconButton(
-                            onClick = { viewModel.togglePlayPause() },
-                            colors = IconButtonDefaults.filledIconButtonColors(containerColor = StudioPrimaryViolet),
+                            onClick = { if (clips.isNotEmpty()) viewModel.togglePlayPause() },
+                            enabled = clips.isNotEmpty(),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = StudioElectricBlue,
+                                contentColor = Color.White,
+                                disabledContainerColor = StudioPillBg,
+                                disabledContentColor = StudioTextMuted.copy(alpha = 0.4f)
+                            ),
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = "Play/Pause",
-                                tint = Color.White,
+                                tint = if (clips.isNotEmpty()) Color.White else StudioTextMuted.copy(alpha = 0.4f),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
 
                         IconButton(
-                            onClick = { viewModel.seekTo(totalDurationMs) },
+                            onClick = { if (clips.isNotEmpty()) viewModel.seekTo(totalDurationMs) },
+                            enabled = clips.isNotEmpty(),
                             modifier = Modifier.size(30.dp)
                         ) {
-                            Icon(imageVector = Icons.Default.SkipNext, contentDescription = "Forward / Next", tint = Color.White, modifier = Modifier.size(17.dp))
+                            Icon(
+                                imageVector = Icons.Default.SkipNext,
+                                contentDescription = "Forward / Next",
+                                tint = if (clips.isNotEmpty()) StudioTextDark else StudioTextMuted.copy(alpha = 0.3f),
+                                modifier = Modifier.size(17.dp)
+                            )
                         }
                     }
 
                     // Functional Aspect Ratio Changer Button
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = StudioSecondaryTeal.copy(alpha = 0.15f),
-                        border = BorderStroke(0.8.dp, StudioSecondaryTeal),
+                        color = StudioElectricBlue.copy(alpha = 0.12f),
+                        border = BorderStroke(0.8.dp, StudioElectricBlue),
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .clickable { showRatioSheet = true }
@@ -335,13 +353,13 @@ fun TimelineEditorScreen(
                             Icon(
                                 imageVector = Icons.Default.AspectRatio,
                                 contentDescription = "Ubah Rasio Layar",
-                                tint = StudioSecondaryTeal,
+                                tint = StudioElectricBlue,
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = activeProject?.aspectRatio ?: "16:9",
-                                color = StudioSecondaryTeal,
+                                color = StudioElectricBlue,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -349,15 +367,28 @@ fun TimelineEditorScreen(
                     }
                 }
 
-                // Smooth Scrubber Slider
+                // Smooth Scrubber Slider with Small Circular Dot Thumb
                 Slider(
                     value = currentTimeMs.toFloat().coerceIn(0f, totalDurationMs.coerceAtLeast(1000L).toFloat()),
-                    onValueChange = { viewModel.seekTo(it.toLong()) },
+                    onValueChange = { if (clips.isNotEmpty()) viewModel.seekTo(it.toLong()) },
                     valueRange = 0f..totalDurationMs.coerceAtLeast(1000L).toFloat(),
+                    enabled = clips.isNotEmpty(),
+                    thumb = {
+                        Surface(
+                            shape = CircleShape,
+                            color = if (clips.isNotEmpty()) StudioElectricBlue else StudioTextMuted.copy(alpha = 0.4f),
+                            border = BorderStroke(1.5.dp, Color.White),
+                            shadowElevation = 2.dp,
+                            modifier = Modifier.size(12.dp)
+                        ) {}
+                    },
                     colors = SliderDefaults.colors(
-                        thumbColor = StudioSecondaryTeal,
-                        activeTrackColor = StudioSecondaryTeal,
-                        inactiveTrackColor = StudioCardBorder
+                        thumbColor = StudioElectricBlue,
+                        activeTrackColor = StudioElectricBlue,
+                        inactiveTrackColor = StudioCardHairline,
+                        disabledThumbColor = StudioTextMuted.copy(alpha = 0.4f),
+                        disabledActiveTrackColor = StudioCardHairline,
+                        disabledInactiveTrackColor = StudioCardHairline
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -375,10 +406,10 @@ fun TimelineEditorScreen(
                 .fillMaxWidth()
                 .border(
                     1.dp,
-                    timelineScope.themeColor.copy(alpha = 0.5f),
+                    StudioCardHairline,
                     RoundedCornerShape(14.dp)
                 ),
-            colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+            colors = CardDefaults.cardColors(containerColor = StudioCardWhite)
         ) {
             Column(modifier = Modifier.padding(10.dp)) {
                 if (timelineScope == com.example.ui.components.TimelineScope.MAIN && selectedClip == null) {
@@ -392,7 +423,7 @@ fun TimelineEditorScreen(
                             Icon(
                                 imageVector = Icons.Default.Tune,
                                 contentDescription = null,
-                                tint = StudioPrimaryViolet,
+                                tint = StudioElectricBlue,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -400,17 +431,17 @@ fun TimelineEditorScreen(
                                 text = "Tools Timeline Utama",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = StudioTextDark
                             )
                         }
 
                         Surface(
-                            color = StudioPrimaryViolet.copy(alpha = 0.2f),
+                            color = StudioElectricBlue.copy(alpha = 0.12f),
                             shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
                                 text = "7 Aksi Dasar",
-                                color = StudioPrimaryViolet,
+                                color = StudioElectricBlue,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -748,6 +779,24 @@ fun TimelineEditorScreen(
                                         }
                                         item {
                                             ActionToolChip(
+                                                icon = Icons.Default.ContentCopy,
+                                                label = "Salin (Duplikat)",
+                                                onClick = { selectedClip?.let { viewModel.duplicateClip(it) } },
+                                                enabled = selectedClip != null,
+                                                color = StudioElectricBlue
+                                            )
+                                        }
+                                        item {
+                                            ActionToolChip(
+                                                icon = Icons.Default.Flip,
+                                                label = if (selectedClip?.isMirrored == true) "Cermin (Aktif)" else "Cermin (Mirror)",
+                                                onClick = { selectedClip?.let { viewModel.mirrorClip(it) } },
+                                                enabled = selectedClip != null,
+                                                color = if (selectedClip?.isMirrored == true) StudioEmeraldGreen else StudioDarkCharcoal
+                                            )
+                                        }
+                                        item {
+                                            ActionToolChip(
                                                 icon = Icons.Default.FastRewind,
                                                 label = "Reverse Video",
                                                 onClick = { selectedClip?.let { viewModel.reverseClip(it) } }
@@ -805,7 +854,7 @@ fun TimelineEditorScreen(
                                         item {
                                             ActionToolChip(
                                                 icon = Icons.Default.Audiotrack,
-                                                label = "Ekstrak Audio FFmpeg",
+                                                label = "Ekstrak Audio Klip",
                                                 onClick = { selectedClip?.let { viewModel.extractAudioFromVideoClip(it) } },
                                                 enabled = selectedClip != null,
                                                 color = StudioAccentPink
@@ -814,7 +863,7 @@ fun TimelineEditorScreen(
                                         item {
                                             ActionToolChip(
                                                 icon = Icons.Default.Face,
-                                                label = "MediaPipe Face Retouch",
+                                                label = "Retouch Wajah AI",
                                                 onClick = { selectedClip?.let { viewModel.applyFaceBeautyToClip(it) } },
                                                 enabled = selectedClip != null,
                                                 color = StudioSecondaryTeal
@@ -823,7 +872,7 @@ fun TimelineEditorScreen(
                                         item {
                                             ActionToolChip(
                                                 icon = Icons.Default.Accessibility,
-                                                label = "MediaPipe Body Silhouette",
+                                                label = "Siluet Cahaya Tubuh",
                                                 onClick = { selectedClip?.let { viewModel.applyBodySilhouetteGlowToClip(it) } },
                                                 enabled = selectedClip != null,
                                                 color = Color(0xFFFFB74D)
@@ -832,7 +881,7 @@ fun TimelineEditorScreen(
                                         item {
                                             ActionToolChip(
                                                 icon = Icons.Default.CloudUpload,
-                                                label = "Vercel Remotion Cloud VFX",
+                                                label = "Efek Visual Sinematik",
                                                 onClick = { showRemotionCloudSheet = true },
                                                 color = StudioAccentPink
                                             )
@@ -921,6 +970,15 @@ fun TimelineEditorScreen(
                                                 onClick = { selectedClip?.let { viewModel.splitClipAtCurrentTime(it, currentTimeMs) } },
                                                 enabled = selectedClip != null && currentTimeMs > (selectedClip?.startTimeMs ?: 0L) && currentTimeMs < (selectedClip?.endTimeMs ?: 0L),
                                                 color = StudioSecondaryTeal
+                                            )
+                                        }
+                                        item {
+                                            ActionToolChip(
+                                                icon = Icons.Default.ContentCopy,
+                                                label = "Salin (Duplikat)",
+                                                onClick = { selectedClip?.let { viewModel.duplicateClip(it) } },
+                                                enabled = selectedClip != null,
+                                                color = StudioElectricBlue
                                             )
                                         }
                                         item {
@@ -1054,6 +1112,15 @@ fun TimelineEditorScreen(
                                         }
                                         item {
                                             ActionToolChip(
+                                                icon = Icons.Default.ContentCopy,
+                                                label = "Salin (Duplikat)",
+                                                onClick = { selectedClip?.let { viewModel.duplicateClip(it) } },
+                                                enabled = selectedClip != null,
+                                                color = StudioElectricBlue
+                                            )
+                                        }
+                                        item {
+                                            ActionToolChip(
                                                 icon = Icons.Default.Delete,
                                                 label = "Hapus Subjudul",
                                                 onClick = {
@@ -1152,6 +1219,24 @@ fun TimelineEditorScreen(
                                                     }
                                                 },
                                                 color = StudioAccentAmber
+                                            )
+                                        }
+                                        item {
+                                            ActionToolChip(
+                                                icon = Icons.Default.ContentCopy,
+                                                label = "Salin (Duplikat)",
+                                                onClick = { selectedClip?.let { viewModel.duplicateClip(it) } },
+                                                enabled = selectedClip != null,
+                                                color = StudioElectricBlue
+                                            )
+                                        }
+                                        item {
+                                            ActionToolChip(
+                                                icon = Icons.Default.Flip,
+                                                label = if (selectedClip?.isMirrored == true) "Cermin (Aktif)" else "Cermin (Mirror)",
+                                                onClick = { selectedClip?.let { viewModel.mirrorClip(it) } },
+                                                enabled = selectedClip != null,
+                                                color = if (selectedClip?.isMirrored == true) StudioEmeraldGreen else StudioDarkCharcoal
                                             )
                                         }
                                         item {
@@ -2209,7 +2294,7 @@ fun TimelineEditorScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(imageVector = Icons.Default.Audiotrack, contentDescription = null, tint = StudioAccentPink)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Audio Studio & SFX Mixer (FFmpeg / GStreamer)", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("Studio Audio & Efek Suara", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     IconButton(onClick = { showAudioStudioSheet = false }) {
                         Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
@@ -2341,8 +2426,8 @@ fun TimelineEditorScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Voice Changer FX (FFmpeg Resampler)
-                    Text("AI Voice Changer & Pitch Effect (FFmpeg):", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    // Voice Changer FX
+                    Text("Pengubah Suara & Nada Suara AI:", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(voiceEffects) { fx ->
@@ -3524,7 +3609,7 @@ fun TimelineEditorScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 3. AI Text-to-Video Generator Prompt
-                Text("AI Text-to-Video Generator (MediaPipe / Gemini):", color = StudioAccentAmber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("Generator Teks-ke-Video AI:", color = StudioAccentAmber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
@@ -3953,7 +4038,7 @@ fun TimelineEditorScreen(
                                     ) {
                                         Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Muat ke GPU RAM", fontSize = 11.sp)
+                                        Text("Aktifkan Model", fontSize = 11.sp)
                                     }
                                 } else if (state?.status == com.example.media.DynamicAiModelManager.ModelStatus.LOADED_IN_GPU_RAM) {
                                     OutlinedButton(
@@ -3962,7 +4047,7 @@ fun TimelineEditorScreen(
                                     ) {
                                         Icon(imageVector = Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(14.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Lepas dari RAM (Bebaskan Memori)", fontSize = 11.sp, color = StudioAccentAmber)
+                                        Text("Nonaktifkan (Hemat Memori)", fontSize = 11.sp, color = StudioAccentAmber)
                                     }
                                 }
                             }
@@ -3998,22 +4083,22 @@ fun MainToolButton(
 ) {
     Surface(
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .testTag(testTag),
-        color = if (enabled) color.copy(alpha = 0.15f) else StudioSurfaceDark,
-        border = BorderStroke(1.dp, if (enabled) color.copy(alpha = 0.6f) else StudioCardBorder),
-        shape = RoundedCornerShape(10.dp)
+        color = if (enabled) color.copy(alpha = 0.12f) else StudioPillBg,
+        border = BorderStroke(1.dp, if (enabled) color.copy(alpha = 0.35f) else StudioCardHairline),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (enabled) color else StudioTextSecondary,
+                tint = if (enabled) color else StudioTextSubtle,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
@@ -4021,7 +4106,7 @@ fun MainToolButton(
                 text = label,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (enabled) Color.White else StudioTextSecondary
+                color = if (enabled) StudioTextDark else StudioTextSubtle
             )
         }
     }
@@ -4030,16 +4115,16 @@ fun MainToolButton(
 @Composable
 fun StatusBadge(text: String, color: Color) {
     Surface(
-        color = color.copy(alpha = 0.2f),
-        shape = RoundedCornerShape(6.dp),
-        border = BorderStroke(1.dp, color)
+        color = color.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.35f))
     ) {
         Text(
             text = text,
-            color = Color.White,
+            color = color,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
         )
     }
 }
@@ -4050,21 +4135,22 @@ fun ActionToolChip(
     label: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
-    color: Color = StudioPrimaryViolet
+    color: Color = StudioElectricBlue
 ) {
     Surface(
         modifier = Modifier
-            .size(44.dp)
-            .clip(CircleShape)
+            .size(42.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, onClick = onClick),
-        color = if (enabled) color.copy(alpha = 0.2f) else StudioSurfaceDark,
-        border = BorderStroke(1.dp, if (enabled) color else StudioCardBorder)
+        color = if (enabled) color.copy(alpha = 0.12f) else StudioPillBg,
+        border = BorderStroke(1.dp, if (enabled) color.copy(alpha = 0.4f) else StudioCardHairline),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (enabled) color else StudioTextSecondary,
+                tint = if (enabled) color else StudioTextSubtle,
                 modifier = Modifier.size(20.dp)
             )
         }

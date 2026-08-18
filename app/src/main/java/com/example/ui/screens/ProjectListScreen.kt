@@ -89,19 +89,19 @@ fun ProjectListScreen(
                     Icon(
                         imageVector = Icons.Default.VideoLibrary,
                         contentDescription = null,
-                        tint = StudioPrimaryViolet,
-                        modifier = Modifier.size(20.dp)
+                        tint = StudioElectricBlue,
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
-                        Text("Proyek, Template & Media", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text("Proyek, Template & Media", color = StudioTextDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Text(
                             text = when (selectedSubTab) {
                                 0 -> "${userProjects.size} proyek aktif"
                                 1 -> "${templateProjects.size} template siap pakai"
                                 else -> "${mediaAssets.size} aset media di pustaka"
                             },
-                            color = StudioTextSecondary,
+                            color = StudioTextMuted,
                             fontSize = 11.sp
                         )
                     }
@@ -109,25 +109,26 @@ fun ProjectListScreen(
 
                 FloatingActionButton(
                     onClick = { showCreateDialog = true },
-                    containerColor = StudioPrimaryViolet,
+                    containerColor = StudioElectricBlue,
                     contentColor = Color.White,
-                    modifier = Modifier.size(40.dp).testTag("fab_new_project")
+                    modifier = Modifier.size(42.dp).testTag("fab_new_project"),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(imageVector = Icons.Default.Add, contentDescription = "New Project", modifier = Modifier.size(20.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Sub Tab Navigation (Proyek vs Template vs Pustaka Media)
             TabRow(
                 selectedTabIndex = selectedSubTab,
-                containerColor = StudioSurfaceDark,
-                contentColor = Color.White,
+                containerColor = StudioGlassWhite,
+                contentColor = StudioTextDark,
                 divider = {},
                 modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(1.dp, StudioCardBorder, RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, StudioCardHairline, RoundedCornerShape(16.dp))
             ) {
                 Tab(
                     selected = selectedSubTab == 0,
@@ -139,8 +140,8 @@ fun ProjectListScreen(
                             Text("Proyek (${userProjects.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         }
                     },
-                    selectedContentColor = StudioSecondaryTeal,
-                    unselectedContentColor = StudioTextSecondary
+                    selectedContentColor = StudioElectricBlue,
+                    unselectedContentColor = StudioTextMuted
                 )
                 Tab(
                     selected = selectedSubTab == 1,
@@ -152,8 +153,8 @@ fun ProjectListScreen(
                             Text("Template (${templateProjects.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         }
                     },
-                    selectedContentColor = StudioPrimaryViolet,
-                    unselectedContentColor = StudioTextSecondary
+                    selectedContentColor = StudioElectricBlue,
+                    unselectedContentColor = StudioTextMuted
                 )
                 Tab(
                     selected = selectedSubTab == 2,
@@ -165,8 +166,8 @@ fun ProjectListScreen(
                             Text("Pustaka (${mediaAssets.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         }
                     },
-                    selectedContentColor = StudioSecondaryTeal,
-                    unselectedContentColor = StudioTextSecondary
+                    selectedContentColor = StudioElectricBlue,
+                    unselectedContentColor = StudioTextMuted
                 )
             }
 
@@ -175,37 +176,43 @@ fun ProjectListScreen(
             if (selectedSubTab == 0) {
                 // TAB 0: PROYEK AKTIF
                 if (userProjects.isEmpty()) {
-                    Box(
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 32.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(vertical = 16.dp),
+                        colors = CardDefaults.cardColors(containerColor = StudioGlassWhite),
+                        border = BorderStroke(1.dp, StudioCardHairline),
+                        shape = RoundedCornerShape(20.dp)
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.VideoCall,
                                 contentDescription = null,
-                                tint = StudioTextSecondary,
+                                tint = StudioElectricBlue,
                                 modifier = Modifier.size(48.dp)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
-                            Text("Belum ada proyek aktif", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text("Belum ada proyek aktif", color = StudioTextDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("Tarik proyek ke kiri untuk menjadikannya Template!", color = StudioTextSecondary, fontSize = 12.sp)
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("Tarik proyek ke kiri untuk menjadikannya Template!", color = StudioTextMuted, fontSize = 12.sp)
+                            Spacer(modifier = Modifier.height(16.dp))
                             Button(
                                 onClick = { showCreateDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet)
+                                colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
+                                shape = RoundedCornerShape(24.dp)
                             ) {
-                                Text("+ Buat Proyek Baru")
+                                Text("+ Buat Proyek Baru", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 } else {
                     Text(
-                        text = "Petunjuk: Tarik (swipe) proyek ke kiri untuk membuka ikon Buat Template & Hapus",
+                        text = "Petunjuk: Tarik (swipe) proyek ke kiri untuk opsi Template & Hapus",
                         fontSize = 11.sp,
-                        color = StudioSecondaryTeal,
+                        color = StudioTextMuted,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
@@ -238,8 +245,9 @@ fun ProjectListScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 12.dp),
-                        colors = CardDefaults.cardColors(containerColor = StudioCardBg),
-                        border = BorderStroke(1.dp, StudioPrimaryViolet.copy(alpha = 0.5f))
+                        colors = CardDefaults.cardColors(containerColor = StudioGlassWhite),
+                        border = BorderStroke(1.dp, StudioCardHairline),
+                        shape = RoundedCornerShape(20.dp)
                     ) {
                         Column(
                             modifier = Modifier.padding(20.dp),
@@ -248,15 +256,15 @@ fun ProjectListScreen(
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
-                                tint = StudioPrimaryViolet,
+                                tint = StudioElectricBlue,
                                 modifier = Modifier.size(40.dp)
                             )
                             Spacer(modifier = Modifier.height(10.dp))
-                            Text("Belum Ada Template Kustom", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("Belum Ada Template Kustom", color = StudioTextDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "Buka tab 'Proyek', lalu tarik (swipe) proyek ke kiri dan tekan ikon Buat Template untuk menyimpan preset full tools + placeholder!",
-                                color = StudioTextSecondary,
+                                color = StudioTextMuted,
                                 fontSize = 12.sp,
                                 modifier = Modifier.padding(horizontal = 12.dp)
                             )
@@ -301,7 +309,7 @@ fun ProjectListScreen(
             onDismissRequest = { selectedTemplateForMediaReplace = null },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, tint = StudioSecondaryTeal)
+                    Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, tint = StudioElectricBlue)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Masukan Media Baru dari Galeri", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
@@ -311,14 +319,14 @@ fun ProjectListScreen(
                     Text(
                         text = "Template: ${template.title}",
                         fontSize = 12.sp,
-                        color = StudioPrimaryViolet,
+                        color = StudioElectricBlue,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "Ganti placeholder media di bawah dengan video/musik baru dari galeri device Anda:",
                         fontSize = 12.sp,
-                        color = StudioTextSecondary
+                        color = StudioTextMuted
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -327,7 +335,13 @@ fun ProjectListScreen(
                         onValueChange = { sampleMediaName = it },
                         label = { Text("File Video Utama / Galeri") },
                         leadingIcon = { Icon(imageVector = Icons.Default.VideoFile, contentDescription = null) },
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = StudioTextDark,
+                            unfocusedTextColor = StudioTextDark,
+                            focusedBorderColor = StudioElectricBlue,
+                            unfocusedBorderColor = StudioCardHairline
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -337,7 +351,13 @@ fun ProjectListScreen(
                         onValueChange = { sampleAudioName = it },
                         label = { Text("File Musik Audio / Galeri") },
                         leadingIcon = { Icon(imageVector = Icons.Default.AudioFile, contentDescription = null) },
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = StudioTextDark,
+                            unfocusedTextColor = StudioTextDark,
+                            focusedBorderColor = StudioElectricBlue,
+                            unfocusedBorderColor = StudioCardHairline
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             },
@@ -349,9 +369,10 @@ fun ProjectListScreen(
                         selectedTemplateForMediaReplace = null
                         snackbarMessage = "Media galeri berhasil dimasukkan ke template!"
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal)
+                    colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
+                    shape = RoundedCornerShape(20.dp)
                 ) {
-                    Text("Terapkan Media & Buat Proyek")
+                    Text("Terapkan & Buat", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -368,23 +389,36 @@ fun ProjectListScreen(
 
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
-            title = { Text("Buat Proyek Video Baru", fontWeight = FontWeight.Bold) },
+            title = { Text("Buat Proyek Video Baru", fontWeight = FontWeight.Bold, color = StudioTextDark) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = titleInput,
                         onValueChange = { titleInput = it },
                         label = { Text("Judul Proyek") },
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = StudioTextDark,
+                            unfocusedTextColor = StudioTextDark,
+                            focusedBorderColor = StudioElectricBlue,
+                            unfocusedBorderColor = StudioCardHairline
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("Rasio Layar:", fontSize = 12.sp, color = StudioTextSecondary)
+                    Text("Rasio Layar:", fontSize = 12.sp, color = StudioTextMuted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("16:9", "9:16", "1:1").forEach { ratio ->
                             FilterChip(
                                 selected = selectedRatio == ratio,
                                 onClick = { selectedRatio = ratio },
-                                label = { Text(ratio) }
+                                label = { Text(ratio) },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = StudioDarkCTA,
+                                    selectedLabelColor = Color.White,
+                                    containerColor = StudioPillBg,
+                                    labelColor = StudioTextDark
+                                )
                             )
                         }
                     }
@@ -396,9 +430,10 @@ fun ProjectListScreen(
                         viewModel.createNewProject(titleInput, selectedRatio, selectedStyle)
                         showCreateDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet)
+                    colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
+                    shape = RoundedCornerShape(20.dp)
                 ) {
-                    Text("Buat Proyek")
+                    Text("Buat Proyek", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -430,8 +465,8 @@ fun SwipeableProjectCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(96.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(StudioSurfaceDark)
+            .clip(RoundedCornerShape(18.dp))
+            .background(StudioPillBg)
     ) {
         // Revealed Right Action Buttons Layer (CONTAINS STRICTLY ONLY ICONS)
         Row(
@@ -451,13 +486,13 @@ fun SwipeableProjectCard(
                 modifier = Modifier
                     .width(60.dp)
                     .fillMaxHeight()
-                    .background(StudioSecondaryTeal)
+                    .background(StudioElectricBlue)
                     .testTag("action_make_template_${project.id}")
             ) {
                 Icon(
                     imageVector = Icons.Default.BookmarkAdd,
                     contentDescription = "Buat Template",
-                    tint = Color.Black
+                    tint = Color.White
                 )
             }
 
@@ -470,7 +505,7 @@ fun SwipeableProjectCard(
                 modifier = Modifier
                     .width(60.dp)
                     .fillMaxHeight()
-                    .background(StudioAccentPink)
+                    .background(StudioRosePink)
                     .testTag("action_delete_project_${project.id}")
             ) {
                 Icon(
@@ -488,8 +523,8 @@ fun SwipeableProjectCard(
                 .fillMaxSize()
                 .border(
                     1.dp,
-                    if (isActive) StudioSecondaryTeal else StudioCardBorder,
-                    RoundedCornerShape(14.dp)
+                    if (isActive) StudioElectricBlue else StudioCardHairline,
+                    RoundedCornerShape(18.dp)
                 )
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
@@ -505,7 +540,7 @@ fun SwipeableProjectCard(
                 }
                 .clickable { onSelectProject() }
                 .testTag("project_item_${project.id}"),
-            colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+            colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
         ) {
             Row(
                 modifier = Modifier
@@ -516,13 +551,14 @@ fun SwipeableProjectCard(
                 Box(
                     modifier = Modifier
                         .size(70.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(StudioSurfaceDark)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(StudioCleanCanvas)
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.img_style_cinematic_1785585807861),
                         contentDescription = "Project Preview",
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
                     )
                 }
 
@@ -532,7 +568,7 @@ fun SwipeableProjectCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = project.title,
-                            color = Color.White,
+                            color = StudioTextDark,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
@@ -542,7 +578,7 @@ fun SwipeableProjectCard(
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Active Project",
-                                tint = StudioSecondaryTeal,
+                                tint = StudioElectricBlue,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -551,8 +587,8 @@ fun SwipeableProjectCard(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Rasio: ${project.aspectRatio}", color = StudioTextSecondary, fontSize = 11.sp)
-                        Text("Gaya: ${project.visualStyle}", color = StudioPrimaryViolet, fontSize = 11.sp)
+                        Text("Rasio: ${project.aspectRatio}", color = StudioTextMuted, fontSize = 11.sp)
+                        Text("Gaya: ${project.visualStyle}", color = StudioElectricBlue, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
 
@@ -560,7 +596,7 @@ fun SwipeableProjectCard(
                 Icon(
                     imageVector = Icons.Default.ChevronLeft,
                     contentDescription = "Swipe left",
-                    tint = StudioTextSecondary.copy(alpha = 0.6f),
+                    tint = StudioTextMuted.copy(alpha = 0.6f),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -581,10 +617,10 @@ fun TemplateItemCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .border(1.dp, StudioPrimaryViolet.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(18.dp))
+            .border(1.dp, StudioCardHairline, RoundedCornerShape(18.dp))
             .testTag("template_item_${template.id}"),
-        colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+        colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
@@ -594,8 +630,8 @@ fun TemplateItemCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = StudioPrimaryViolet.copy(alpha = 0.25f),
-                        shape = RoundedCornerShape(6.dp)
+                        color = StudioElectricBlue.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
@@ -604,22 +640,22 @@ fun TemplateItemCard(
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
-                                tint = StudioPrimaryViolet,
+                                tint = StudioElectricBlue,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("FULL TOOLS TEMPLATE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = StudioPrimaryViolet)
+                            Text("FULL TOOLS TEMPLATE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = StudioElectricBlue)
                         }
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Rasio: ${template.aspectRatio}", color = StudioTextSecondary, fontSize = 11.sp)
+                    Text("Rasio: ${template.aspectRatio}", color = StudioTextMuted, fontSize = 11.sp)
                 }
 
                 IconButton(
                     onClick = onDeleteTemplate,
                     modifier = Modifier.size(28.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = "Delete Template", tint = StudioAccentPink, modifier = Modifier.size(18.dp))
+                    Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = "Delete Template", tint = StudioRosePink, modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -627,8 +663,8 @@ fun TemplateItemCard(
 
             Text(
                 text = template.title,
-                color = Color.White,
-                fontSize = 16.sp,
+                color = StudioTextDark,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
 
@@ -636,7 +672,7 @@ fun TemplateItemCard(
 
             Text(
                 text = template.description.ifBlank { "Template preset timeline lengkap dengan filter, speed curve, subjudul & audio placeholder." },
-                color = StudioTextSecondary,
+                color = StudioTextMuted,
                 fontSize = 12.sp,
                 maxLines = 2
             )
@@ -650,15 +686,16 @@ fun TemplateItemCard(
             ) {
                 listOf("Multi-Track", "Speed Curve 2.0x", "Keyframe FX", "Subjudul Teks", "Audio Mix").forEach { toolTag ->
                     Surface(
-                        color = StudioSurfaceDark,
-                        shape = RoundedCornerShape(4.dp),
-                        border = BorderStroke(0.5.dp, StudioCardBorder)
+                        color = StudioPillBg,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(0.5.dp, StudioCardHairline)
                     ) {
                         Text(
                             text = toolTag,
-                            color = StudioSecondaryTeal,
+                            color = StudioTextDark,
                             fontSize = 10.sp,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
                 }
@@ -673,20 +710,22 @@ fun TemplateItemCard(
             ) {
                 Button(
                     onClick = onUseTemplate,
-                    colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Gunakan Template", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("Gunakan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
 
                 OutlinedButton(
                     onClick = onReplaceMedia,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioSecondaryTeal),
-                    border = BorderStroke(1.dp, StudioSecondaryTeal),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
+                    border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.6f)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -738,45 +777,46 @@ fun LocalMediaLibraryView(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Cari aset video, musik, SFX, stiker...", fontSize = 11.sp) },
-                leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = StudioTextSecondary, modifier = Modifier.size(16.dp)) },
+                placeholder = { Text("Cari aset video, musik, SFX, stiker...", fontSize = 12.sp, color = StudioTextSubtle) },
+                leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = StudioTextMuted, modifier = Modifier.size(16.dp)) },
                 trailingIcon = if (searchQuery.isNotEmpty()) {
                     {
                         IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
-                            Icon(imageVector = Icons.Default.Close, contentDescription = "Clear", tint = StudioTextSecondary, modifier = Modifier.size(14.dp))
+                            Icon(imageVector = Icons.Default.Close, contentDescription = "Clear", tint = StudioTextMuted, modifier = Modifier.size(14.dp))
                         }
                     }
                 } else null,
                 singleLine = true,
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp),
+                    .height(48.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = StudioSurfaceDark,
-                    unfocusedContainerColor = StudioSurfaceDark,
-                    focusedBorderColor = StudioSecondaryTeal,
-                    unfocusedBorderColor = StudioCardBorder,
-                    focusedTextColor = Color.White
+                    focusedContainerColor = StudioCleanCanvas,
+                    unfocusedContainerColor = StudioCleanCanvas,
+                    focusedBorderColor = StudioElectricBlue,
+                    unfocusedBorderColor = StudioCardHairline,
+                    focusedTextColor = StudioTextDark,
+                    unfocusedTextColor = StudioTextDark
                 ),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(14.dp)
             )
 
             Button(
                 onClick = { showImportDialog = true },
-                colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
-                    .height(44.dp)
+                    .height(48.dp)
                     .testTag("button_import_media")
             ) {
-                Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Color.Black, modifier = Modifier.size(15.dp))
+                Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("+ Impor", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("+ Impor", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Category Filter Chips
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -784,7 +824,8 @@ fun LocalMediaLibraryView(
                 FilterChip(
                     selected = selectedCategory == cat,
                     onClick = { selectedCategory = cat },
-                    label = { Text(cat, fontSize = 12.sp) },
+                    label = { Text(cat, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                    shape = RoundedCornerShape(12.dp),
                     leadingIcon = when (cat) {
                         "Video" -> { { Icon(imageVector = Icons.Default.Movie, contentDescription = null, modifier = Modifier.size(14.dp)) } }
                         "Audio" -> { { Icon(imageVector = Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(14.dp)) } }
@@ -793,10 +834,10 @@ fun LocalMediaLibraryView(
                         else -> null
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = StudioPrimaryViolet,
+                        selectedContainerColor = StudioDarkCTA,
                         selectedLabelColor = Color.White,
-                        containerColor = StudioSurfaceDark,
-                        labelColor = StudioTextSecondary
+                        containerColor = StudioGlassWhite,
+                        labelColor = StudioTextDark
                     )
                 )
             }
@@ -805,18 +846,23 @@ fun LocalMediaLibraryView(
         Spacer(modifier = Modifier.height(14.dp))
 
         if (filteredAssets.isEmpty()) {
-            Box(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 32.dp),
-                contentAlignment = Alignment.Center
+                    .padding(vertical = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = StudioGlassWhite),
+                border = BorderStroke(1.dp, StudioCardHairline),
+                shape = RoundedCornerShape(20.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, tint = StudioTextSecondary, modifier = Modifier.size(44.dp))
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, tint = StudioElectricBlue, modifier = Modifier.size(44.dp))
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text("Aset Media Tidak Ditemukan", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Aset Media Tidak Ditemukan", color = StudioTextDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Tekan '+ Impor Media' untuk menambah media dari galeri device.", color = StudioTextSecondary, fontSize = 12.sp)
+                    Text("Tekan '+ Impor' untuk menambah media dari galeri device.", color = StudioTextMuted, fontSize = 12.sp)
                 }
             }
         } else {
@@ -830,6 +876,10 @@ fun LocalMediaLibraryView(
                     onDragAndInsertToTimeline = {
                         viewModel.insertAssetToActiveTimeline(asset, jumpToTimeline = true)
                         onShowSnackbar("Menyisipkan '${asset.title}' & Membuka Editor Timeline...")
+                    },
+                    onDuplicateAsset = {
+                        viewModel.duplicateMediaAsset(asset)
+                        onShowSnackbar("Aset '${asset.title}' berhasil diduplikat (0 memory/storage overhead).")
                     },
                     onDeleteAsset = {
                         viewModel.deleteMediaAsset(asset.id)
@@ -852,7 +902,7 @@ fun LocalMediaLibraryView(
             onDismissRequest = { showImportDialog = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, tint = StudioSecondaryTeal)
+                    Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, tint = StudioElectricBlue)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Impor Media Baru", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
@@ -864,17 +914,24 @@ fun LocalMediaLibraryView(
                         onValueChange = { newTitle = it },
                         label = { Text("Nama / Judul Aset") },
                         placeholder = { Text("Contoh: Video Cinematic Sunset") },
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = StudioTextDark,
+                            unfocusedTextColor = StudioTextDark,
+                            focusedBorderColor = StudioElectricBlue,
+                            unfocusedBorderColor = StudioCardHairline
+                        ),
+                        shape = RoundedCornerShape(12.dp),
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text("Kategori Media:", fontSize = 12.sp, color = StudioTextSecondary)
+                    Text("Kategori Media:", fontSize = 12.sp, color = StudioTextMuted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("VIDEO", "AUDIO", "IMAGE").forEach { cat ->
                             FilterChip(
                                 selected = selectedCategory == cat,
                                 onClick = { selectedCategory = cat },
-                                label = { Text(if (cat == "IMAGE") "GAMBAR" else cat, fontSize = 11.sp) }
+                                label = { Text(if (cat == "IMAGE") "GAMBAR" else cat, fontSize = 11.sp) },
+                                shape = RoundedCornerShape(10.dp)
                             )
                         }
                     }
@@ -884,7 +941,13 @@ fun LocalMediaLibraryView(
                         onValueChange = { newUri = it },
                         label = { Text("URI / Path File Media") },
                         placeholder = { Text("storage/emulated/0/Movies/clip.mp4") },
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = StudioTextDark,
+                            unfocusedTextColor = StudioTextDark,
+                            focusedBorderColor = StudioElectricBlue,
+                            unfocusedBorderColor = StudioCardHairline
+                        ),
+                        shape = RoundedCornerShape(12.dp),
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -892,7 +955,13 @@ fun LocalMediaLibraryView(
                         value = durationInput,
                         onValueChange = { durationInput = it },
                         label = { Text("Durasi (mm:ss)") },
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = StudioTextDark,
+                            unfocusedTextColor = StudioTextDark,
+                            focusedBorderColor = StudioElectricBlue,
+                            unfocusedBorderColor = StudioCardHairline
+                        ),
+                        shape = RoundedCornerShape(12.dp),
                         singleLine = true
                     )
                 }
@@ -915,9 +984,10 @@ fun LocalMediaLibraryView(
                         showImportDialog = false
                         onShowSnackbar("Aset '${titleFinal}' berhasil diimpor ke pustaka!")
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal)
+                    colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
+                    shape = RoundedCornerShape(20.dp)
                 ) {
-                    Text("Impor ke Pustaka", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text("Impor ke Pustaka", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -936,14 +1006,15 @@ fun MediaAssetCard(
     asset: LocalMediaAsset,
     onAddToTimeline: () -> Unit,
     onDragAndInsertToTimeline: () -> Unit,
+    onDuplicateAsset: () -> Unit,
     onDeleteAsset: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, StudioCardBorder, RoundedCornerShape(12.dp)),
-        colors = CardDefaults.cardColors(containerColor = StudioSurfaceDark)
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, StudioCardHairline, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
     ) {
         Row(
             modifier = Modifier
@@ -955,22 +1026,22 @@ fun MediaAssetCard(
             Box(
                 modifier = Modifier
                     .size(68.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(
                         when (asset.category.uppercase()) {
-                            "VIDEO" -> StudioPrimaryViolet.copy(alpha = 0.25f)
-                            "AUDIO" -> StudioSecondaryTeal.copy(alpha = 0.25f)
-                            else -> StudioAccentPink.copy(alpha = 0.25f)
+                            "VIDEO" -> StudioElectricBlue.copy(alpha = 0.15f)
+                            "AUDIO" -> StudioEmeraldGreen.copy(alpha = 0.15f)
+                            else -> StudioRosePink.copy(alpha = 0.15f)
                         }
                     )
                     .border(
                         1.dp,
                         when (asset.category.uppercase()) {
-                            "VIDEO" -> StudioPrimaryViolet.copy(alpha = 0.5f)
-                            "AUDIO" -> StudioSecondaryTeal.copy(alpha = 0.5f)
-                            else -> StudioAccentPink.copy(alpha = 0.5f)
+                            "VIDEO" -> StudioElectricBlue.copy(alpha = 0.3f)
+                            "AUDIO" -> StudioEmeraldGreen.copy(alpha = 0.3f)
+                            else -> StudioRosePink.copy(alpha = 0.3f)
                         },
-                        RoundedCornerShape(10.dp)
+                        RoundedCornerShape(12.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -982,13 +1053,17 @@ fun MediaAssetCard(
                             else -> Icons.Default.Image
                         },
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = when (asset.category.uppercase()) {
+                            "VIDEO" -> StudioElectricBlue
+                            "AUDIO" -> StudioEmeraldGreen
+                            else -> StudioRosePink
+                        },
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = asset.durationText,
-                        color = Color.White,
+                        color = StudioTextDark,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -1001,7 +1076,7 @@ fun MediaAssetCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = asset.title,
-                    color = Color.White,
+                    color = StudioTextDark,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     maxLines = 1
@@ -1013,34 +1088,34 @@ fun MediaAssetCard(
                     // Category badge
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(StudioCardBg)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(StudioPillBg)
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Text(asset.category, fontSize = 10.sp, color = StudioTextSecondary, fontWeight = FontWeight.Bold)
+                        Text(asset.category, fontSize = 10.sp, color = StudioTextDark, fontWeight = FontWeight.Bold)
                     }
 
                     if (asset.isAiGenerated) {
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(StudioPrimaryViolet.copy(alpha = 0.3f))
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(StudioElectricBlue.copy(alpha = 0.15f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = StudioSecondaryTeal, modifier = Modifier.size(10.dp))
+                                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = StudioElectricBlue, modifier = Modifier.size(10.dp))
                                 Spacer(modifier = Modifier.width(3.dp))
-                                Text("AI Generated", fontSize = 10.sp, color = StudioSecondaryTeal, fontWeight = FontWeight.Bold)
+                                Text("AI Generated", fontSize = 10.sp, color = StudioElectricBlue, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
 
-                    Text(asset.resolutionOrType, fontSize = 10.sp, color = StudioTextSecondary)
+                    Text(asset.resolutionOrType, fontSize = 10.sp, color = StudioTextMuted)
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Action buttons row: Drag & Drop Affordance / Add to Timeline / Delete
+                // Action buttons row: Add to Timeline / Duplicate (Salin) / Drag to Editor / Delete
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -1048,34 +1123,47 @@ fun MediaAssetCard(
                     // Button 1: Quick Add to Timeline
                     Button(
                         onClick = onAddToTimeline,
-                        colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        shape = RoundedCornerShape(6.dp),
-                        modifier = Modifier.height(30.dp)
+                        colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.height(32.dp)
                     ) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(12.dp))
                         Spacer(modifier = Modifier.width(3.dp))
-                        Text("Tambah", fontSize = 11.sp)
+                        Text("Tambah", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
 
-                    // Button 2: Drag & Insert to Timeline (Switches to Editor)
+                    // Button 2: Salin (Duplikat Aset)
+                    OutlinedButton(
+                        onClick = onDuplicateAsset,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.5f)),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, tint = StudioElectricBlue, modifier = Modifier.size(12.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Salin", fontSize = 11.sp, color = StudioElectricBlue, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Button 3: Drag & Insert to Timeline (Switches to Editor)
                     OutlinedButton(
                         onClick = onDragAndInsertToTimeline,
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        shape = RoundedCornerShape(6.dp),
-                        border = BorderStroke(1.dp, StudioSecondaryTeal),
-                        modifier = Modifier.height(30.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, StudioEmeraldGreen.copy(alpha = 0.5f)),
+                        modifier = Modifier.height(32.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.DragHandle, contentDescription = null, tint = StudioSecondaryTeal, modifier = Modifier.size(12.dp))
+                        Icon(imageVector = Icons.Default.DragHandle, contentDescription = null, tint = StudioEmeraldGreen, modifier = Modifier.size(12.dp))
                         Spacer(modifier = Modifier.width(3.dp))
-                        Text("Sisipkan & Buka Editor", fontSize = 11.sp, color = StudioSecondaryTeal)
+                        Text("Editor", fontSize = 11.sp, color = StudioEmeraldGreen, fontWeight = FontWeight.Bold)
                     }
 
                     IconButton(
                         onClick = onDeleteAsset,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = "Delete Asset", tint = StudioTextSecondary, modifier = Modifier.size(16.dp))
+                        Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = "Delete Asset", tint = StudioRosePink, modifier = Modifier.size(16.dp))
                     }
                 }
             }

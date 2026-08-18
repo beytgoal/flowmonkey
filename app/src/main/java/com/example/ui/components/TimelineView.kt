@@ -41,11 +41,11 @@ import com.example.data.models.KeyframeHelper
 import com.example.ui.theme.*
 
 enum class TimelineScope(val title: String, val subtitle: String, val themeColor: Color) {
-    MAIN("Timeline Utama", "Komposisi Penuh Multitrack", StudioPrimaryViolet),
-    VIDEO_SUBTIMELINE("Sub-Timeline Video & Overlay", "Video Utama & Layer PIP / Foto", StudioPrimaryViolet),
-    AUDIO_SUBTIMELINE("Sub-Timeline Musik & Audio", "Musik BGM, Voiceover AI, & SFX", StudioAccentPink),
-    TEXT_SUBTIMELINE("Sub-Timeline Tipografi & Caption", "Teks Subjudul, Judul, & Auto-Captions", StudioSecondaryTeal),
-    STICKER_SUBTIMELINE("Sub-Timeline Stiker & Overlay Foto", "Stiker Grafis, Emoji, & Badge Foto", Color(0xFFFFB74D))
+    MAIN("Timeline Utama", "Komposisi Penuh Multitrack", StudioElectricBlue),
+    VIDEO_SUBTIMELINE("Sub-Timeline Video & Overlay", "Video Utama & Layer PIP / Foto", StudioElectricBlue),
+    AUDIO_SUBTIMELINE("Sub-Timeline Musik & Audio", "Musik BGM, Voiceover AI, & SFX", StudioRosePink),
+    TEXT_SUBTIMELINE("Sub-Timeline Tipografi & Caption", "Teks Subjudul, Judul, & Auto-Captions", StudioEmeraldGreen),
+    STICKER_SUBTIMELINE("Sub-Timeline Stiker & Overlay Foto", "Stiker Grafis, Emoji, & Badge Foto", StudioAmberGold)
 }
 
 @Composable
@@ -114,7 +114,8 @@ fun TimelineView(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .border(1.dp, StudioCardHairline, RoundedCornerShape(20.dp))
             .pointerInput(Unit) {
                 awaitEachGesture {
                     do {
@@ -144,9 +145,9 @@ fun TimelineView(
                 }
             }
             .testTag("timeline_editor_container"),
-        colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+        colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(6.dp)) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(8.dp)) {
             val containerWidth = maxWidth
             // Playhead is fixed at 1/3 of the visible timeline width
             val fixedPlayheadOffsetDp = (containerWidth / 3f).coerceIn(90.dp, 160.dp)
@@ -159,16 +160,33 @@ fun TimelineView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = if (pxPerMs >= 0.25f) "Zoom: Presisi 0.1s (1.00s - 1.90s)" else "Timeline Editor",
-                        color = if (pxPerMs >= 0.25f) StudioSecondaryTeal else Color.White.copy(alpha = 0.6f),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = StudioElectricBlue.copy(alpha = 0.12f),
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Timeline,
+                                    contentDescription = null,
+                                    tint = StudioElectricBlue,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (pxPerMs >= 0.25f) "Zoom: Presisi 0.1s (1.00s - 1.90s)" else "Multitrack Timeline Canvas",
+                            color = if (pxPerMs >= 0.25f) StudioElectricBlue else StudioTextDark,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -176,46 +194,49 @@ fun TimelineView(
                     ) {
                         // Zoom Out Button
                         Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = Color.White.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp),
+                            color = StudioPillBg,
+                            border = BorderStroke(1.dp, StudioCardHairline),
                             modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
+                                .clip(RoundedCornerShape(8.dp))
                                 .clickable {
                                     pxPerMs = (pxPerMs * 0.7f).coerceIn(0.02f, 0.75f)
                                 }
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.ZoomOut, contentDescription = "Zoom Out", tint = Color.White, modifier = Modifier.size(12.dp))
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Text("-", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Icon(Icons.Default.ZoomOut, contentDescription = "Zoom Out", tint = StudioTextDark, modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("-", color = StudioTextDark, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
                         // Zoom In Button (Zoom into 0.10s precision)
                         Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = if (pxPerMs >= 0.25f) StudioSecondaryTeal.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.1f),
-                            border = if (pxPerMs >= 0.25f) BorderStroke(1.dp, StudioSecondaryTeal) else null,
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (pxPerMs >= 0.25f) StudioElectricBlue.copy(alpha = 0.12f) else StudioPillBg,
+                            border = BorderStroke(1.dp, if (pxPerMs >= 0.25f) StudioElectricBlue.copy(alpha = 0.5f) else StudioCardHairline),
                             modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
+                                .clip(RoundedCornerShape(8.dp))
                                 .clickable {
                                     pxPerMs = (pxPerMs * 1.4f).coerceIn(0.02f, 0.75f)
                                 }
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.ZoomIn, contentDescription = "Zoom In", tint = if (pxPerMs >= 0.25f) StudioSecondaryTeal else Color.White, modifier = Modifier.size(12.dp))
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Text("+ Zoom", color = if (pxPerMs >= 0.25f) StudioSecondaryTeal else Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Icon(Icons.Default.ZoomIn, contentDescription = "Zoom In", tint = if (pxPerMs >= 0.25f) StudioElectricBlue else StudioTextDark, modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("+ Zoom", color = if (pxPerMs >= 0.25f) StudioElectricBlue else StudioTextDark, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Main Multitrack Scrollable Timeline Canvas
                 Box(
@@ -233,13 +254,13 @@ fun TimelineView(
                             startOffsetDp = fixedPlayheadOffsetDp,
                             totalDurationMs = totalDurationMs,
                             pxPerMs = pxPerMs,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(26.dp)
-                            .background(StudioSurfaceDark.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
-                    )
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(26.dp)
+                                .background(StudioPillBg, RoundedCornerShape(8.dp))
+                        )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                     // Multitrack Rows
                     Column(
@@ -532,10 +553,10 @@ fun TrackClipsRowWithIcon(
             modifier = Modifier
                 .offset(x = 2.dp, y = 2.dp)
                 .size(34.dp, 44.dp)
-                .clip(RoundedCornerShape(6.dp))
-            .clickable { onIconClick() },
-            color = trackColor.copy(alpha = 0.22f),
-            border = BorderStroke(1.dp, trackColor.copy(alpha = 0.6f))
+                .clip(RoundedCornerShape(10.dp))
+                .clickable { onIconClick() },
+            color = trackColor.copy(alpha = 0.12f),
+            border = BorderStroke(1.dp, trackColor.copy(alpha = 0.3f))
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -556,7 +577,8 @@ fun TrackClipsRowWithIcon(
                 .offset(x = startOffsetDp)
                 .fillMaxWidth()
                 .height(48.dp)
-                .background(StudioSurfaceLight.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                .background(StudioPillBg.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
+                .border(0.5.dp, StudioCardHairline, RoundedCornerShape(10.dp))
         ) {
             if (sortedClips.isEmpty()) {
                 Row(
@@ -569,7 +591,7 @@ fun TrackClipsRowWithIcon(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = null,
-                        tint = trackColor.copy(alpha = 0.7f),
+                        tint = trackColor,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -582,8 +604,8 @@ fun TrackClipsRowWithIcon(
                             else -> "+ Tambah Media"
                         },
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = trackColor.copy(alpha = 0.75f)
+                        fontWeight = FontWeight.SemiBold,
+                        color = trackColor
                     )
                 }
             }
@@ -662,20 +684,20 @@ fun TrackClipsRowWithIcon(
                     Surface(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .testTag("clip_item_${clip.id}"),
                         color = if (isDragging) {
-                            StudioSecondaryTeal.copy(alpha = 0.95f)
+                            StudioElectricBlue
                         } else if (isSelected) {
-                            trackColor.copy(alpha = 1f)
+                            trackColor
                         } else {
-                            trackColor.copy(alpha = 0.75f)
+                            trackColor.copy(alpha = 0.85f)
                         },
                         border = BorderStroke(
                             if (isDragging || isSelected) 2.dp else 1.dp,
-                            if (isDragging) Color.Yellow else if (isSelected) Color.White else Color.White.copy(alpha = 0.35f)
+                            if (isDragging) StudioAmberGold else if (isSelected) StudioDarkCharcoal else Color.White.copy(alpha = 0.4f)
                         ),
-                        shadowElevation = if (isDragging || isSelected) 6.dp else 0.dp
+                        shadowElevation = if (isDragging || isSelected) 4.dp else 0.dp
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
                             Row(
@@ -688,21 +710,22 @@ fun TrackClipsRowWithIcon(
                                 Text(
                                     text = if (trackType == "TEXT") clip.textContent ?: clip.title else clip.title,
                                     color = Color.White,
-                                    fontSize = 10.sp,
-                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
                                     maxLines = 1,
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
 
                                 if (clip.speedMultiplier != 1.0f) {
                                     Surface(
-                                        color = Color.Black.copy(alpha = 0.6f),
+                                        color = Color.Black.copy(alpha = 0.4f),
                                         shape = RoundedCornerShape(4.dp)
                                     ) {
                                         Text(
                                             text = "${clip.speedMultiplier}x",
-                                            color = StudioSecondaryTeal,
+                                            color = Color.White,
                                             fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold,
                                             modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
                                         )
                                     }
@@ -719,8 +742,8 @@ fun TrackClipsRowWithIcon(
                                             .offset(x = kfOffsetDp - 4.dp, y = (-2).dp)
                                             .size(8.dp)
                                             .clip(CircleShape)
-                                            .background(StudioAccentAmber)
-                                            .border(0.5.dp, Color.Black, CircleShape)
+                                            .background(StudioAmberGold)
+                                            .border(0.5.dp, Color.White, CircleShape)
                                             .clickable {
                                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                 onSeek(clip.startTimeMs + kf.timeOffsetMs)
@@ -749,15 +772,15 @@ fun TrackClipsRowWithIcon(
                                 onTransitionClicked(clip, nextClip)
                             }
                             .testTag("transition_button_${clip.id}_${nextClip.id}"),
-                        color = if (clip.transitionType.isNotBlank() && clip.transitionType != "None") StudioSecondaryTeal else StudioCardBg,
-                        border = BorderStroke(1.dp, if (clip.transitionType.isNotBlank() && clip.transitionType != "None") StudioSecondaryTeal else Color.White.copy(alpha = 0.6f)),
-                        shadowElevation = 3.dp
+                        color = if (clip.transitionType.isNotBlank() && clip.transitionType != "None") StudioElectricBlue else StudioCardWhite,
+                        border = BorderStroke(1.dp, if (clip.transitionType.isNotBlank() && clip.transitionType != "None") StudioElectricBlue else StudioCardHairline),
+                        shadowElevation = 2.dp
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.CompareArrows,
                                 contentDescription = "Transisi ${clip.transitionType}",
-                                tint = if (clip.transitionType.isNotBlank() && clip.transitionType != "None") Color.Black else Color.White,
+                                tint = if (clip.transitionType.isNotBlank() && clip.transitionType != "None") Color.White else StudioTextDark,
                                 modifier = Modifier.size(12.dp)
                             )
                         }
@@ -779,9 +802,9 @@ fun EmptyTrackPlaceholder(
             .fillMaxWidth()
             .height(48.dp)
             .clickable { onClick() },
-        color = color.copy(alpha = 0.1f),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+        color = color.copy(alpha = 0.08f),
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.25f))
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -813,7 +836,7 @@ fun TimeRulerCanvas(
 
         // Draw horizontal baseline along bottom of ruler
         drawLine(
-            color = Color.White.copy(alpha = 0.25f),
+            color = StudioCardHairline,
             start = Offset(0f, size.height),
             end = Offset(totalWidthPx, size.height),
             strokeWidth = 1.dp.toPx()
@@ -842,7 +865,7 @@ fun TimeRulerCanvas(
 
                 if (isSecond) {
                     drawLine(
-                        color = StudioSecondaryTeal,
+                        color = StudioElectricBlue,
                         start = Offset(xPx, size.height - 16.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 2.dp.toPx()
@@ -850,7 +873,7 @@ fun TimeRulerCanvas(
                     val textResult = textMeasurer.measure(
                         text = timeLabel,
                         style = androidx.compose.ui.text.TextStyle(
-                            color = StudioSecondaryTeal,
+                            color = StudioElectricBlue,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
@@ -861,7 +884,7 @@ fun TimeRulerCanvas(
                     )
                 } else if (isHalfSecond) {
                     drawLine(
-                        color = Color.White.copy(alpha = 0.9f),
+                        color = StudioTextDark.copy(alpha = 0.6f),
                         start = Offset(xPx, size.height - 13.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 1.5.dp.toPx()
@@ -869,7 +892,7 @@ fun TimeRulerCanvas(
                     val textResult = textMeasurer.measure(
                         text = timeLabel,
                         style = androidx.compose.ui.text.TextStyle(
-                            color = Color.White.copy(alpha = 0.95f),
+                            color = StudioTextDark.copy(alpha = 0.7f),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -881,7 +904,7 @@ fun TimeRulerCanvas(
                 } else {
                     // Fractional subdivisions: 1.10s, 1.20s, 1.30s, 1.40s, 1.60s, 1.70s, 1.80s, 1.90s
                     drawLine(
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = StudioTextMuted.copy(alpha = 0.35f),
                         start = Offset(xPx, size.height - 8.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 1.dp.toPx()
@@ -892,7 +915,7 @@ fun TimeRulerCanvas(
                         val textResult = textMeasurer.measure(
                             text = timeLabel,
                             style = androidx.compose.ui.text.TextStyle(
-                                color = Color.White.copy(alpha = 0.75f),
+                                color = StudioTextMuted,
                                 fontSize = 7.5.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -910,7 +933,7 @@ fun TimeRulerCanvas(
 
                 if (isSecond) {
                     drawLine(
-                        color = StudioSecondaryTeal,
+                        color = StudioElectricBlue,
                         start = Offset(xPx, size.height - 14.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 1.5.dp.toPx()
@@ -918,7 +941,7 @@ fun TimeRulerCanvas(
                     val textResult = textMeasurer.measure(
                         text = timeLabel,
                         style = androidx.compose.ui.text.TextStyle(
-                            color = StudioSecondaryTeal,
+                            color = StudioElectricBlue,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -929,7 +952,7 @@ fun TimeRulerCanvas(
                     )
                 } else if (isHalfSecond) {
                     drawLine(
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = StudioTextMuted.copy(alpha = 0.5f),
                         start = Offset(xPx, size.height - 9.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 1.2.dp.toPx()
@@ -937,7 +960,7 @@ fun TimeRulerCanvas(
                     val textResult = textMeasurer.measure(
                         text = timeLabel,
                         style = androidx.compose.ui.text.TextStyle(
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = StudioTextMuted,
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Normal
                         )
@@ -948,7 +971,7 @@ fun TimeRulerCanvas(
                     )
                 } else {
                     drawLine(
-                        color = Color.White.copy(alpha = 0.35f),
+                        color = StudioTextMuted.copy(alpha = 0.25f),
                         start = Offset(xPx, size.height - 6.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 1.dp.toPx()
@@ -959,7 +982,7 @@ fun TimeRulerCanvas(
                 val isSecond = currentMs % 1000L == 0L
                 if (isMajor || isSecond) {
                     drawLine(
-                        color = if (isMajor) StudioSecondaryTeal else Color.White.copy(alpha = 0.7f),
+                        color = if (isMajor) StudioElectricBlue else StudioTextDark.copy(alpha = 0.5f),
                         start = Offset(xPx, size.height - (if (isMajor) 14.dp.toPx() else 10.dp.toPx())),
                         end = Offset(xPx, size.height),
                         strokeWidth = if (isMajor) 1.5.dp.toPx() else 1.dp.toPx()
@@ -968,7 +991,7 @@ fun TimeRulerCanvas(
                         val textResult = textMeasurer.measure(
                             text = formatTimeMs(currentMs),
                             style = androidx.compose.ui.text.TextStyle(
-                                color = if (isMajor) StudioSecondaryTeal else Color.White.copy(alpha = 0.8f),
+                                color = if (isMajor) StudioElectricBlue else StudioTextDark,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -980,7 +1003,7 @@ fun TimeRulerCanvas(
                     }
                 } else {
                     drawLine(
-                        color = Color.White.copy(alpha = 0.3f),
+                        color = StudioTextMuted.copy(alpha = 0.2f),
                         start = Offset(xPx, size.height - 5.dp.toPx()),
                         end = Offset(xPx, size.height),
                         strokeWidth = 1.dp.toPx()
@@ -998,30 +1021,43 @@ fun StaticFixedPlayhead(
     offsetDp: Dp,
     modifier: Modifier = Modifier
 ) {
-    val playheadRed = Color(0xFFFF2247) // Vibrant bright neon red
+    val playheadColor = StudioRosePink
 
     Box(
         modifier = modifier
-            .offset(x = offsetDp - 1.dp)
-            .width(4.dp)
+            .offset(x = offsetDp - 5.dp)
+            .width(10.dp)
             .zIndex(600f)
     ) {
-        // 1. Red glow aura behind the line (4dp)
+        // 1. Small circular indicator dot at the top of the playhead ruler
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .size(10.dp),
+            shape = CircleShape,
+            color = playheadColor,
+            border = BorderStroke(1.5.dp, Color.White),
+            shadowElevation = 2.dp
+        ) {}
+
+        // 2. Aura glow behind the vertical line
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
+                .padding(top = 8.dp)
                 .width(4.dp)
                 .fillMaxHeight()
-                .background(playheadRed.copy(alpha = 0.35f))
+                .background(playheadColor.copy(alpha = 0.25f))
         )
 
-        // 2. Crisp straight vertical RED playhead line fixed at 1/3 of the timeline
+        // 3. Crisp straight vertical playhead line fixed at 1/3 of the timeline
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .width(2.dp)
+                .padding(top = 8.dp)
+                .width(1.5.dp)
                 .fillMaxHeight()
-                .background(playheadRed)
+                .background(playheadColor)
         )
     }
 }

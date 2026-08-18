@@ -67,20 +67,20 @@ fun ExportStudioScreen(
             Icon(
                 imageVector = Icons.Default.IosShare,
                 contentDescription = "Export Studio",
-                tint = StudioSecondaryTeal,
+                tint = StudioElectricBlue,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
                     text = "Ekspor Video Media Sosial",
-                    color = Color.White,
+                    color = StudioTextDark,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "Optimasi format, resolusi tinggi, & framerate",
-                    color = StudioTextSecondary,
+                    color = StudioTextMuted,
                     fontSize = 12.sp
                 )
             }
@@ -89,7 +89,7 @@ fun ExportStudioScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Platform Target Cards Grid
-        Text("Pilih Platform Target:", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text("Pilih Platform Target:", color = StudioTextDark, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -98,49 +98,49 @@ fun ExportStudioScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(16.dp))
                         .border(
                             1.dp,
-                            if (isSelected) StudioPrimaryViolet else StudioCardBorder,
-                            RoundedCornerShape(12.dp)
+                            if (isSelected) StudioElectricBlue else StudioCardHairline,
+                            RoundedCornerShape(16.dp)
                         )
                         .clickable { selectedPlatform = "${preset.name} ${preset.ratio}" }
                         .testTag("export_platform_${preset.name}"),
-                    colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                    colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(
-                                color = if (isSelected) StudioPrimaryViolet else StudioSurfaceDark,
+                                color = if (isSelected) StudioElectricBlue else StudioPillBg,
                                 shape = CircleShape,
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(38.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = preset.icon,
                                         contentDescription = preset.name,
-                                        tint = Color.White,
+                                        tint = if (isSelected) Color.White else StudioTextDark,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text(preset.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Text("Rasio: ${preset.ratio} • Rekomendasi: ${preset.recommendedResolution}", color = StudioTextSecondary, fontSize = 11.sp)
+                                Text(preset.name, color = StudioTextDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("Rasio: ${preset.ratio} • Rekomendasi: ${preset.recommendedResolution}", color = StudioTextMuted, fontSize = 11.sp)
                             }
                         }
 
                         RadioButton(
                             selected = isSelected,
                             onClick = null,
-                            colors = RadioButtonDefaults.colors(selectedColor = StudioPrimaryViolet)
+                            colors = RadioButtonDefaults.colors(selectedColor = StudioElectricBlue)
                         )
                     }
                 }
@@ -158,11 +158,12 @@ fun ExportStudioScreen(
             Card(
                 modifier = Modifier
                     .weight(1f)
-                    .border(1.dp, StudioCardBorder, RoundedCornerShape(12.dp)),
-                colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, StudioCardHairline, RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("Resolusi Video", color = StudioTextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text("Resolusi Video", color = StudioTextMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
                     listOf("720p HD", "1080p FHD", "4K Ultra HD").forEach { res ->
                         Row(
@@ -171,9 +172,13 @@ fun ExportStudioScreen(
                                 .fillMaxWidth()
                                 .clickable { selectedResolution = res }
                         ) {
-                            RadioButton(selected = selectedResolution == res, onClick = null)
+                            RadioButton(
+                                selected = selectedResolution == res,
+                                onClick = null,
+                                colors = RadioButtonDefaults.colors(selectedColor = StudioElectricBlue)
+                            )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(res, color = Color.White, fontSize = 11.sp)
+                            Text(res, color = StudioTextDark, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -183,11 +188,12 @@ fun ExportStudioScreen(
             Card(
                 modifier = Modifier
                     .weight(1f)
-                    .border(1.dp, StudioCardBorder, RoundedCornerShape(12.dp)),
-                colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, StudioCardHairline, RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("Framerate (FPS)", color = StudioTextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text("Framerate (FPS)", color = StudioTextMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
                     listOf(24, 30, 60).forEach { fpsVal ->
                         Row(
@@ -196,9 +202,13 @@ fun ExportStudioScreen(
                                 .fillMaxWidth()
                                 .clickable { selectedFps = fpsVal }
                         ) {
-                            RadioButton(selected = selectedFps == fpsVal, onClick = null)
+                            RadioButton(
+                                selected = selectedFps == fpsVal,
+                                onClick = null,
+                                colors = RadioButtonDefaults.colors(selectedColor = StudioElectricBlue)
+                            )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("$fpsVal FPS", color = Color.White, fontSize = 11.sp)
+                            Text("$fpsVal FPS", color = StudioTextDark, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -207,7 +217,7 @@ fun ExportStudioScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Export Render Action Button
+        // Export Render Action Button (Pill shaped iOS CTA)
         Button(
             onClick = { viewModel.startExport(selectedPlatform, selectedResolution, selectedFps) },
             enabled = !exportState.isExporting,
@@ -215,17 +225,17 @@ fun ExportStudioScreen(
                 .fillMaxWidth()
                 .height(52.dp)
                 .testTag("start_export_video_button"),
-            colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal, contentColor = Color.Black),
-            shape = RoundedCornerShape(14.dp)
+            colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA, contentColor = Color.White),
+            shape = RoundedCornerShape(26.dp)
         ) {
             if (exportState.isExporting) {
-                CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.Black)
+                CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White)
                 Spacer(modifier = Modifier.width(10.dp))
-                Text("MENGAMBIL & MERENDER FRAME... ${exportState.progressPercent}%", fontWeight = FontWeight.Bold)
+                Text("MERENDER FRAME... ${exportState.progressPercent}%", fontWeight = FontWeight.Bold, color = Color.White)
             } else {
-                Icon(imageVector = Icons.Default.Download, contentDescription = "Export")
+                Icon(imageVector = Icons.Default.Download, contentDescription = "Export", tint = Color.White)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("EKSPOR VIDEO BERKUALITAS TINGGI", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("EKSPOR VIDEO RESOLUSI TINGGI", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
         }
 
@@ -235,16 +245,17 @@ fun ExportStudioScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, StudioSecondaryTeal, RoundedCornerShape(14.dp)),
-                colors = CardDefaults.cardColors(containerColor = StudioSurfaceDark)
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, StudioElectricBlue, RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Rendering Frame ${exportState.currentFrame} / ${exportState.totalFrames}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text("${exportState.progressPercent}%", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Rendering Frame ${exportState.currentFrame} / ${exportState.totalFrames}", color = StudioTextDark, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("${exportState.progressPercent}%", color = StudioElectricBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
@@ -253,8 +264,8 @@ fun ExportStudioScreen(
                             .fillMaxWidth()
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp)),
-                        color = StudioSecondaryTeal,
-                        trackColor = Color.White.copy(alpha = 0.2f)
+                        color = StudioElectricBlue,
+                        trackColor = StudioPillBg
                     )
                 }
             }
@@ -266,8 +277,9 @@ fun ExportStudioScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, StudioPrimaryViolet, RoundedCornerShape(16.dp)),
-                colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                    .clip(RoundedCornerShape(20.dp))
+                    .border(1.dp, StudioCardHairline, RoundedCornerShape(20.dp)),
+                colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -275,12 +287,12 @@ fun ExportStudioScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Hasil Ekspor Video Berhasil!", color = StudioSecondaryTeal, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text("Ekspor Video Selesai!", color = StudioEmeraldGreen, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Surface(
-                            color = StudioPrimaryViolet.copy(alpha = 0.3f),
+                            color = StudioElectricBlue.copy(alpha = 0.12f),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text(selectedResolution, color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                            Text(selectedResolution, color = StudioElectricBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                         }
                     }
 
@@ -292,7 +304,7 @@ fun ExportStudioScreen(
                         totalDurationMs = 15000L
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -301,22 +313,24 @@ fun ExportStudioScreen(
                         Button(
                             onClick = { /* Share */ },
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet)
+                            colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
+                            shape = RoundedCornerShape(20.dp)
                         ) {
                             Icon(imageVector = Icons.Default.Share, contentDescription = "Share", modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Bagikan")
+                            Text("Bagikan", fontWeight = FontWeight.Bold)
                         }
 
                         OutlinedButton(
                             onClick = { /* Save */ },
                             modifier = Modifier.weight(1f),
-                            border = BorderStroke(1.dp, StudioSecondaryTeal),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioSecondaryTeal)
+                            border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.6f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
+                            shape = RoundedCornerShape(20.dp)
                         ) {
                             Icon(imageVector = Icons.Default.SaveAlt, contentDescription = "Save", modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Simpan MP4")
+                            Text("Simpan MP4", fontWeight = FontWeight.Bold)
                         }
                     }
                 }

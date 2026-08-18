@@ -117,26 +117,42 @@ fun VideoPlayerView(
         clips.find { it.id == selectedClipId }
     }
 
+    val activeMainClip = remember(activeClips, activeSelectedClip) {
+        activeSelectedClip?.takeIf { !it.mediaUri.contains("overlay", ignoreCase = true) && it.stickerIcon.isBlank() && it.textContent == null }
+            ?: activeClips.firstOrNull { !it.mediaUri.contains("overlay", ignoreCase = true) && it.stickerIcon.isBlank() && it.textContent == null }
+    }
+
+    val playerHeight = when (aspectRatioStr) {
+        "1:1" -> 260.dp
+        "9:16" -> 280.dp
+        else -> 210.dp
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(210.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, StudioCardBorder, RoundedCornerShape(16.dp))
+            .height(playerHeight)
+            .clip(RoundedCornerShape(20.dp))
+            .border(1.dp, StudioCardHairline, RoundedCornerShape(20.dp))
             .testTag("video_player_card"),
-        colors = CardDefaults.cardColors(containerColor = StudioDarkBg)
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0E12))
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black),
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFF14161F), Color(0xFF0A0B0E))
+                    )
+                ),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxHeight()
+                    .fillMaxHeight(0.92f)
                     .aspectRatio(aspectRatioFloat)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
                     .pointerInput(Unit) {
                         detectTransformGestures { _, pan, zoom, _ ->
                             scale = (scale * zoom).coerceIn(0.5f, 5f)
@@ -150,7 +166,9 @@ fun VideoPlayerView(
                                 offset = Offset.Zero
                             },
                             onTap = {
-                                onTogglePlay()
+                                if (clips.isNotEmpty()) {
+                                    onTogglePlay()
+                                }
                             }
                         )
                     }
@@ -166,12 +184,16 @@ fun VideoPlayerView(
                             translationY = offset.y
                         )
                 ) {
-                    // Background preview graphic
+                    // Background preview graphic with horizontal mirror support
                     val imageRes = thumbnailDrawableRes ?: R.drawable.img_hero_banner_1785585794962
                     Image(
                         painter = painterResource(id = imageRes),
                         contentDescription = "Preview Video Clip",
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = if (activeMainClip?.isMirrored == true) -1f else 1f
+                            ),
                         contentScale = ContentScale.Crop
                     )
 
@@ -353,22 +375,59 @@ fun VideoPlayerView(
                     }
                 }
 
-                // Center Play Icon Button if Paused
-                if (!isPlaying) {
+                // Center Play Icon Button if Paused and Timeline has clips
+                if (!isPlaying && clips.isNotEmpty()) {
                     Surface(
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .size(52.dp)
+                            .size(54.dp)
                             .clip(CircleShape)
+                            .clickable { onTogglePlay() }
                             .testTag("play_pause_button"),
-                        color = StudioPrimaryViolet.copy(alpha = 0.85f)
+                        color = StudioElectricBlue.copy(alpha = 0.9f),
+                        border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.8f)),
+                        shape = CircleShape
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = "Play",
                                 tint = Color.White,
-                                modifier = Modifier.size(30.dp)
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+                } else if (clips.isEmpty()) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(16.dp),
+                        color = Color.Black.copy(alpha = 0.65f),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VideoLibrary,
+                                contentDescription = null,
+                                tint = StudioElectricBlue,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Timeline Kosong",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                            Text(
+                                text = "Tambahkan media untuk memulai",
+                                color = Color.White.copy(alpha = 0.65f),
+                                fontSize = 11.sp
                             )
                         }
                     }
@@ -394,7 +453,7 @@ fun KeyframeOverlayItem(
                 .graphicsLayer {
                     translationX = transform.posX
                     translationY = transform.posY
-                    scaleX = transform.scale
+                    scaleX = if (clip.isMirrored) -transform.scale else transform.scale
                     scaleY = transform.scale
                     rotationZ = transform.rotation
                     alpha = transform.opacity
@@ -518,7 +577,7 @@ fun KeyframeStickerItem(
                 .graphicsLayer {
                     translationX = transform.posX
                     translationY = transform.posY
-                    scaleX = transform.scale
+                    scaleX = if (clip.isMirrored) -transform.scale else transform.scale
                     scaleY = transform.scale
                     rotationZ = transform.rotation
                     alpha = transform.opacity

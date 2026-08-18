@@ -1,7 +1,9 @@
 package com.example.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,12 +30,30 @@ fun MainAppScreen(
     viewModel: VideoStudioViewModel
 ) {
     val currentTab by viewModel.currentTab.collectAsState()
-    val transcodingJobs by viewModel.transcodingJobs.collectAsState()
     val activeProject by viewModel.activeProject.collectAsState()
+    val userProfile by viewModel.userProfileState.collectAsState()
+    val apiKeys by viewModel.apiKeysState.collectAsState()
+    val highfieldSettings by viewModel.highfieldSettingsState.collectAsState()
+    var showApiKeysDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         UnifiedMediaStudioPipeline.instance.initialize(context)
+    }
+
+    if (showApiKeysDialog) {
+        com.example.ui.components.ApiKeysAndSettingsDialog(
+            userProfile = userProfile,
+            apiKeys = apiKeys,
+            highfieldSettings = highfieldSettings,
+            onDismiss = { showApiKeysDialog = false },
+            onSaveProfileAndKeys = { updatedProfile, updatedKeys, updatedSettings ->
+                viewModel.userProfileState.value = updatedProfile
+                viewModel.apiKeysState.value = updatedKeys
+                viewModel.highfieldSettingsState.value = updatedSettings
+                com.example.data.api.ApiClient.setUserApiKey(updatedKeys.googleGeminiApiKey)
+            }
+        )
     }
 
     // Top-Level Device Back Navigation Handler
@@ -58,7 +78,7 @@ fun MainAppScreen(
                                 Icon(
                                     imageVector = Icons.Default.ArrowBack,
                                     contentDescription = "Kembali ke Proyek",
-                                    tint = StudioTextPrimary
+                                    tint = StudioTextDark
                                 )
                             }
                         }
@@ -70,10 +90,10 @@ fun MainAppScreen(
                             } else {
                                 "FlowMonkey Studio"
                             },
-                            color = StudioTextPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            letterSpacing = (-0.3).sp,
+                            color = StudioTextDark,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 20.sp,
+                            letterSpacing = (-0.4).sp,
                             maxLines = 1
                         )
                     },
@@ -83,11 +103,11 @@ fun MainAppScreen(
                             Button(
                                 onClick = { viewModel.selectTab(MainTab.EXPORT_STUDIO) },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = StudioSecondaryTeal,
-                                    contentColor = Color.Black
+                                    containerColor = StudioDarkCTA,
+                                    contentColor = Color.White
                                 ),
-                                shape = RoundedCornerShape(20.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(24.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                                 modifier = Modifier
                                     .padding(end = 12.dp)
                                     .testTag("top_app_bar_export_button")
@@ -105,53 +125,62 @@ fun MainAppScreen(
                                 )
                             }
                         } else {
-                            // Settings Button for other tabs
-                            IconButton(
-                                onClick = { viewModel.selectTab(MainTab.SETTINGS) },
-                                modifier = Modifier.testTag("settings_proxy_toggle_button")
+                            // API Key Button moved from generator banner to top-right corner
+                            Surface(
+                                onClick = { showApiKeysDialog = true },
+                                shape = RoundedCornerShape(18.dp),
+                                color = StudioPillBg,
+                                border = BorderStroke(1.dp, StudioCardHairline),
+                                modifier = Modifier
+                                    .padding(end = 12.dp)
+                                    .testTag("top_app_bar_api_key_button")
                             ) {
-                                BadgedBox(
-                                    badge = {
-                                        val activeCount = transcodingJobs.count { !it.isCompleted }
-                                        if (activeCount > 0) {
-                                            Badge(containerColor = StudioSecondaryTeal) {
-                                                Text("$activeCount", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                            }
-                                        }
-                                    }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Settings,
-                                        contentDescription = "Pengaturan",
-                                        tint = if (currentTab == MainTab.SETTINGS) StudioPrimaryViolet else StudioTextSecondary
+                                        imageVector = Icons.Default.Key,
+                                        contentDescription = "API Key",
+                                        tint = if (apiKeys.googleGeminiApiKey.isNotBlank()) StudioEmeraldGreen else StudioElectricBlue,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "API Key",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = StudioTextDark
                                     )
                                 }
                             }
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = StudioDarkBg)
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
             },
             bottomBar = {
                 // Hide bottom navigation bar when inside TIMELINE_EDITOR to give full screen width/height to timeline
                 if (currentTab != MainTab.TIMELINE_EDITOR && currentTab != MainTab.EXPORT_STUDIO) {
                     NavigationBar(
-                        containerColor = StudioSurfaceDark,
-                        contentColor = StudioTextPrimary,
-                        tonalElevation = 8.dp,
-                        modifier = Modifier.testTag("main_bottom_navigation_bar")
+                        containerColor = StudioGlassWhite,
+                        contentColor = StudioTextDark,
+                        tonalElevation = 6.dp,
+                        modifier = Modifier
+                            .testTag("main_bottom_navigation_bar")
+                            .border(BorderStroke(1.dp, StudioCardHairline))
                     ) {
                         NavigationBarItem(
                             selected = currentTab == MainTab.STUDIO_GENERATOR,
                             onClick = { viewModel.selectTab(MainTab.STUDIO_GENERATOR) },
                             icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "Generator") },
-                            label = { Text("Generator", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
+                            label = { Text("Generator", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = StudioPrimaryViolet,
-                                selectedTextColor = StudioPrimaryViolet,
-                                unselectedIconColor = StudioTextSecondary,
-                                unselectedTextColor = StudioTextSecondary,
-                                indicatorColor = StudioPrimaryViolet.copy(alpha = 0.15f)
+                                selectedIconColor = StudioElectricBlue,
+                                selectedTextColor = StudioElectricBlue,
+                                unselectedIconColor = StudioTextMuted,
+                                unselectedTextColor = StudioTextMuted,
+                                indicatorColor = StudioElectricBlue.copy(alpha = 0.12f)
                             ),
                             modifier = Modifier.testTag("nav_item_generator")
                         )
@@ -160,13 +189,13 @@ fun MainAppScreen(
                             selected = currentTab == MainTab.STORYBOARD,
                             onClick = { viewModel.selectTab(MainTab.STORYBOARD) },
                             icon = { Icon(Icons.Default.MovieFilter, contentDescription = "Storyboard") },
-                            label = { Text("Storyboard", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
+                            label = { Text("Storyboard", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = StudioPrimaryViolet,
-                                selectedTextColor = StudioPrimaryViolet,
-                                unselectedIconColor = StudioTextSecondary,
-                                unselectedTextColor = StudioTextSecondary,
-                                indicatorColor = StudioPrimaryViolet.copy(alpha = 0.15f)
+                                selectedIconColor = StudioElectricBlue,
+                                selectedTextColor = StudioElectricBlue,
+                                unselectedIconColor = StudioTextMuted,
+                                unselectedTextColor = StudioTextMuted,
+                                indicatorColor = StudioElectricBlue.copy(alpha = 0.12f)
                             ),
                             modifier = Modifier.testTag("nav_item_storyboard")
                         )
@@ -175,13 +204,13 @@ fun MainAppScreen(
                             selected = currentTab == MainTab.PROJECTS_LIST,
                             onClick = { viewModel.selectTab(MainTab.PROJECTS_LIST) },
                             icon = { Icon(Icons.Default.VideoLibrary, contentDescription = "Proyek") },
-                            label = { Text("Proyek", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
+                            label = { Text("Proyek", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = StudioPrimaryViolet,
-                                selectedTextColor = StudioPrimaryViolet,
-                                unselectedIconColor = StudioTextSecondary,
-                                unselectedTextColor = StudioTextSecondary,
-                                indicatorColor = StudioPrimaryViolet.copy(alpha = 0.15f)
+                                selectedIconColor = StudioElectricBlue,
+                                selectedTextColor = StudioElectricBlue,
+                                unselectedIconColor = StudioTextMuted,
+                                unselectedTextColor = StudioTextMuted,
+                                indicatorColor = StudioElectricBlue.copy(alpha = 0.12f)
                             ),
                             modifier = Modifier.testTag("nav_item_projects")
                         )
@@ -190,26 +219,26 @@ fun MainAppScreen(
                             selected = currentTab == MainTab.SETTINGS,
                             onClick = { viewModel.selectTab(MainTab.SETTINGS) },
                             icon = { Icon(Icons.Default.Settings, contentDescription = "Pengaturan") },
-                            label = { Text("Pengaturan", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
+                            label = { Text("Pengaturan", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = StudioPrimaryViolet,
-                                selectedTextColor = StudioPrimaryViolet,
-                                unselectedIconColor = StudioTextSecondary,
-                                unselectedTextColor = StudioTextSecondary,
-                                indicatorColor = StudioPrimaryViolet.copy(alpha = 0.15f)
+                                selectedIconColor = StudioElectricBlue,
+                                selectedTextColor = StudioElectricBlue,
+                                unselectedIconColor = StudioTextMuted,
+                                unselectedTextColor = StudioTextMuted,
+                                indicatorColor = StudioElectricBlue.copy(alpha = 0.12f)
                             ),
                             modifier = Modifier.testTag("nav_item_settings")
                         )
                     }
                 }
             },
-            containerColor = StudioDarkBg
+            containerColor = StudioCleanCanvas
         ) { innerPadding ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .background(StudioDarkBg)
+                    .background(StudioAmbientCanvasBrush)
             ) {
                 when (currentTab) {
                     MainTab.STUDIO_GENERATOR -> QuickGenerateScreen(viewModel = viewModel)

@@ -49,8 +49,8 @@ fun StoryboardScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, StudioCardBorder, RoundedCornerShape(16.dp)),
-            colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                .border(1.dp, StudioCardHairline, RoundedCornerShape(20.dp)),
+            colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
 
@@ -61,16 +61,16 @@ fun StoryboardScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            color = StudioPrimaryViolet.copy(alpha = 0.2f),
+                            color = StudioElectricBlue.copy(alpha = 0.12f),
                             shape = CircleShape,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(42.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Psychology,
                                     contentDescription = "Director AI",
-                                    tint = StudioSecondaryTeal,
-                                    modifier = Modifier.size(20.dp)
+                                    tint = StudioElectricBlue,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
@@ -78,27 +78,28 @@ fun StoryboardScreen(
                         Column {
                             Text(
                                 text = "Sutradara AI High Thinking Mode",
-                                color = Color.White,
+                                color = StudioTextDark,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "gemini-3.1-pro-preview (ThinkingLevel.HIGH)",
-                                color = StudioSecondaryTeal,
-                                fontSize = 11.sp
+                                text = "Kreativitas Mendalam & Alur Cerita Cerdas",
+                                color = StudioEmeraldGreen,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
 
                     Surface(
-                        color = StudioAccentPink.copy(alpha = 0.2f),
+                        color = StudioRosePink.copy(alpha = 0.12f),
                         shape = CircleShape
                     ) {
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = "Thinking Mode Active",
-                            tint = StudioAccentPink,
-                            modifier = Modifier.padding(6.dp).size(16.dp)
+                            tint = StudioRosePink,
+                            modifier = Modifier.padding(8.dp).size(16.dp)
                         )
                     }
                 }
@@ -110,23 +111,25 @@ fun StoryboardScreen(
                     onValueChange = { conceptInput = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(90.dp)
+                        .height(95.dp)
                         .testTag("director_concept_input"),
-                    label = { Text("Konsep Cerita / Iklan") },
+                    label = { Text("Konsep Cerita / Iklan", color = StudioTextMuted, fontSize = 12.sp) },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = StudioPrimaryViolet,
-                        unfocusedBorderColor = StudioCardBorder,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedBorderColor = StudioElectricBlue,
+                        unfocusedBorderColor = StudioCardHairline,
+                        focusedTextColor = StudioTextDark,
+                        unfocusedTextColor = StudioTextDark,
+                        focusedContainerColor = StudioCleanCanvas,
+                        unfocusedContainerColor = StudioCleanCanvas
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(14.dp)
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Button(
                         onClick = {
@@ -140,12 +143,13 @@ fun StoryboardScreen(
                             .weight(1f)
                             .height(48.dp)
                             .testTag("generate_storyboard_thinking_button"),
-                        colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet)
+                        colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
+                        shape = RoundedCornerShape(24.dp)
                     ) {
                         if (directorState.isGenerating) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
                         } else {
-                            Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = "Think", modifier = Modifier.size(18.dp))
+                            Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = "Think", modifier = Modifier.size(16.dp), tint = StudioAmberGold)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(text = "Rancang AI", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
@@ -156,12 +160,13 @@ fun StoryboardScreen(
                         modifier = Modifier
                             .height(48.dp)
                             .testTag("open_template_selector_button"),
-                        border = BorderStroke(1.dp, StudioSecondaryTeal),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioSecondaryTeal)
+                        border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.6f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
+                        shape = RoundedCornerShape(24.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.LibraryBooks, contentDescription = "Templates", modifier = Modifier.size(18.dp))
+                        Icon(imageVector = Icons.Default.LibraryBooks, contentDescription = "Templates", modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Template Library", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(text = "Template", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
             }
@@ -172,11 +177,12 @@ fun StoryboardScreen(
         // Toggle View: Scene Cards vs VideoFlow Graph
         TabRow(
             selectedTabIndex = selectedViewMode,
-            containerColor = StudioCardBg,
-            contentColor = StudioSecondaryTeal,
+            containerColor = StudioGlassWhite,
+            contentColor = StudioTextDark,
+            divider = {},
             modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .border(1.dp, StudioCardBorder, RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, StudioCardHairline, RoundedCornerShape(16.dp))
                 .testTag("storyboard_tab_row")
         ) {
             Tab(
@@ -186,9 +192,11 @@ fun StoryboardScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(imageVector = Icons.Default.ViewList, contentDescription = "List", modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Kartu Adegan (${scenes.size})", fontWeight = FontWeight.Bold)
+                        Text("Kartu Adegan (${scenes.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
-                }
+                },
+                selectedContentColor = StudioElectricBlue,
+                unselectedContentColor = StudioTextMuted
             )
             Tab(
                 selected = selectedViewMode == 1,
@@ -197,9 +205,11 @@ fun StoryboardScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(imageVector = Icons.Default.AccountTree, contentDescription = "Flow", modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Visual VideoFlow", fontWeight = FontWeight.Bold)
+                        Text("Visual VideoFlow", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
-                }
+                },
+                selectedContentColor = StudioElectricBlue,
+                unselectedContentColor = StudioTextMuted
             )
         }
 
@@ -227,14 +237,14 @@ fun StoryboardScreen(
                 enabled = scenes.isNotEmpty(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .height(54.dp)
                     .testTag("apply_storyboard_timeline_button"),
-                colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal, contentColor = Color.Black),
-                shape = RoundedCornerShape(14.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA, contentColor = Color.White),
+                shape = RoundedCornerShape(26.dp)
             ) {
-                Icon(imageVector = Icons.Default.MergeType, contentDescription = "Merge")
+                Icon(imageVector = Icons.Default.MergeType, contentDescription = "Merge", tint = StudioAmberGold)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "PENGGABUNGAN OTOMATIS & TRANSISI SMART KE TIMELINE", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text(text = "PENGGABUNGAN OTOMATIS & TRANSISI SMART", fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }
     }
@@ -262,9 +272,9 @@ fun StoryboardSceneCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, StudioCardBorder, RoundedCornerShape(14.dp))
+            .border(1.dp, StudioCardHairline, RoundedCornerShape(18.dp))
             .testTag("storyboard_scene_card_${scene.id}"),
-        colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+        colors = CardDefaults.cardColors(containerColor = StudioGlassWhite)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
 
@@ -275,9 +285,9 @@ fun StoryboardSceneCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = StudioPrimaryViolet,
+                        color = StudioDarkCTA,
                         shape = CircleShape,
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
@@ -291,7 +301,7 @@ fun StoryboardSceneCard(
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = scene.title,
-                        color = Color.White,
+                        color = StudioTextDark,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -302,14 +312,14 @@ fun StoryboardSceneCard(
                         Icon(
                             imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                             contentDescription = "Expand",
-                            tint = StudioTextSecondary
+                            tint = StudioTextMuted
                         )
                     }
                     IconButton(onClick = { onDeleteScene(scene) }) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Delete",
-                            tint = StudioAccentPink
+                            tint = StudioRosePink
                         )
                     }
                 }
@@ -319,7 +329,7 @@ fun StoryboardSceneCard(
 
             Text(
                 text = "Naskah: ${scene.scriptText}",
-                color = StudioTextSecondary,
+                color = StudioTextMuted,
                 fontSize = 12.sp
             )
 
@@ -330,25 +340,27 @@ fun StoryboardSceneCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = StudioPrimaryViolet.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(6.dp)
+                    color = StudioElectricBlue.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = "Kamera: ${scene.cameraMovement}",
-                        color = StudioPrimaryViolet,
+                        color = StudioElectricBlue,
                         fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
 
                 Surface(
-                    color = StudioSecondaryTeal.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(6.dp)
+                    color = StudioEmeraldGreen.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = "Durasi: ${scene.durationSeconds}s",
-                        color = StudioSecondaryTeal,
+                        color = StudioEmeraldGreen,
                         fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -356,20 +368,24 @@ fun StoryboardSceneCard(
 
             AnimatedVisibility(visible = isExpanded) {
                 Column(modifier = Modifier.padding(top = 12.dp)) {
-                    Divider(color = StudioCardBorder)
+                    HorizontalDivider(color = StudioCardHairline)
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    Text("Prompt Visual Video AI:", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("Prompt Visual Video AI:", color = StudioTextDark, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     OutlinedTextField(
                         value = scene.visualPrompt,
                         onValueChange = { onUpdateScene(scene.copy(visualPrompt = it)) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = StudioPrimaryViolet,
-                            unfocusedBorderColor = StudioCardBorder,
-                            focusedTextColor = Color.White
-                        )
+                            focusedBorderColor = StudioElectricBlue,
+                            unfocusedBorderColor = StudioCardHairline,
+                            focusedTextColor = StudioTextDark,
+                            unfocusedTextColor = StudioTextDark,
+                            focusedContainerColor = StudioCleanCanvas,
+                            unfocusedContainerColor = StudioCleanCanvas
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             }
