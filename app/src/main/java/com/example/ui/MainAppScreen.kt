@@ -124,8 +124,8 @@ fun MainAppScreen(
                                     fontSize = 12.sp
                                 )
                             }
-                        } else {
-                            // API Key Button moved from generator banner to top-right corner
+                        } else if (currentTab == MainTab.SETTINGS) {
+                            // API Key Button only displayed on Settings screen
                             Surface(
                                 onClick = { showApiKeysDialog = true },
                                 shape = RoundedCornerShape(18.dp),
@@ -139,18 +139,11 @@ fun MainAppScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Key,
-                                        contentDescription = "API Key",
-                                        tint = if (apiKeys.googleGeminiApiKey.isNotBlank()) StudioEmeraldGreen else StudioElectricBlue,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "API Key",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = StudioTextDark
+                                        color = if (apiKeys.googleGeminiApiKey.isNotBlank()) StudioEmeraldGreen else StudioElectricBlue
                                     )
                                 }
                             }

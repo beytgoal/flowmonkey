@@ -233,8 +233,6 @@ fun ExportStudioScreen(
                 Spacer(modifier = Modifier.width(10.dp))
                 Text("MERENDER FRAME... ${exportState.progressPercent}%", fontWeight = FontWeight.Bold, color = Color.White)
             } else {
-                Icon(imageVector = Icons.Default.Download, contentDescription = "Export", tint = Color.White)
-                Spacer(modifier = Modifier.width(8.dp))
                 Text("EKSPOR VIDEO RESOLUSI TINGGI", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
         }
@@ -316,8 +314,6 @@ fun ExportStudioScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
                             shape = RoundedCornerShape(20.dp)
                         ) {
-                            Icon(imageVector = Icons.Default.Share, contentDescription = "Share", modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text("Bagikan", fontWeight = FontWeight.Bold)
                         }
 
@@ -328,8 +324,6 @@ fun ExportStudioScreen(
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
                             shape = RoundedCornerShape(20.dp)
                         ) {
-                            Icon(imageVector = Icons.Default.SaveAlt, contentDescription = "Save", modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text("Simpan MP4", fontWeight = FontWeight.Bold)
                         }
                     }

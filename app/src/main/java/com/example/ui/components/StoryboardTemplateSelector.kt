@@ -227,13 +227,7 @@ fun StoryboardTemplateSelectorDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag("apply_template_${template.id}")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.PlayCircle,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                 ) {
                                     Text(
                                         text = "GUNAKAN TEMPLATE INI",
                                         fontSize = 12.sp,

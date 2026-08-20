@@ -166,18 +166,11 @@ fun ApiKeysAndSettingsDialog(
                                             contentColor = StudioRosePink
                                         ),
                                         shape = RoundedCornerShape(14.dp),
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                                         modifier = Modifier
                                             .height(32.dp)
                                             .testTag("google_oauth_logout_button")
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Logout,
-                                            contentDescription = "Logout",
-                                            tint = StudioRosePink,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
                                         Text(
                                             text = "Logout",
                                             fontSize = 11.sp,
@@ -197,18 +190,11 @@ fun ApiKeysAndSettingsDialog(
                                             contentColor = Color.White
                                         ),
                                         shape = RoundedCornerShape(14.dp),
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                                         modifier = Modifier
                                             .height(32.dp)
                                             .testTag("google_oauth_connect_button")
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Login,
-                                            contentDescription = "Connect Google",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
                                         Text(
                                             text = "Hubungkan Google",
                                             fontSize = 11.sp,
@@ -222,8 +208,8 @@ fun ApiKeysAndSettingsDialog(
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = if (isGAuthLoggedIn) 
-                                    "Aplikasi terhubung dengan akun Google Anda via OAuth untuk sinkronisasi cloud dan fitur Gemini." 
-                                    else "Hubungkan akun Google OAuth Anda untuk mengaktifkan sinkronisasi cloud dan Gemini AI.",
+                                    "Aplikasi terhubung dengan akun Google Anda via OAuth untuk sinkronisasi cloud dan fitur AI Studio." 
+                                    else "Hubungkan akun Google OAuth Anda untuk mengaktifkan sinkronisasi cloud dan AI Studio.",
                                 fontSize = 11.sp,
                                 color = StudioTextMuted
                             )
@@ -588,8 +574,6 @@ fun ApiKeysAndSettingsDialog(
                         .height(48.dp)
                         .testTag("save_settings_button")
                 ) {
-                    Icon(imageVector = Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(text = "SIMPAN KUNCI API & SETELAN", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }

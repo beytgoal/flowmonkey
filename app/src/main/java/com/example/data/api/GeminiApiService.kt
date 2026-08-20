@@ -35,6 +35,11 @@ interface GeminiApiService {
 object ApiClient {
     private const val BASE_URL = "https://generativelanguage.googleapis.com/"
 
+    // Core default Omni Generative Multi-modal Models
+    const val DEFAULT_OMNI_MULTIMODAL_MODEL = "gemini-3.5-flash"
+    const val DEFAULT_OMNI_THINKING_MODEL = "gemini-3.1-pro-preview"
+    const val DEFAULT_OMNI_VIDEO_MODEL = "veo-3.1-fast-generate-preview"
+
     @Volatile
     private var directedUserApiKey: String? = null
 

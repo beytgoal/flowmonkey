@@ -22,10 +22,10 @@ data class MultiModelApiKeys(
 
 object SupportedAiModels {
     val models = listOf(
-        "Google Video 3.1 Pro Recommended",
-        "Google Video 3.1 Fast Preview",
-        "OpenAI Sora (ChatGPT API)",
-        "Anthropic Claude 3.5 Sonnet (Director)",
+        "Studio AI Pro (Default)",
+        "Studio AI Fast Preview",
+        "OpenAI Sora",
+        "Anthropic Claude 3.5 Sonnet",
         "Kimi AI Director 2.0",
         "Runway Gen-3 Alpha",
         "Luma Dream Machine"

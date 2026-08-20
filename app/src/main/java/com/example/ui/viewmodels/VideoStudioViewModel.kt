@@ -182,6 +182,30 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
     var highfieldSettingsState = MutableStateFlow(com.example.data.models.HighfieldSettings())
     var isDarkThemeState = MutableStateFlow(true)
 
+    fun connectGoogleAccount(name: String = "Creator Google User", email: String = "cpktemon@gmail.com") {
+        userProfileState.value = userProfileState.value.copy(
+            isLoggedIn = true,
+            isGLoggedIn = true,
+            userName = name,
+            userEmail = email
+        )
+    }
+
+    fun disconnectGoogleAccount() {
+        userProfileState.value = userProfileState.value.copy(
+            isLoggedIn = false,
+            isGLoggedIn = false,
+            userName = "Tamu (Mode Offline)",
+            userEmail = "tamu@flowmonkey.studio"
+        )
+    }
+
+    fun updateCustomGeminiApiKey(key: String) {
+        val updated = apiKeysState.value.copy(googleGeminiApiKey = key)
+        apiKeysState.value = updated
+        com.example.data.api.ApiClient.setUserApiKey(key)
+    }
+
     // Local Media Library State
     private val _localMediaAssets = MutableStateFlow(com.example.data.models.DefaultMediaAssets.initialAssets)
     val localMediaAssets: StateFlow<List<com.example.data.models.LocalMediaAsset>> = _localMediaAssets.asStateFlow()
@@ -218,6 +242,26 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
             }
 
             val tracks = repository.getTracksForProject(projId).firstOrNull() ?: emptyList()
+
+            if (asset.category.uppercase() == "LUT") {
+                // Apply LUT filter to active video clips in project
+                val currentClips = repository.getClipsForProject(projId).firstOrNull() ?: emptyList()
+                val videoClips = currentClips.filter { clip ->
+                    tracks.find { t -> t.id == clip.trackId }?.trackType == "VIDEO"
+                }
+                val lutFilterName = if (asset.title.startsWith("LUT:")) asset.title else "LUT: ${asset.title}"
+                if (videoClips.isNotEmpty()) {
+                    videoClips.forEach { clip ->
+                        repository.updateClip(clip.copy(filterName = lutFilterName))
+                    }
+                }
+                saveHistoryState()
+                if (jumpToTimeline) {
+                    _currentTab.value = MainTab.TIMELINE_EDITOR
+                }
+                return@launch
+            }
+
             val reqType = targetTrackType ?: when (asset.category.uppercase()) {
                 "AUDIO" -> "AUDIO"
                 "IMAGE", "GRAPHIC" -> "TEXT"
@@ -314,6 +358,23 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
             description = "Custom LUT diimpor oleh pengguna"
         )
         _customLutList.value = _customLutList.value + newLut
+
+        // Also add to Local Media Library Assets under LUT category
+        val lutAsset = com.example.data.models.LocalMediaAsset(
+            id = "lut_${System.currentTimeMillis()}",
+            title = cleanName,
+            category = "LUT",
+            uri = path.ifBlank { "luts/${cleanName.lowercase().replace(" ", "_")}" },
+            durationText = "3D LUT",
+            durationMs = 0L,
+            resolutionOrType = ".CUBE Color Grade",
+            isAiGenerated = false,
+            dateAdded = "Baru Saja",
+            tags = listOf("LUT", "Custom", "ColorGrade")
+        )
+        if (_localMediaAssets.value.none { it.title.equals(cleanName, ignoreCase = true) }) {
+            _localMediaAssets.value = listOf(lutAsset) + _localMediaAssets.value
+        }
     }
 
     fun toggleProxyMode(enabled: Boolean? = null) {
@@ -917,7 +978,7 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             _directorGenState.value = GenerationState(
                 isGenerating = true,
-                progressMessage = "Menjalankan Gemini 3.1 Pro Thinking Mode (HIGH)..."
+                progressMessage = "Menjalankan Sutradara AI Studio Thinking Mode..."
             )
 
             delay(1500)
@@ -950,7 +1011,7 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             _imageAnalysisState.value = GenerationState(
                 isGenerating = true,
-                progressMessage = "Menganalisis gambar menggunakan Gemini 3.1 Pro..."
+                progressMessage = "Menganalisis gambar menggunakan AI Studio Multimodal..."
             )
 
             val result = repository.analyzeImageForVideoPrompt(bitmap)

@@ -2,7 +2,7 @@ package com.example.data.models
 
 data class StudioEngineSettings(
     val isEngineModeEnabled: Boolean = true,
-    val selectedEngine: String = "Studio 3.1 Pro Engine",
+    val selectedEngine: String = "Studio AI Pro (Default)",
     val fpsTarget: Int = 60, // 24, 30, 60
     val resolution: String = "1080p", // "720p", "1080p", "4K Ultra HD"
     val motionSmoothness: Float = 0.95f, // 0.0 - 1.0
@@ -17,8 +17,8 @@ typealias HighfieldSettings = StudioEngineSettings
 
 object StudioEngineDefaults {
     val engines = listOf(
-        "Studio 3.1 Pro Engine",
-        "Studio 3.1 Fast Preview",
+        "Studio AI Pro (Default)",
+        "Studio AI Fast Preview",
         "OpenAI Sora Ultra Engine",
         "Runway Gen-3 Alpha",
         "Luma Dream Machine 1.5",
@@ -39,3 +39,4 @@ object HighfieldDefaults {
     val engines = StudioEngineDefaults.engines
     val colorPresets = StudioEngineDefaults.colorPresets
 }
+

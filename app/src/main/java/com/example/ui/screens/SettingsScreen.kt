@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.VideoSettings
 import androidx.compose.material3.*
@@ -124,7 +126,10 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Surface(
                                     color = StudioElectricBlue.copy(alpha = 0.1f),
                                     shape = CircleShape,
@@ -142,10 +147,10 @@ fun SettingsScreen(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = "Akun Pengguna & Akses AI",
+                                        text = userProfile.userName,
                                         color = StudioTextDark,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
+                                        fontSize = 13.sp
                                     )
                                     Text(
                                         text = userProfile.userEmail,
@@ -154,17 +159,47 @@ fun SettingsScreen(
                                     )
                                 }
                             }
-                            Surface(
-                                color = if (userProfile.isGLoggedIn) StudioEmeraldGreen.copy(alpha = 0.12f) else StudioRosePink.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text(
-                                    text = if (userProfile.isGLoggedIn) "AKTIF" else "TAMU",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (userProfile.isGLoggedIn) StudioEmeraldGreen else StudioRosePink,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
+
+                            if (userProfile.isGLoggedIn) {
+                                FilledTonalButton(
+                                    onClick = {
+                                        viewModel.userProfileState.value = userProfile.copy(
+                                            isGLoggedIn = false,
+                                            isLoggedIn = false,
+                                            userName = "Tamu (Mode Offline)",
+                                            userEmail = "tamu@flowmonkey.studio"
+                                        )
+                                    },
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = StudioRosePink.copy(alpha = 0.12f),
+                                        contentColor = StudioRosePink
+                                    ),
+                                    shape = RoundedCornerShape(14.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(32.dp)
+                                ) {
+                                    Text("Logout", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = StudioRosePink)
+                                }
+                            } else {
+                                Button(
+                                    onClick = {
+                                        viewModel.userProfileState.value = userProfile.copy(
+                                            isGLoggedIn = true,
+                                            isLoggedIn = true,
+                                            userName = "Creator Google User",
+                                            userEmail = "cpktemon@gmail.com"
+                                        )
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = StudioElectricBlue,
+                                        contentColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(14.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(32.dp)
+                                ) {
+                                    Text("Connect Google", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
                             }
                         }
 
@@ -204,8 +239,6 @@ fun SettingsScreen(
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                                     modifier = Modifier.height(36.dp)
                                 ) {
-                                    Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
-                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text("Kelola Kunci", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                 }
                             }

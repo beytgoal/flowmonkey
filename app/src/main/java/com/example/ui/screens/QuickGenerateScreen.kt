@@ -168,10 +168,7 @@ fun QuickGenerateScreen(
                     activeContentColor = Color.White,
                     inactiveContainerColor = StudioGlassWhite,
                     inactiveContentColor = StudioTextMuted
-                ),
-                icon = {
-                    Icon(imageVector = Icons.Default.TextFields, contentDescription = "Text to Video")
-                }
+                )
             ) {
                 Text("Teks Ke Video", fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
@@ -185,10 +182,7 @@ fun QuickGenerateScreen(
                     activeContentColor = Color.White,
                     inactiveContainerColor = StudioGlassWhite,
                     inactiveContentColor = StudioTextMuted
-                ),
-                icon = {
-                    Icon(imageVector = Icons.Default.Image, contentDescription = "Image to Video")
-                }
+                )
             ) {
                 Text("Gambar Ke Video", fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
@@ -227,21 +221,13 @@ fun QuickGenerateScreen(
                             onClick = { imagePickerLauncher.launch("image/*") },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(94.dp)
+                                .height(64.dp)
                                 .testTag("upload_image_button"),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
                             border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.5f)),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.AddPhotoAlternate,
-                                    contentDescription = "Pick Image",
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("Pilih Foto Dari Galeri", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
+                            Text("Pilih Foto Dari Galeri", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
 
@@ -257,10 +243,8 @@ fun QuickGenerateScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = StudioElectricBlue, contentColor = Color.White),
                         shape = RoundedCornerShape(24.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.DocumentScanner, contentDescription = "Analyze", modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (imageAnalysisState.isGenerating) "Menganalisis Gambar Gemini..." else "Analisis Gambar Untuk Prompt Video",
+                            text = if (imageAnalysisState.isGenerating) "Menganalisis Gambar AI..." else "Analisis Gambar Untuk Prompt Video",
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp
                         )
@@ -450,20 +434,36 @@ fun QuickGenerateScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(StudioPillBg, RoundedCornerShape(12.dp))
+                            .border(1.dp, StudioCardHairline, RoundedCornerShape(12.dp))
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         listOf("16:9", "9:16", "1:1").forEach { ratio ->
-                            FilterChip(
-                                selected = aspectRatio == ratio,
-                                onClick = { viewModel.selectedAspectRatio.value = ratio },
-                                label = { Text(ratio, fontSize = 10.sp, fontWeight = FontWeight.Bold) },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = StudioDarkCTA,
-                                    selectedLabelColor = Color.White,
-                                    containerColor = StudioPillBg,
-                                    labelColor = StudioTextDark
+                            val isSelected = aspectRatio == ratio
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(30.dp)
+                                    .background(
+                                        if (isSelected) StudioDarkCTA else Color.Transparent,
+                                        RoundedCornerShape(9.dp)
+                                    )
+                                    .clickable { viewModel.selectedAspectRatio.value = ratio },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = ratio,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else StudioTextDark,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
-                            )
+                            }
                         }
                     }
                 }
@@ -483,21 +483,37 @@ fun QuickGenerateScreen(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(StudioPillBg, RoundedCornerShape(12.dp))
+                            .border(1.dp, StudioCardHairline, RoundedCornerShape(12.dp))
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         listOf(3, 5, 10).forEach { dur ->
-                            FilterChip(
-                                selected = duration == dur,
-                                onClick = { viewModel.selectedDuration.value = dur },
-                                label = { Text("${dur}s", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = StudioDarkCTA,
-                                    selectedLabelColor = Color.White,
-                                    containerColor = StudioPillBg,
-                                    labelColor = StudioTextDark
+                            val isSelected = duration == dur
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(30.dp)
+                                    .background(
+                                        if (isSelected) StudioDarkCTA else Color.Transparent,
+                                        RoundedCornerShape(9.dp)
+                                    )
+                                    .clickable { viewModel.selectedDuration.value = dur },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${dur}s",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else StudioTextDark,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
-                            )
+                            }
                         }
                     }
                 }
@@ -529,8 +545,6 @@ fun QuickGenerateScreen(
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(text = clipGenState.progressMessage, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             } else {
-                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = "Generate", tint = StudioAmberGold)
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(text = "GENERATE KLIP VIDEO AI", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, letterSpacing = 0.3.sp)
             }
         }
@@ -582,7 +596,7 @@ fun QuickGenerateScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(imageVector = Icons.Default.Mic, contentDescription = "Mic", tint = StudioAccentPink)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Transkripsi Suara Gemini Flash", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Transkripsi Suara AI Studio", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             },
             text = {

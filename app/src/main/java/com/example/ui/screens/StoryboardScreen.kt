@@ -149,8 +149,6 @@ fun StoryboardScreen(
                         if (directorState.isGenerating) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
                         } else {
-                            Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = "Think", modifier = Modifier.size(16.dp), tint = StudioAmberGold)
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text(text = "Rancang AI", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
@@ -164,8 +162,6 @@ fun StoryboardScreen(
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
                         shape = RoundedCornerShape(24.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.LibraryBooks, contentDescription = "Templates", modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(text = "Template", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
@@ -242,8 +238,6 @@ fun StoryboardScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA, contentColor = Color.White),
                 shape = RoundedCornerShape(26.dp)
             ) {
-                Icon(imageVector = Icons.Default.MergeType, contentDescription = "Merge", tint = StudioAmberGold)
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(text = "PENGGABUNGAN OTOMATIS & TRANSISI SMART", fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }

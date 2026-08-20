@@ -715,8 +715,6 @@ fun TemplateItemCard(
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
                     Text("Gunakan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
 
@@ -728,8 +726,6 @@ fun TemplateItemCard(
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
                     Text("Media Galeri", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -739,7 +735,7 @@ fun TemplateItemCard(
 
 /**
  * Pustaka Media Lokal View Component
- * Filter categorized assets (Video, Audio, Gambar) with Drag & Drop or Direct Insertion to Active Timeline.
+ * Filter categorized assets (Video, Audio, Gambar, Filter & LUT) with Drag & Drop, LUT Importer, or Direct Insertion to Active Timeline.
  */
 @Composable
 fun LocalMediaLibraryView(
@@ -751,7 +747,18 @@ fun LocalMediaLibraryView(
     var searchQuery by remember { mutableStateOf("") }
     var showImportDialog by remember { mutableStateOf(false) }
 
-    val categories = listOf("Semua", "Video", "Audio", "Gambar & Grafis", "AI Generated")
+    val categories = listOf("Semua", "Video", "Audio", "Gambar & Grafis", "Filter & LUT", "AI Generated")
+
+    val lutFilePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val fileName = it.lastPathSegment?.substringAfterLast('/') ?: "Custom_Film_Grade.cube"
+            val cleanName = if (fileName.contains('.')) fileName else "$fileName.cube"
+            viewModel.importCustomLut(cleanName, it.toString())
+            onShowSnackbar("Berhasil mengimpor LUT '$cleanName' ke Pustaka Media!")
+        }
+    }
 
     val filteredAssets = remember(mediaAssets, selectedCategory, searchQuery) {
         mediaAssets.filter { asset ->
@@ -759,6 +766,7 @@ fun LocalMediaLibraryView(
                 "Video" -> asset.category.equals("VIDEO", ignoreCase = true)
                 "Audio" -> asset.category.equals("AUDIO", ignoreCase = true)
                 "Gambar & Grafis" -> asset.category.equals("IMAGE", ignoreCase = true) || asset.category.equals("GRAPHIC", ignoreCase = true)
+                "Filter & LUT" -> asset.category.equals("LUT", ignoreCase = true) || asset.tags.any { it.contains("LUT", ignoreCase = true) }
                 "AI Generated" -> asset.isAiGenerated
                 else -> true
             }
@@ -777,7 +785,7 @@ fun LocalMediaLibraryView(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Cari aset video, musik, SFX, stiker...", fontSize = 12.sp, color = StudioTextSubtle) },
+                placeholder = { Text("Cari aset video, musik, LUT, stiker...", fontSize = 12.sp, color = StudioTextSubtle) },
                 leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = StudioTextMuted, modifier = Modifier.size(16.dp)) },
                 trailingIcon = if (searchQuery.isNotEmpty()) {
                     {
@@ -802,6 +810,20 @@ fun LocalMediaLibraryView(
             )
 
             Button(
+                onClick = { lutFilePickerLauncher.launch("*/*") },
+                colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .height(48.dp)
+                    .testTag("button_import_lut")
+            ) {
+                Icon(imageVector = Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Impor LUT", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            }
+
+            Button(
                 onClick = { showImportDialog = true },
                 colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
@@ -810,8 +832,6 @@ fun LocalMediaLibraryView(
                     .height(48.dp)
                     .testTag("button_import_media")
             ) {
-                Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
-                Spacer(modifier = Modifier.width(4.dp))
                 Text("+ Impor", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }
@@ -830,6 +850,7 @@ fun LocalMediaLibraryView(
                         "Video" -> { { Icon(imageVector = Icons.Default.Movie, contentDescription = null, modifier = Modifier.size(14.dp)) } }
                         "Audio" -> { { Icon(imageVector = Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(14.dp)) } }
                         "Gambar & Grafis" -> { { Icon(imageVector = Icons.Default.Image, contentDescription = null, modifier = Modifier.size(14.dp)) } }
+                        "Filter & LUT" -> { { Icon(imageVector = Icons.Default.ColorLens, contentDescription = null, modifier = Modifier.size(14.dp)) } }
                         "AI Generated" -> { { Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(14.dp)) } }
                         else -> null
                     },
@@ -926,11 +947,11 @@ fun LocalMediaLibraryView(
                     Spacer(modifier = Modifier.height(10.dp))
                     Text("Kategori Media:", fontSize = 12.sp, color = StudioTextMuted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("VIDEO", "AUDIO", "IMAGE").forEach { cat ->
+                        listOf("VIDEO", "AUDIO", "IMAGE", "LUT").forEach { cat ->
                             FilterChip(
                                 selected = selectedCategory == cat,
                                 onClick = { selectedCategory = cat },
-                                label = { Text(if (cat == "IMAGE") "GAMBAR" else cat, fontSize = 11.sp) },
+                                label = { Text(if (cat == "IMAGE") "GAMBAR" else if (cat == "LUT") "FILTER LUT" else cat, fontSize = 11.sp) },
                                 shape = RoundedCornerShape(10.dp)
                             )
                         }
@@ -969,18 +990,22 @@ fun LocalMediaLibraryView(
             confirmButton = {
                 Button(
                     onClick = {
-                        val titleFinal = newTitle.ifBlank { "Media Impor ${System.currentTimeMillis() % 1000}" }
-                        val uriFinal = newUri.ifBlank { "imported_media_${System.currentTimeMillis()}" }
-                        viewModel.addMediaAsset(
-                            LocalMediaAsset(
-                                title = titleFinal,
-                                category = selectedCategory,
-                                uri = uriFinal,
-                                durationText = durationInput,
-                                isAiGenerated = false,
-                                dateAdded = "Baru saja"
+                        val titleFinal = newTitle.ifBlank { if (selectedCategory == "LUT") "Custom_LUT_${System.currentTimeMillis() % 1000}.cube" else "Media Impor ${System.currentTimeMillis() % 1000}" }
+                        val uriFinal = newUri.ifBlank { if (selectedCategory == "LUT") "luts/${titleFinal.lowercase().replace(" ", "_")}" else "imported_media_${System.currentTimeMillis()}" }
+                        if (selectedCategory == "LUT") {
+                            viewModel.importCustomLut(titleFinal, uriFinal)
+                        } else {
+                            viewModel.addMediaAsset(
+                                LocalMediaAsset(
+                                    title = titleFinal,
+                                    category = selectedCategory,
+                                    uri = uriFinal,
+                                    durationText = durationInput,
+                                    isAiGenerated = false,
+                                    dateAdded = "Baru saja"
+                                )
                             )
-                        )
+                        }
                         showImportDialog = false
                         onShowSnackbar("Aset '${titleFinal}' berhasil diimpor ke pustaka!")
                     },
@@ -1031,6 +1056,7 @@ fun MediaAssetCard(
                         when (asset.category.uppercase()) {
                             "VIDEO" -> StudioElectricBlue.copy(alpha = 0.15f)
                             "AUDIO" -> StudioEmeraldGreen.copy(alpha = 0.15f)
+                            "LUT" -> StudioPrimaryViolet.copy(alpha = 0.15f)
                             else -> StudioRosePink.copy(alpha = 0.15f)
                         }
                     )
@@ -1039,6 +1065,7 @@ fun MediaAssetCard(
                         when (asset.category.uppercase()) {
                             "VIDEO" -> StudioElectricBlue.copy(alpha = 0.3f)
                             "AUDIO" -> StudioEmeraldGreen.copy(alpha = 0.3f)
+                            "LUT" -> StudioPrimaryViolet.copy(alpha = 0.35f)
                             else -> StudioRosePink.copy(alpha = 0.3f)
                         },
                         RoundedCornerShape(12.dp)
@@ -1050,19 +1077,21 @@ fun MediaAssetCard(
                         imageVector = when (asset.category.uppercase()) {
                             "VIDEO" -> Icons.Default.Movie
                             "AUDIO" -> Icons.Default.MusicNote
+                            "LUT" -> Icons.Default.ColorLens
                             else -> Icons.Default.Image
                         },
                         contentDescription = null,
                         tint = when (asset.category.uppercase()) {
                             "VIDEO" -> StudioElectricBlue
                             "AUDIO" -> StudioEmeraldGreen
+                            "LUT" -> StudioPrimaryViolet
                             else -> StudioRosePink
                         },
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = asset.durationText,
+                        text = if (asset.category.uppercase() == "LUT") "3D LUT" else asset.durationText,
                         color = StudioTextDark,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
@@ -1120,42 +1149,38 @@ fun MediaAssetCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Button 1: Quick Add to Timeline
+                    // Button 1: Quick Add to Timeline or Apply LUT
                     Button(
                         onClick = onAddToTimeline,
-                        colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (asset.category.uppercase() == "LUT") StudioPrimaryViolet else StudioDarkCTA
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.height(32.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(12.dp))
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text("Tambah", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(if (asset.category.uppercase() == "LUT") "Terapkan" else "Tambah", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
 
                     // Button 2: Salin (Duplikat Aset)
                     OutlinedButton(
                         onClick = onDuplicateAsset,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.5f)),
                         modifier = Modifier.height(32.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, tint = StudioElectricBlue, modifier = Modifier.size(12.dp))
-                        Spacer(modifier = Modifier.width(3.dp))
                         Text("Salin", fontSize = 11.sp, color = StudioElectricBlue, fontWeight = FontWeight.Bold)
                     }
 
                     // Button 3: Drag & Insert to Timeline (Switches to Editor)
                     OutlinedButton(
                         onClick = onDragAndInsertToTimeline,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, StudioEmeraldGreen.copy(alpha = 0.5f)),
                         modifier = Modifier.height(32.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.DragHandle, contentDescription = null, tint = StudioEmeraldGreen, modifier = Modifier.size(12.dp))
-                        Spacer(modifier = Modifier.width(3.dp))
                         Text("Editor", fontSize = 11.sp, color = StudioEmeraldGreen, fontWeight = FontWeight.Bold)
                     }
 

@@ -319,7 +319,7 @@ class ProjectRepository(
         val fullPrompt = "[$visualStyle Style] $prompt, high quality motion video, smooth camera, 8k resolution"
         try {
             val response = ApiClient.geminiService.generateVideos(
-                model = "studio-video-3.1-preview",
+                model = ApiClient.DEFAULT_OMNI_VIDEO_MODEL,
                 apiKey = apiKey,
                 request = GenerateVideosRequest(
                     prompt = fullPrompt,
@@ -354,7 +354,6 @@ class ProjectRepository(
     ): Result<String> = generateStudioAiVideoClip(prompt, aspectRatio, durationSeconds, visualStyle)
 
     // --- AI Feature 2: High Thinking Mode for Storyboard & Director Mode ---
-    // Uses model gemini-3.1-pro-preview with thinkingLevel = "HIGH"
     suspend fun generateDirectorStoryboardWithThinking(
         concept: String,
         style: String,
@@ -389,7 +388,7 @@ class ProjectRepository(
 
         try {
             val response = ApiClient.geminiService.generateContent(
-                model = "gemini-3.1-pro-preview",
+                model = ApiClient.DEFAULT_OMNI_THINKING_MODEL,
                 apiKey = apiKey,
                 request = request
             )
@@ -415,7 +414,6 @@ class ProjectRepository(
     }
 
     // --- AI Feature 3: Image Analysis (Multimodal) for Image-to-Video ---
-    // Uses model gemini-3.1-pro-preview to analyze image
     suspend fun analyzeImageForVideoPrompt(
         bitmap: Bitmap,
         userInstruction: String = "Buat visual prompt video gerakan berdasarkan gambar ini"
@@ -436,7 +434,7 @@ class ProjectRepository(
 
         try {
             val response = ApiClient.geminiService.generateContent(
-                model = "gemini-3.1-pro-preview",
+                model = ApiClient.DEFAULT_OMNI_MULTIMODAL_MODEL,
                 apiKey = apiKey,
                 request = request
             )
@@ -449,7 +447,6 @@ class ProjectRepository(
     }
 
     // --- AI Feature 4: Audio Transcription ---
-    // Uses model gemini-3.5-flash to transcribe audio prompt or voiceover
     suspend fun transcribeAudio(audioBytes: ByteArray): Result<String> = withContext(Dispatchers.IO) {
         val apiKey = ApiClient.getApiKey()
         val base64Audio = Base64.encodeToString(audioBytes, Base64.NO_WRAP)
@@ -467,7 +464,7 @@ class ProjectRepository(
 
         try {
             val response = ApiClient.geminiService.generateContent(
-                model = "gemini-3.5-flash",
+                model = ApiClient.DEFAULT_OMNI_MULTIMODAL_MODEL,
                 apiKey = apiKey,
                 request = request
             )

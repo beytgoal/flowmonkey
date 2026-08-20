@@ -431,8 +431,6 @@ fun TransitionSelectionSheet(
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal)
                 ) {
-                    Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text("Terapkan", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
