@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.data.models.StoryboardTemplate
 import com.example.data.models.StoryboardTemplatesRepository
+import com.example.ui.theme.*
 
 @Composable
 fun StoryboardTemplateSelectorDialog(
@@ -46,11 +48,12 @@ fun StoryboardTemplateSelectorDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF16161A),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x26FFFFFF)),
+            color = StudioCardWhite,
+            shadowElevation = 8.dp,
+            border = BorderStroke(1.dp, StudioCardHairline),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(6.dp)
                 .testTag("storyboard_template_dialog")
         ) {
             Column(
@@ -64,18 +67,27 @@ fun StoryboardTemplateSelectorDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.ViewCarousel,
-                            contentDescription = null,
-                            tint = Color(0xFF6366F1),
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            color = StudioPastelLavender,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.5.dp, StudioVioletIndigo),
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.ViewCarousel,
+                                    contentDescription = null,
+                                    tint = StudioVioletIndigo,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "Template Storyboard AI",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = StudioTextDark
                         )
                     }
 
@@ -86,7 +98,7 @@ fun StoryboardTemplateSelectorDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color.White.copy(alpha = 0.7f)
+                            tint = StudioTextDark
                         )
                     }
                 }
@@ -94,8 +106,8 @@ fun StoryboardTemplateSelectorDialog(
                 Text(
                     text = "Pilih preset penceritaan multi-genre yang siap disesuaikan dengan kebutuhan Anda",
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                    color = StudioTextMuted,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 12.dp)
                 )
 
                 // Genre Filter Chips
@@ -114,18 +126,18 @@ fun StoryboardTemplateSelectorDialog(
                         Surface(
                             onClick = { selectedGenreFilter = genre },
                             shape = RoundedCornerShape(20.dp),
-                            color = if (isSelected) Color(0xFF6366F1) else Color(0x1AFFFFFF),
-                            border = androidx.compose.foundation.BorderStroke(
+                            color = if (isSelected) StudioVioletIndigo else StudioPillBg,
+                            border = BorderStroke(
                                 1.dp,
-                                if (isSelected) Color(0xFF6366F1) else Color(0x26FFFFFF)
+                                if (isSelected) StudioVioletIndigo else StudioCardHairline
                             ),
                             modifier = Modifier.padding(end = 8.dp)
                         ) {
                             Text(
                                 text = genre,
                                 fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                color = if (isSelected) Color.White else StudioTextDark,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                             )
                         }
@@ -139,8 +151,8 @@ fun StoryboardTemplateSelectorDialog(
                     items(filteredTemplates, key = { it.id }) { template ->
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = Color(0x0DFFFFFF),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x26FFFFFF)),
+                            color = StudioCleanCanvas,
+                            border = BorderStroke(1.dp, StudioCardHairline),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
@@ -153,18 +165,19 @@ fun StoryboardTemplateSelectorDialog(
                                         text = template.name,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = StudioTextDark
                                     )
 
                                     Surface(
-                                        color = Color(0x2E6366F1),
-                                        shape = RoundedCornerShape(12.dp)
+                                        color = StudioPastelLavender,
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, StudioVioletIndigo)
                                     ) {
                                         Text(
                                             text = template.targetPlatform,
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF818CF8),
+                                            color = StudioVioletIndigo,
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                         )
                                     }
@@ -174,7 +187,7 @@ fun StoryboardTemplateSelectorDialog(
                                 Text(
                                     text = template.description,
                                     fontSize = 11.sp,
-                                    color = Color.White.copy(alpha = 0.6f),
+                                    color = StudioTextMuted,
                                     lineHeight = 15.sp
                                 )
 
@@ -185,23 +198,26 @@ fun StoryboardTemplateSelectorDialog(
                                 ) {
                                     Text(
                                         text = "${template.scenes.size} Adegan",
-                                        fontSize = 10.sp,
-                                        color = Color(0xFF10B981)
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = StudioEmeraldGreen
                                     )
                                     Text(
                                         text = template.recommendedAspectRatio,
-                                        fontSize = 10.sp,
-                                        color = Color(0xFFF59E0B)
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = StudioAmberGold
                                     )
                                     Text(
                                         text = template.defaultStyle,
-                                        fontSize = 10.sp,
-                                        color = Color(0xFFEC4899)
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = StudioRosePink
                                     )
                                 }
 
-                                Divider(
-                                    color = Color(0x1AFFFFFF),
+                                HorizontalDivider(
+                                    color = StudioCardHairline,
                                     modifier = Modifier.padding(vertical = 10.dp)
                                 )
 
@@ -210,8 +226,9 @@ fun StoryboardTemplateSelectorDialog(
                                     template.scenes.forEach { sc ->
                                         Text(
                                             text = "• ${sc.title} — ${sc.durationSeconds}s — ${sc.cameraMovement}",
-                                            fontSize = 10.sp,
-                                            color = Color.White.copy(alpha = 0.8f)
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = StudioTextDark
                                         )
                                     }
                                 }
@@ -222,12 +239,15 @@ fun StoryboardTemplateSelectorDialog(
                                         onSelectTemplate(template)
                                         onDismiss()
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = StudioDarkCharcoal,
+                                        contentColor = Color.White
+                                    ),
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag("apply_template_${template.id}")
-                                 ) {
+                                ) {
                                     Text(
                                         text = "GUNAKAN TEMPLATE INI",
                                         fontSize = 12.sp,

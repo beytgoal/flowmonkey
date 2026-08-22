@@ -8,7 +8,7 @@ const defaultDb = {
     {
       id: 1,
       title: "TikTok Viral Trends 2026",
-      description: "Dynamic AI video sequence created with FlowMonkey Studio",
+      description: "Dynamic AI video sequence created with FlowMonkey",
       aspectRatio: "9:16",
       resolution: "1080p FHD",
       createdAt: new Date().toISOString(),

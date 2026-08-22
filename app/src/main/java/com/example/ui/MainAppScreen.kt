@@ -88,7 +88,7 @@ fun MainAppScreen(
                             text = if (currentTab == MainTab.TIMELINE_EDITOR) {
                                 activeProject?.title ?: "Timeline Editor"
                             } else {
-                                "FlowMonkey Studio"
+                                "FlowMonkey"
                             },
                             color = StudioTextDark,
                             fontWeight = FontWeight.ExtraBold,
@@ -149,7 +149,10 @@ fun MainAppScreen(
                             }
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = StudioCardWhite,
+                        titleContentColor = StudioTextDark
+                    )
                 )
             },
             bottomBar = {
@@ -167,13 +170,13 @@ fun MainAppScreen(
                             selected = currentTab == MainTab.STUDIO_GENERATOR,
                             onClick = { viewModel.selectTab(MainTab.STUDIO_GENERATOR) },
                             icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "Generator") },
-                            label = { Text("Generator", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                            label = { Text("Generator", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = StudioElectricBlue,
                                 selectedTextColor = StudioElectricBlue,
                                 unselectedIconColor = StudioTextMuted,
                                 unselectedTextColor = StudioTextMuted,
-                                indicatorColor = StudioElectricBlue.copy(alpha = 0.12f)
+                                indicatorColor = StudioPastelLavender
                             ),
                             modifier = Modifier.testTag("nav_item_generator")
                         )
@@ -182,13 +185,13 @@ fun MainAppScreen(
                             selected = currentTab == MainTab.STORYBOARD,
                             onClick = { viewModel.selectTab(MainTab.STORYBOARD) },
                             icon = { Icon(Icons.Default.MovieFilter, contentDescription = "Storyboard") },
-                            label = { Text("Storyboard", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                            label = { Text("Storyboard", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = StudioElectricBlue,
                                 selectedTextColor = StudioElectricBlue,
                                 unselectedIconColor = StudioTextMuted,
                                 unselectedTextColor = StudioTextMuted,
-                                indicatorColor = StudioElectricBlue.copy(alpha = 0.12f)
+                                indicatorColor = StudioPastelLavender
                             ),
                             modifier = Modifier.testTag("nav_item_storyboard")
                         )
@@ -197,13 +200,13 @@ fun MainAppScreen(
                             selected = currentTab == MainTab.PROJECTS_LIST,
                             onClick = { viewModel.selectTab(MainTab.PROJECTS_LIST) },
                             icon = { Icon(Icons.Default.VideoLibrary, contentDescription = "Proyek") },
-                            label = { Text("Proyek", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                            label = { Text("Proyek", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = StudioElectricBlue,
                                 selectedTextColor = StudioElectricBlue,
                                 unselectedIconColor = StudioTextMuted,
                                 unselectedTextColor = StudioTextMuted,
-                                indicatorColor = StudioElectricBlue.copy(alpha = 0.12f)
+                                indicatorColor = StudioPastelLavender
                             ),
                             modifier = Modifier.testTag("nav_item_projects")
                         )
@@ -212,13 +215,13 @@ fun MainAppScreen(
                             selected = currentTab == MainTab.SETTINGS,
                             onClick = { viewModel.selectTab(MainTab.SETTINGS) },
                             icon = { Icon(Icons.Default.Settings, contentDescription = "Pengaturan") },
-                            label = { Text("Pengaturan", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                            label = { Text("Pengaturan", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = StudioElectricBlue,
                                 selectedTextColor = StudioElectricBlue,
                                 unselectedIconColor = StudioTextMuted,
                                 unselectedTextColor = StudioTextMuted,
-                                indicatorColor = StudioElectricBlue.copy(alpha = 0.12f)
+                                indicatorColor = StudioPastelLavender
                             ),
                             modifier = Modifier.testTag("nav_item_settings")
                         )

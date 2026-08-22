@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -65,7 +66,8 @@ fun SpeedCurveCanvas(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+            .background(StudioCardWhite, RoundedCornerShape(16.dp))
+            .border(1.dp, StudioCardHairline, RoundedCornerShape(16.dp))
             .padding(14.dp)
     ) {
         // Top Info & Speed Indicator Header
@@ -84,7 +86,7 @@ fun SpeedCurveCanvas(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Speed Ramping Kurva Sentuh",
-                    color = Color.White,
+                    color = StudioTextDark,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -96,12 +98,12 @@ fun SpeedCurveCanvas(
             Surface(
                 shape = RoundedCornerShape(8.dp),
                 color = when {
-                    currentSelectedSpeed > 1.5f -> StudioAccentAmber.copy(alpha = 0.25f)
-                    currentSelectedSpeed < 0.8f -> StudioSecondaryTeal.copy(alpha = 0.25f)
-                    else -> StudioPrimaryViolet.copy(alpha = 0.25f)
+                    currentSelectedSpeed > 1.5f -> StudioPastelAmber
+                    currentSelectedSpeed < 0.8f -> StudioPastelMint
+                    else -> StudioPastelLavender
                 },
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
+                border = BorderStroke(
+                    1.5.dp,
                     if (currentSelectedSpeed > 1.5f) StudioAccentAmber else StudioSecondaryTeal
                 )
             ) {
@@ -118,7 +120,7 @@ fun SpeedCurveCanvas(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Titik #${selectedNodeIndex + 1}: ${String.format("%.2f", currentSelectedSpeed)}x",
-                        color = if (currentSelectedSpeed > 1.5f) StudioAccentAmber else Color.White,
+                        color = StudioTextDark,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -484,7 +486,7 @@ fun SpeedCurveCanvas(
                             onCurveChanged("Custom Curve", avg, updated)
                         },
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioAccentPink),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, StudioAccentPink.copy(alpha = 0.6f)),
+                        border = BorderStroke(1.5.dp, StudioAccentPink),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                         modifier = Modifier.height(32.dp)
                     ) {

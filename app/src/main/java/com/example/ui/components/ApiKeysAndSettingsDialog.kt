@@ -76,8 +76,9 @@ fun ApiKeysAndSettingsDialog(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            color = StudioElectricBlue.copy(alpha = 0.12f),
+                            color = StudioPastelLavender,
                             shape = CircleShape,
+                            border = BorderStroke(1.5.dp, StudioElectricBlue),
                             modifier = Modifier.size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -112,7 +113,7 @@ fun ApiKeysAndSettingsDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = StudioTextDark.copy(alpha = 0.7f)
+                            tint = StudioTextDark
                         )
                     }
                 }
@@ -162,9 +163,10 @@ fun ApiKeysAndSettingsDialog(
                                             currentUserEmail = "tamu@flowmonkey.studio"
                                         },
                                         colors = ButtonDefaults.filledTonalButtonColors(
-                                            containerColor = StudioRosePink.copy(alpha = 0.12f),
+                                            containerColor = StudioPastelRose,
                                             contentColor = StudioRosePink
                                         ),
+                                        border = BorderStroke(1.dp, StudioRosePink),
                                         shape = RoundedCornerShape(14.dp),
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                                         modifier = Modifier
@@ -219,8 +221,8 @@ fun ApiKeysAndSettingsDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(StudioGlassWhite, RoundedCornerShape(12.dp))
-                                    .border(1.dp, if (isGAuthLoggedIn) StudioEmeraldGreen.copy(alpha = 0.3f) else StudioCardHairline, RoundedCornerShape(12.dp))
+                                    .background(StudioCardWhite, RoundedCornerShape(12.dp))
+                                    .border(1.5.dp, if (isGAuthLoggedIn) StudioEmeraldGreen else StudioCardHairline, RoundedCornerShape(12.dp))
                                     .padding(10.dp)
                             ) {
                                 Icon(
@@ -285,7 +287,7 @@ fun ApiKeysAndSettingsDialog(
                                 value = geminiKey,
                                 onValueChange = { geminiKey = it },
                                 label = { Text("Google Gemini API Key", fontSize = 11.sp, color = StudioTextMuted) },
-                                placeholder = { Text("AIzaSy...", fontSize = 11.sp, color = StudioTextMuted.copy(alpha = 0.5f)) },
+                                placeholder = { Text("AIzaSy...", fontSize = 11.sp, color = StudioTextSubtle) },
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = StudioElectricBlue,
@@ -308,7 +310,7 @@ fun ApiKeysAndSettingsDialog(
                                 value = openAiKey,
                                 onValueChange = { openAiKey = it },
                                 label = { Text("OpenAI Sora API Key", fontSize = 11.sp, color = StudioTextMuted) },
-                                placeholder = { Text("sk-...", fontSize = 11.sp, color = StudioTextMuted.copy(alpha = 0.5f)) },
+                                placeholder = { Text("sk-...", fontSize = 11.sp, color = StudioTextSubtle) },
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = StudioElectricBlue,
@@ -331,7 +333,7 @@ fun ApiKeysAndSettingsDialog(
                                 value = claudeKey,
                                 onValueChange = { claudeKey = it },
                                 label = { Text("Anthropic Claude API Key", fontSize = 11.sp, color = StudioTextMuted) },
-                                placeholder = { Text("sk-ant-...", fontSize = 11.sp, color = StudioTextMuted.copy(alpha = 0.5f)) },
+                                placeholder = { Text("sk-ant-...", fontSize = 11.sp, color = StudioTextSubtle) },
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = StudioElectricBlue,
@@ -354,7 +356,7 @@ fun ApiKeysAndSettingsDialog(
                                 value = kimiKey,
                                 onValueChange = { kimiKey = it },
                                 label = { Text("Kimi AI API Key", fontSize = 11.sp, color = StudioTextMuted) },
-                                placeholder = { Text("kimi-...", fontSize = 11.sp, color = StudioTextMuted.copy(alpha = 0.5f)) },
+                                placeholder = { Text("kimi-...", fontSize = 11.sp, color = StudioTextSubtle) },
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = StudioElectricBlue,
@@ -378,7 +380,7 @@ fun ApiKeysAndSettingsDialog(
                                     value = runwayKey,
                                     onValueChange = { runwayKey = it },
                                     label = { Text("Runway Gen-3", fontSize = 10.sp, color = StudioTextMuted) },
-                                    placeholder = { Text("rw-...", fontSize = 10.sp, color = StudioTextMuted.copy(alpha = 0.5f)) },
+                                    placeholder = { Text("rw-...", fontSize = 10.sp, color = StudioTextSubtle) },
                                     singleLine = true,
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = StudioElectricBlue,
@@ -396,7 +398,7 @@ fun ApiKeysAndSettingsDialog(
                                     value = lumaKey,
                                     onValueChange = { lumaKey = it },
                                     label = { Text("Luma Dream", fontSize = 10.sp, color = StudioTextMuted) },
-                                    placeholder = { Text("luma-...", fontSize = 10.sp, color = StudioTextMuted.copy(alpha = 0.5f)) },
+                                    placeholder = { Text("luma-...", fontSize = 10.sp, color = StudioTextSubtle) },
                                     singleLine = true,
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = StudioElectricBlue,

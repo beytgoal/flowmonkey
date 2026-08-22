@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -85,9 +86,10 @@ fun VideoFlowView(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, StudioCardBorder, RoundedCornerShape(16.dp))
+            .border(1.dp, StudioCardHairline, RoundedCornerShape(16.dp))
             .testTag("videoflow_canvas"),
-        colors = CardDefaults.cardColors(containerColor = StudioSurfaceDark)
+        colors = CardDefaults.cardColors(containerColor = StudioCardWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
 
@@ -101,7 +103,7 @@ fun VideoFlowView(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Alur Kerja VideoFlow AI",
-                    color = Color.White,
+                    color = StudioTextDark,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -110,7 +112,7 @@ fun VideoFlowView(
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "Peta visual terintegrasi dari konsep AI hingga klip tereksplorasi.",
-                color = StudioTextSecondary,
+                color = StudioTextMuted,
                 fontSize = 12.sp
             )
 
@@ -129,11 +131,12 @@ fun VideoFlowView(
                                 .width(160.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .border(
-                                    1.dp,
-                                    if (node.isCompleted) StudioPrimaryViolet else StudioCardBorder,
+                                    1.5.dp,
+                                    if (node.isCompleted) StudioElectricBlue else StudioCardHairline,
                                     RoundedCornerShape(12.dp)
                                 ),
-                            color = StudioCardBg
+                            color = StudioCleanCanvas,
+                            shadowElevation = 0.5.dp
                         ) {
                             Column(
                                 modifier = Modifier.padding(12.dp),
@@ -145,23 +148,25 @@ fun VideoFlowView(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Surface(
-                                        color = StudioPrimaryViolet.copy(alpha = 0.2f),
+                                        color = StudioPastelLavender,
                                         shape = CircleShape,
+                                        border = BorderStroke(1.dp, StudioElectricBlue),
                                         modifier = Modifier.size(28.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = node.icon,
                                                 contentDescription = node.title,
-                                                tint = StudioSecondaryTeal,
+                                                tint = StudioElectricBlue,
                                                 modifier = Modifier.size(16.dp)
                                             )
                                         }
                                     }
 
                                     Surface(
-                                        color = StudioSecondaryTeal.copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(6.dp)
+                                        color = StudioPastelMint,
+                                        shape = RoundedCornerShape(6.dp),
+                                        border = BorderStroke(1.dp, StudioSecondaryTeal)
                                     ) {
                                         Text(
                                             text = node.statusText,
@@ -177,7 +182,7 @@ fun VideoFlowView(
 
                                 Text(
                                     text = "${node.stepIndex}. ${node.title}",
-                                    color = Color.White,
+                                    color = StudioTextDark,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1
@@ -187,7 +192,7 @@ fun VideoFlowView(
 
                                 Text(
                                     text = node.subtitle,
-                                    color = StudioTextSecondary,
+                                    color = StudioTextMuted,
                                     fontSize = 11.sp,
                                     maxLines = 1
                                 )
@@ -200,7 +205,7 @@ fun VideoFlowView(
                             Icon(
                                 imageVector = Icons.Default.ArrowForward,
                                 contentDescription = "Connector",
-                                tint = StudioPrimaryViolet,
+                                tint = StudioElectricBlue,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))

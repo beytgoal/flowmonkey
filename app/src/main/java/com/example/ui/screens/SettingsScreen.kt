@@ -76,7 +76,7 @@ fun SettingsScreen(
         // Section Header
         Row(verticalAlignment = Alignment.CenterVertically) {
             Surface(
-                color = StudioElectricBlue.copy(alpha = 0.12f),
+                color = StudioPastelSky,
                 shape = CircleShape,
                 modifier = Modifier.size(38.dp)
             ) {
@@ -92,7 +92,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
-                    text = "Pengaturan Studio",
+                    text = "Pengaturan",
                     color = StudioTextDark,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
@@ -131,7 +131,7 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Surface(
-                                    color = StudioElectricBlue.copy(alpha = 0.1f),
+                                    color = StudioPastelSky,
                                     shape = CircleShape,
                                     modifier = Modifier.size(36.dp)
                                 ) {
@@ -171,7 +171,7 @@ fun SettingsScreen(
                                         )
                                     },
                                     colors = ButtonDefaults.filledTonalButtonColors(
-                                        containerColor = StudioRosePink.copy(alpha = 0.12f),
+                                        containerColor = StudioPastelRose,
                                         contentColor = StudioRosePink
                                     ),
                                     shape = RoundedCornerShape(14.dp),
@@ -263,7 +263,7 @@ fun SettingsScreen(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                 Surface(
-                                    color = StudioEmeraldGreen.copy(alpha = 0.12f),
+                                    color = StudioPastelMint,
                                     shape = CircleShape,
                                     modifier = Modifier.size(36.dp)
                                 ) {

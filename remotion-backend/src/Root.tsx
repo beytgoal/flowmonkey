@@ -18,7 +18,7 @@ export const RemotionRoot: React.FC = () => {
         height={1080}
         schema={kineticTypographySchema}
         defaultProps={{
-          title: "FLOWMONKEY STUDIO",
+          title: "FLOWMONKEY",
           subtitle: "PRO CLOUD RENDERING ENGINE",
           themeColor: "#8B5CF6",
           accentColor: "#06B6D4",

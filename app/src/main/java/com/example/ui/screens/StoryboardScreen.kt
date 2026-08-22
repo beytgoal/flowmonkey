@@ -35,6 +35,7 @@ fun StoryboardScreen(
     var conceptInput by remember { mutableStateOf("Peluncuran mobil listrik futuristik di tengah kota neon") }
     var selectedViewMode by remember { mutableStateOf(0) } // 0: Scenes List, 1: VideoFlow Graph
     var showTemplateDialog by remember { mutableStateOf(false) }
+    var sceneToDelete by remember { mutableStateOf<StoryboardSceneEntity?>(null) }
 
     val cameraMovements = listOf("Pan Right", "Zoom In", "Orbit", "Drone Overhead", "Handheld")
 
@@ -61,7 +62,7 @@ fun StoryboardScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            color = StudioElectricBlue.copy(alpha = 0.12f),
+                            color = StudioPastelSky,
                             shape = CircleShape,
                             modifier = Modifier.size(42.dp)
                         ) {
@@ -92,7 +93,7 @@ fun StoryboardScreen(
                     }
 
                     Surface(
-                        color = StudioRosePink.copy(alpha = 0.12f),
+                        color = StudioPastelRose,
                         shape = CircleShape
                     ) {
                         Icon(
@@ -158,7 +159,7 @@ fun StoryboardScreen(
                         modifier = Modifier
                             .height(48.dp)
                             .testTag("open_template_selector_button"),
-                        border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.6f)),
+                        border = BorderStroke(1.dp, StudioElectricBlue),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
                         shape = RoundedCornerShape(24.dp)
                     ) {
@@ -220,7 +221,7 @@ fun StoryboardScreen(
                     scene = scene,
                     cameraMovements = cameraMovements,
                     onUpdateScene = { updated -> viewModel.updateScene(updated) },
-                    onDeleteScene = { toDelete -> viewModel.deleteScene(toDelete) }
+                    onDeleteScene = { toDelete -> sceneToDelete = toDelete }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -241,6 +242,44 @@ fun StoryboardScreen(
                 Text(text = "PENGGABUNGAN OTOMATIS & TRANSISI SMART", fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }
+    }
+
+    // Dialog Konfirmasi Hapus Adegan Storyboard
+    sceneToDelete?.let { scene ->
+        AlertDialog(
+            onDismissRequest = { sceneToDelete = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = null, tint = StudioAccentPink)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Hapus Adegan?", fontWeight = FontWeight.Bold, color = StudioTextDark)
+                }
+            },
+            text = {
+                Text(
+                    "Apakah Anda yakin ingin menghapus adegan ${scene.sceneIndex + 1} ('${scene.title}') dari storyboard?",
+                    color = StudioTextDark,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteScene(scene)
+                        sceneToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StudioAccentPink),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Text("Hapus", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { sceneToDelete = null }) {
+                    Text("Batal")
+                }
+            }
+        )
     }
 
     // Storyboard Template Selector Dialog
@@ -334,7 +373,7 @@ fun StoryboardSceneCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = StudioElectricBlue.copy(alpha = 0.12f),
+                    color = StudioPastelSky,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
@@ -347,7 +386,7 @@ fun StoryboardSceneCard(
                 }
 
                 Surface(
-                    color = StudioEmeraldGreen.copy(alpha = 0.12f),
+                    color = StudioPastelMint,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(

@@ -227,7 +227,7 @@ class FFmpegTrimmedKit private constructor() {
         return """
             #!/bin/bash
             set -e
-            echo "=== Building Trimmed FFmpeg for FlowMonkey Studio Android NDK ==="
+            echo "=== Building Trimmed FFmpeg for FlowMonkey Android NDK ==="
             NDK_PATH=${'$'}{ANDROID_NDK_HOME:-${'$'}ANDROID_SDK_ROOT/ndk/27.0.12077973}
             API_LEVEL=24
             TOOLCHAIN=${'$'}NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64

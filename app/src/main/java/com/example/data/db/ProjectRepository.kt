@@ -41,8 +41,14 @@ class ProjectRepository(
     fun getTracksForProject(projectId: Long): Flow<List<TimelineTrackEntity>> =
         timelineDao.getTracksForProject(projectId)
 
+    suspend fun getTracksListForProject(projectId: Long): List<TimelineTrackEntity> =
+        withContext(Dispatchers.IO) { timelineDao.getTracksListForProject(projectId) }
+
     fun getClipsForProject(projectId: Long): Flow<List<TimelineClipEntity>> =
         timelineDao.getClipsForProject(projectId)
+
+    suspend fun getClipsListForProject(projectId: Long): List<TimelineClipEntity> =
+        withContext(Dispatchers.IO) { timelineDao.getClipsListForProject(projectId) }
 
     suspend fun createNewProject(
         title: String,

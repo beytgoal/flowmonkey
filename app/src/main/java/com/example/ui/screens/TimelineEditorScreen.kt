@@ -20,12 +20,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.db.TimelineClipEntity
+import com.example.media.VideoProcessor
 import com.example.ui.components.TimelineView
 import com.example.ui.components.TransitionSelectionSheet
 import com.example.ui.components.VideoPlayerView
@@ -66,19 +68,29 @@ fun TimelineEditorScreen(
     LaunchedEffect(selectedClip) {
         selectedClip?.let { clip ->
             val track = tracks.find { it.id == clip.trackId }
+            val isPhotoOrSticker = (clip.stickerIcon != "None" && clip.stickerIcon.isNotBlank()) ||
+                    track?.trackType in listOf("STICKER", "PHOTO") ||
+                    clip.mediaUri.endsWith(".jpg", true) || clip.mediaUri.endsWith(".jpeg", true) ||
+                    clip.mediaUri.endsWith(".png", true) || clip.mediaUri.endsWith(".webp", true) ||
+                    clip.mediaUri.contains("photo", true) || clip.mediaUri.contains("image", true)
+
+            val isText = (clip.textContent != null && clip.textContent.isNotBlank()) || track?.trackType == "TEXT"
+            val isAudio = (clip.audioSfx != "None" && clip.audioSfx.isNotBlank()) || track?.trackType == "AUDIO" || clip.isVoiceover
+
             when {
-                clip.stickerIcon != "None" && clip.stickerIcon.isNotBlank() || track?.trackType == "STICKER" || track?.trackType == "OVERLAY" || clip.mediaUri.contains("photo") || clip.mediaUri.contains("image") -> {
-                    timelineScope = com.example.ui.components.TimelineScope.STICKER_SUBTIMELINE
-                }
-                clip.textContent != null || track?.trackType == "TEXT" -> {
-                    timelineScope = com.example.ui.components.TimelineScope.TEXT_SUBTIMELINE
-                }
-                clip.audioSfx != "None" && clip.audioSfx.isNotBlank() || track?.trackType == "AUDIO" || clip.isVoiceover -> {
-                    timelineScope = com.example.ui.components.TimelineScope.AUDIO_SUBTIMELINE
-                }
-                else -> {
-                    timelineScope = com.example.ui.components.TimelineScope.VIDEO_SUBTIMELINE
-                }
+                isText -> timelineScope = com.example.ui.components.TimelineScope.TEXT_SUBTIMELINE
+                isPhotoOrSticker -> timelineScope = com.example.ui.components.TimelineScope.STICKER_SUBTIMELINE
+                isAudio -> timelineScope = com.example.ui.components.TimelineScope.AUDIO_SUBTIMELINE
+                else -> timelineScope = com.example.ui.components.TimelineScope.VIDEO_SUBTIMELINE
+            }
+        }
+    }
+
+    LaunchedEffect(clips) {
+        if (selectedClip != null) {
+            val updated = clips.find { it.id == selectedClip?.id }
+            if (updated != null && updated != selectedClip) {
+                selectedClip = updated
             }
         }
     }
@@ -108,10 +120,12 @@ fun TimelineEditorScreen(
     var showTransitionSheet by remember { mutableStateOf(false) }
     var showRemotionCloudSheet by remember { mutableStateOf(false) }
     var showDynamicAiModelsSheet by remember { mutableStateOf(false) }
+    var showAutoClipSheet by remember { mutableStateOf(false) }
     var transitionClipA by remember { mutableStateOf<TimelineClipEntity?>(null) }
     var transitionClipB by remember { mutableStateOf<TimelineClipEntity?>(null) }
 
     val customLuts by viewModel.customLutList.collectAsState()
+    val mediaAssets by viewModel.localMediaAssets.collectAsState()
 
     // File picker launcher for Custom LUTs
     val lutFilePickerLauncher = rememberLauncherForActivityResult(
@@ -154,6 +168,7 @@ fun TimelineEditorScreen(
     }
 
     val totalDurationMs = (clips.maxOfOrNull { it.endTimeMs } ?: 15000L).coerceAtLeast(5000L)
+    val activeTargetClip = selectedClip ?: clips.find { it.startTimeMs <= currentTimeMs && it.endTimeMs > currentTimeMs } ?: clips.firstOrNull()
 
     // Device Back Navigation Integration
     BackHandler(enabled = true) {
@@ -182,6 +197,7 @@ fun TimelineEditorScreen(
             showProxyDialog -> showProxyDialog = false
             showExportSheet -> showExportSheet = false
             showTransitionSheet -> showTransitionSheet = false
+            showAutoClipSheet -> showAutoClipSheet = false
             timelineScope != com.example.ui.components.TimelineScope.MAIN -> {
                 timelineScope = com.example.ui.components.TimelineScope.MAIN
                 selectedClip = null
@@ -270,7 +286,7 @@ fun TimelineEditorScreen(
                             Icon(
                                 imageVector = Icons.Default.Undo,
                                 contentDescription = "Undo",
-                                tint = if (canUndo) StudioTextDark else StudioTextMuted.copy(alpha = 0.4f),
+                                tint = if (canUndo) StudioTextDark else StudioTextSubtle,
                                 modifier = Modifier.size(17.dp)
                             )
                         }
@@ -283,7 +299,7 @@ fun TimelineEditorScreen(
                             Icon(
                                 imageVector = Icons.Default.Redo,
                                 contentDescription = "Redo",
-                                tint = if (canRedo) StudioTextDark else StudioTextMuted.copy(alpha = 0.4f),
+                                tint = if (canRedo) StudioTextDark else StudioTextSubtle,
                                 modifier = Modifier.size(17.dp)
                             )
                         }
@@ -298,7 +314,7 @@ fun TimelineEditorScreen(
                             Icon(
                                 imageVector = Icons.Default.SkipPrevious,
                                 contentDescription = "Rewind",
-                                tint = if (clips.isNotEmpty()) StudioTextDark else StudioTextMuted.copy(alpha = 0.3f),
+                                tint = if (clips.isNotEmpty()) StudioTextDark else StudioTextSubtle,
                                 modifier = Modifier.size(17.dp)
                             )
                         }
@@ -310,14 +326,14 @@ fun TimelineEditorScreen(
                                 containerColor = StudioElectricBlue,
                                 contentColor = Color.White,
                                 disabledContainerColor = StudioPillBg,
-                                disabledContentColor = StudioTextMuted.copy(alpha = 0.4f)
+                                disabledContentColor = StudioTextSubtle
                             ),
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = "Play/Pause",
-                                tint = if (clips.isNotEmpty()) Color.White else StudioTextMuted.copy(alpha = 0.4f),
+                                tint = if (clips.isNotEmpty()) Color.White else StudioTextSubtle,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -330,7 +346,7 @@ fun TimelineEditorScreen(
                             Icon(
                                 imageVector = Icons.Default.SkipNext,
                                 contentDescription = "Forward / Next",
-                                tint = if (clips.isNotEmpty()) StudioTextDark else StudioTextMuted.copy(alpha = 0.3f),
+                                tint = if (clips.isNotEmpty()) StudioTextDark else StudioTextSubtle,
                                 modifier = Modifier.size(17.dp)
                             )
                         }
@@ -339,8 +355,9 @@ fun TimelineEditorScreen(
                     // Functional Aspect Ratio Changer Button
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = StudioElectricBlue.copy(alpha = 0.12f),
-                        border = BorderStroke(0.8.dp, StudioElectricBlue),
+                        color = StudioCardWhite,
+                        border = BorderStroke(1.2.dp, StudioElectricBlue),
+                        shadowElevation = 0.5.dp,
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .clickable { showRatioSheet = true }
@@ -376,7 +393,7 @@ fun TimelineEditorScreen(
                     thumb = {
                         Surface(
                             shape = CircleShape,
-                            color = if (clips.isNotEmpty()) StudioElectricBlue else StudioTextMuted.copy(alpha = 0.4f),
+                            color = if (clips.isNotEmpty()) StudioElectricBlue else StudioTextSubtle,
                             border = BorderStroke(1.5.dp, Color.White),
                             shadowElevation = 2.dp,
                             modifier = Modifier.size(12.dp)
@@ -386,7 +403,7 @@ fun TimelineEditorScreen(
                         thumbColor = StudioElectricBlue,
                         activeTrackColor = StudioElectricBlue,
                         inactiveTrackColor = StudioCardHairline,
-                        disabledThumbColor = StudioTextMuted.copy(alpha = 0.4f),
+                        disabledThumbColor = StudioTextSubtle,
                         disabledActiveTrackColor = StudioCardHairline,
                         disabledInactiveTrackColor = StudioCardHairline
                     ),
@@ -412,45 +429,8 @@ fun TimelineEditorScreen(
             colors = CardDefaults.cardColors(containerColor = StudioCardWhite)
         ) {
             Column(modifier = Modifier.padding(10.dp)) {
+                val hasVideoClips = clips.any { tracks.find { t -> t.id == it.trackId }?.trackType == "VIDEO" }
                 if (timelineScope == com.example.ui.components.TimelineScope.MAIN && selectedClip == null) {
-                    // --- CLEAN INITIAL TIMELINE UTAMA TOOLBAR ---
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Tune,
-                                contentDescription = null,
-                                tint = StudioElectricBlue,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Tools Timeline Utama",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = StudioTextDark
-                            )
-                        }
-
-                        Surface(
-                            color = StudioElectricBlue.copy(alpha = 0.12f),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text(
-                                text = "7 Aksi Dasar",
-                                color = StudioElectricBlue,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
                     // 7 Foundational Actions on Timeline Utama
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -470,7 +450,6 @@ fun TimelineEditorScreen(
 
                         // 2. Split
                         item {
-                            val hasVideoClips = clips.any { tracks.find { t -> t.id == it.trackId }?.trackType == "VIDEO" }
                             MainToolButton(
                                 icon = Icons.Default.ContentCut,
                                 label = "Split",
@@ -552,6 +531,18 @@ fun TimelineEditorScreen(
                                 testTag = "main_tool_add_sticker"
                             )
                         }
+
+                        // 8. Auto Clip Video Pintar
+                        item {
+                            MainToolButton(
+                                icon = Icons.Default.AutoAwesomeMotion,
+                                label = "Auto Clip Pintar",
+                                color = StudioElectricBlue,
+                                enabled = hasVideoClips,
+                                onClick = { showAutoClipSheet = true },
+                                testTag = "main_tool_auto_clip"
+                            )
+                        }
                     }
                 } else {
                     // --- SUB-TIMELINE ADAPTIVE TOOLBAR WITH COMPACT ICON CONTROLS ---
@@ -569,14 +560,14 @@ fun TimelineEditorScreen(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.4f))
-                                .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+                                .background(StudioPillBg)
+                                .border(1.dp, StudioCardHairline, CircleShape)
                                 .testTag("subtimeline_back_icon_button")
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Kembali ke Timeline Utama",
-                                tint = Color.White,
+                                tint = StudioTextDark,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -610,14 +601,15 @@ fun TimelineEditorScreen(
                                 },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = StudioTextDark
                             )
 
                             if (selectedClip != null) {
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Surface(
-                                    color = timelineScope.themeColor.copy(alpha = 0.25f),
-                                    shape = RoundedCornerShape(4.dp)
+                                    color = StudioPastelLavender,
+                                    shape = RoundedCornerShape(4.dp),
+                                    border = BorderStroke(1.dp, timelineScope.themeColor)
                                 ) {
                                     Text(
                                         text = selectedClip!!.title.take(12),
@@ -652,8 +644,8 @@ fun TimelineEditorScreen(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(StudioSecondaryTeal.copy(alpha = 0.2f))
-                                .border(1.dp, StudioSecondaryTeal, CircleShape)
+                                .background(StudioPastelMint)
+                                .border(1.5.dp, StudioSecondaryTeal, CircleShape)
                                 .testTag("subtimeline_add_overlay_icon_button")
                         ) {
                             Icon(
@@ -678,49 +670,53 @@ fun TimelineEditorScreen(
                         com.example.ui.components.TimelineScope.VIDEO_SUBTIMELINE -> {
                             ScrollableTabRow(
                                 selectedTabIndex = selectedToolCategory.coerceIn(0, 2),
-                                containerColor = Color.Transparent,
-                                contentColor = StudioPrimaryViolet,
-                                edgePadding = 0.dp
+                                containerColor = StudioCanvasSlate,
+                                contentColor = StudioElectricBlue,
+                                edgePadding = 0.dp,
+                                modifier = Modifier.clip(RoundedCornerShape(10.dp))
                             ) {
-                                Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Dasar & Speed", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
-                                Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("Warna & Filter", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
-                                Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("VFX & AI", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Dasar & Speed", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 0) StudioElectricBlue else StudioTextMuted) })
+                                Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("Warna & Filter", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 1) StudioElectricBlue else StudioTextMuted) })
+                                Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("VFX & AI", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 2) StudioElectricBlue else StudioTextMuted) })
                             }
                         }
                         com.example.ui.components.TimelineScope.AUDIO_SUBTIMELINE -> {
                             ScrollableTabRow(
                                 selectedTabIndex = selectedToolCategory.coerceIn(0, 2),
-                                containerColor = Color.Transparent,
-                                contentColor = StudioAccentPink,
-                                edgePadding = 0.dp
+                                containerColor = StudioCanvasSlate,
+                                contentColor = StudioRosePink,
+                                edgePadding = 0.dp,
+                                modifier = Modifier.clip(RoundedCornerShape(10.dp))
                             ) {
-                                Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Mixer & Fade", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
-                                Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("AI Denoise & Pitch", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
-                                Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("Beat & Tempo", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Mixer & Fade", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 0) StudioRosePink else StudioTextMuted) })
+                                Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("AI Denoise & Pitch", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 1) StudioRosePink else StudioTextMuted) })
+                                Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("Beat & Tempo", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 2) StudioRosePink else StudioTextMuted) })
                             }
                         }
                         com.example.ui.components.TimelineScope.TEXT_SUBTIMELINE -> {
                             ScrollableTabRow(
                                 selectedTabIndex = selectedToolCategory.coerceIn(0, 2),
-                                containerColor = Color.Transparent,
+                                containerColor = StudioCanvasSlate,
                                 contentColor = StudioSecondaryTeal,
-                                edgePadding = 0.dp
+                                edgePadding = 0.dp,
+                                modifier = Modifier.clip(RoundedCornerShape(10.dp))
                             ) {
-                                Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Teks & Font", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
-                                Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("Gaya & Warna", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
-                                Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("Animasi Teks", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Teks & Font", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 0) StudioSecondaryTeal else StudioTextMuted) })
+                                Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("Gaya & Warna", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 1) StudioSecondaryTeal else StudioTextMuted) })
+                                Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("Animasi Teks", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 2) StudioSecondaryTeal else StudioTextMuted) })
                             }
                         }
                         com.example.ui.components.TimelineScope.STICKER_SUBTIMELINE -> {
                             ScrollableTabRow(
                                 selectedTabIndex = selectedToolCategory.coerceIn(0, 2),
-                                containerColor = Color.Transparent,
-                                contentColor = Color(0xFFFFB74D),
-                                edgePadding = 0.dp
+                                containerColor = StudioCanvasSlate,
+                                contentColor = StudioAmberGold,
+                                edgePadding = 0.dp,
+                                modifier = Modifier.clip(RoundedCornerShape(10.dp))
                             ) {
-                                Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Stiker & Emoji", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
-                                Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("Overlay Foto", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
-                                Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("Motion & Keyframe", fontWeight = FontWeight.Bold, fontSize = 11.sp) })
+                                Tab(selected = selectedToolCategory == 0, onClick = { selectedToolCategory = 0 }, text = { Text("Stiker & Emoji", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 0) StudioAmberGold else StudioTextMuted) })
+                                Tab(selected = selectedToolCategory == 1, onClick = { selectedToolCategory = 1 }, text = { Text("Overlay Foto", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 1) StudioAmberGold else StudioTextMuted) })
+                                Tab(selected = selectedToolCategory == 2, onClick = { selectedToolCategory = 2 }, text = { Text("Motion & Keyframe", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (selectedToolCategory == 2) StudioAmberGold else StudioTextMuted) })
                             }
                         }
                         else -> {}
@@ -741,9 +737,18 @@ fun TimelineEditorScreen(
                                             ActionToolChip(
                                                 icon = Icons.Default.ContentCut,
                                                 label = "Split Bagi Klip",
-                                                onClick = { selectedClip?.let { viewModel.splitClipAtCurrentTime(it, currentTimeMs) } },
-                                                enabled = selectedClip != null,
+                                                onClick = { activeTargetClip?.let { viewModel.splitClipAtCurrentTime(it, currentTimeMs) } },
+                                                enabled = activeTargetClip != null,
                                                 color = StudioSecondaryTeal
+                                            )
+                                        }
+                                        item {
+                                            ActionToolChip(
+                                                icon = Icons.Default.AutoAwesomeMotion,
+                                                label = "Auto Clip Pintar (Wajah, Suara & Gerak)",
+                                                onClick = { showAutoClipSheet = true },
+                                                enabled = activeTargetClip != null,
+                                                color = StudioElectricBlue
                                             )
                                         }
                                         item {
@@ -766,7 +771,8 @@ fun TimelineEditorScreen(
                                             ActionToolChip(
                                                 icon = Icons.Default.VolumeUp,
                                                 label = "Volume Video",
-                                                onClick = { selectedClip?.let { viewModel.updateClipVolume(it, if (it.volume == 0f) 1f else 0f) } }
+                                                onClick = { activeTargetClip?.let { viewModel.updateClipVolume(it, if (it.volume == 0f) 1f else 0f) } },
+                                                enabled = activeTargetClip != null
                                             )
                                         }
                                         item {
@@ -781,25 +787,26 @@ fun TimelineEditorScreen(
                                             ActionToolChip(
                                                 icon = Icons.Default.ContentCopy,
                                                 label = "Salin (Duplikat)",
-                                                onClick = { selectedClip?.let { viewModel.duplicateClip(it) } },
-                                                enabled = selectedClip != null,
+                                                onClick = { activeTargetClip?.let { viewModel.duplicateClip(it) } },
+                                                enabled = activeTargetClip != null,
                                                 color = StudioElectricBlue
                                             )
                                         }
                                         item {
                                             ActionToolChip(
                                                 icon = Icons.Default.Flip,
-                                                label = if (selectedClip?.isMirrored == true) "Cermin (Aktif)" else "Cermin (Mirror)",
-                                                onClick = { selectedClip?.let { viewModel.mirrorClip(it) } },
-                                                enabled = selectedClip != null,
-                                                color = if (selectedClip?.isMirrored == true) StudioEmeraldGreen else StudioDarkCharcoal
+                                                label = if (activeTargetClip?.isMirrored == true) "Cermin (Aktif)" else "Cermin (Mirror)",
+                                                onClick = { activeTargetClip?.let { viewModel.mirrorClip(it) } },
+                                                enabled = activeTargetClip != null,
+                                                color = if (activeTargetClip?.isMirrored == true) StudioEmeraldGreen else StudioDarkCharcoal
                                             )
                                         }
                                         item {
                                             ActionToolChip(
                                                 icon = Icons.Default.FastRewind,
                                                 label = "Reverse Video",
-                                                onClick = { selectedClip?.let { viewModel.reverseClip(it) } }
+                                                onClick = { activeTargetClip?.let { viewModel.reverseClip(it) } },
+                                                enabled = activeTargetClip != null
                                             )
                                         }
                                         item {
@@ -807,11 +814,12 @@ fun TimelineEditorScreen(
                                                 icon = Icons.Default.Delete,
                                                 label = "Hapus Klip",
                                                 onClick = {
-                                                    selectedClip?.let {
+                                                    activeTargetClip?.let {
                                                         viewModel.deleteClip(it)
                                                         selectedClip = null
                                                     }
                                                 },
+                                                enabled = activeTargetClip != null,
                                                 color = StudioAccentPink
                                             )
                                         }
@@ -1096,7 +1104,7 @@ fun TimelineEditorScreen(
                                                 onClick = {
                                                     selectedClip?.textContent?.let { text ->
                                                         viewModel.generateAiVoiceover(text, "Studio Neutral")
-                                                    } ?: viewModel.generateAiVoiceover("Subjudul video studio otomatis", "Studio Neutral")
+                                                    } ?: viewModel.generateAiVoiceover("Subjudul video otomatis", "Studio Neutral")
                                                 },
                                                 color = StudioAccentPink
                                             )
@@ -1323,6 +1331,9 @@ fun TimelineEditorScreen(
             onClipMoved = { clipId, newStartMs, newTrackId ->
                 viewModel.moveClipPositionAndTrack(clipId, newStartMs, newTrackId)
             },
+            onTrimClip = { clipId, newStartMs, newEndMs ->
+                viewModel.trimClipBoundaries(clipId, newStartMs, newEndMs)
+            },
             onTransitionClicked = { clipA, clipB ->
                 transitionClipA = clipA
                 transitionClipB = clipB
@@ -1360,11 +1371,12 @@ fun TimelineEditorScreen(
     // --- CAPCUT BOTTOM SHEETS (SLIDE-UP FROM BOTTOM TO TOP) ---
 
     // 1. Interactive Speed Curve Bottom Sheet
-    if (showSpeedSheet && selectedClip != null) {
+    if (showSpeedSheet) {
+        val targetClip = selectedClip ?: activeTargetClip
         val speedSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val curves = listOf("Normal", "Hero", "Bullet Time", "Montage", "Fast Out", "Slow In")
-        var selectedCurve by remember { mutableStateOf(selectedClip!!.speedCurve) }
-        var currentSpeedMultiplier by remember { mutableStateOf(selectedClip!!.speedMultiplier) }
+        var selectedCurve by remember(targetClip) { mutableStateOf(targetClip?.speedCurve ?: "Normal") }
+        var currentSpeedMultiplier by remember(targetClip) { mutableStateOf(targetClip?.speedMultiplier ?: 1.0f) }
 
         ModalBottomSheet(
             onDismissRequest = { showSpeedSheet = false },
@@ -1395,32 +1407,36 @@ fun TimelineEditorScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Interactive Custom Curve Canvas View
-                com.example.ui.components.SpeedCurveCanvas(
-                    curvePreset = selectedCurve,
-                    durationMs = selectedClip!!.durationMs,
-                    onCurveChanged = { curveName, avgSpeed, _ ->
-                        currentSpeedMultiplier = avgSpeed
-                        viewModel.updateClipSpeed(selectedClip!!, avgSpeed, curveName)
+                if (targetClip != null) {
+                    // Interactive Custom Curve Canvas View
+                    com.example.ui.components.SpeedCurveCanvas(
+                        curvePreset = selectedCurve,
+                        durationMs = targetClip.durationMs,
+                        onCurveChanged = { curveName, avgSpeed, _ ->
+                            currentSpeedMultiplier = avgSpeed
+                            viewModel.updateClipSpeed(targetClip, avgSpeed, curveName)
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text("Pilih Preset Kurva Kecepatan:", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(curves) { curve ->
+                            FilterChip(
+                                selected = selectedCurve == curve,
+                                onClick = {
+                                    selectedCurve = curve
+                                    viewModel.updateClipSpeed(targetClip, currentSpeedMultiplier, curve)
+                                },
+                                label = { Text(curve, fontWeight = FontWeight.Bold) }
+                            )
+                        }
                     }
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Text("Pilih Preset Kurva Kecepatan:", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(6.dp))
-
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(curves) { curve ->
-                        FilterChip(
-                            selected = selectedCurve == curve,
-                            onClick = {
-                                selectedCurve = curve
-                                viewModel.updateClipSpeed(selectedClip!!, currentSpeedMultiplier, curve)
-                            },
-                            label = { Text(curve, fontWeight = FontWeight.Bold) }
-                        )
-                    }
+                } else {
+                    Text("Tambahkan klip ke timeline untuk mengatur kecepatan.", color = Color.LightGray)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1437,14 +1453,15 @@ fun TimelineEditorScreen(
     }
 
     // 2. Animation Bottom Sheet
-    if (showAnimationSheet && selectedClip != null) {
+    if (showAnimationSheet) {
+        val targetClip = selectedClip ?: activeTargetClip
         val animsIn = listOf("None", "Kedip / Flash In", "Kedip Cepat Blink", "Kedip Disko Strobe", "Fade In", "Slide Right", "Zoom In", "Bounce In", "Rotate Entrance")
         val animsOut = listOf("None", "Kedip / Flash Out", "Kedip Cepat Blink", "Fade Out", "Slide Left", "Zoom Out", "Dissolve Out", "Glitch Exit")
         val animsCombo = listOf("None", "Kedip Kedip Strobe", "Flash Kedip Pulse", "Kedip Invert Blink", "Spin & Zoom", "Glitch Bounce", "3D Flip", "Elastic Pop")
 
-        var currentIn by remember { mutableStateOf(selectedClip!!.animationIn) }
-        var currentOut by remember { mutableStateOf(selectedClip!!.animationOut) }
-        var currentCombo by remember { mutableStateOf(selectedClip!!.animationCombo) }
+        var currentIn by remember(targetClip) { mutableStateOf(targetClip?.animationIn ?: "None") }
+        var currentOut by remember(targetClip) { mutableStateOf(targetClip?.animationOut ?: "None") }
+        var currentCombo by remember(targetClip) { mutableStateOf(targetClip?.animationCombo ?: "None") }
 
         ModalBottomSheet(
             onDismissRequest = { showAnimationSheet = false },
@@ -1460,48 +1477,52 @@ fun TimelineEditorScreen(
                 Text("Animasi Studio In Out dan Combo", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = StudioTextPrimary)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text("Animasi Masuk In:", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(animsIn) { anim ->
-                        FilterChip(
-                            selected = currentIn == anim,
-                            onClick = {
-                                currentIn = anim
-                                viewModel.updateClipAnimation(selectedClip!!, currentIn, currentOut, currentCombo)
-                            },
-                            label = { Text(anim) }
-                        )
+                if (targetClip != null) {
+                    Text("Animasi Masuk In:", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(animsIn) { anim ->
+                            FilterChip(
+                                selected = currentIn == anim,
+                                onClick = {
+                                    currentIn = anim
+                                    viewModel.updateClipAnimation(targetClip, currentIn, currentOut, currentCombo)
+                                },
+                                label = { Text(anim) }
+                            )
+                        }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("Animasi Keluar Out:", color = StudioAccentPink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(animsOut) { anim ->
-                        FilterChip(
-                            selected = currentOut == anim,
-                            onClick = {
-                                currentOut = anim
-                                viewModel.updateClipAnimation(selectedClip!!, currentIn, currentOut, currentCombo)
-                            },
-                            label = { Text(anim) }
-                        )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Animasi Keluar Out:", color = StudioAccentPink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(animsOut) { anim ->
+                            FilterChip(
+                                selected = currentOut == anim,
+                                onClick = {
+                                    currentOut = anim
+                                    viewModel.updateClipAnimation(targetClip, currentIn, currentOut, currentCombo)
+                                },
+                                label = { Text(anim) }
+                            )
+                        }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("Animasi Combo:", color = StudioAccentAmber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(animsCombo) { anim ->
-                        FilterChip(
-                            selected = currentCombo == anim,
-                            onClick = {
-                                currentCombo = anim
-                                viewModel.updateClipAnimation(selectedClip!!, currentIn, currentOut, currentCombo)
-                            },
-                            label = { Text(anim) }
-                        )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Animasi Combo:", color = StudioAccentAmber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(animsCombo) { anim ->
+                            FilterChip(
+                                selected = currentCombo == anim,
+                                onClick = {
+                                    currentCombo = anim
+                                    viewModel.updateClipAnimation(targetClip, currentIn, currentOut, currentCombo)
+                                },
+                                label = { Text(anim) }
+                            )
+                        }
                     }
+                } else {
+                    Text("Tambahkan klip ke timeline untuk menerapkan animasi.", color = StudioTextSecondary)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1513,7 +1534,8 @@ fun TimelineEditorScreen(
     }
 
     // 3. Crop & Canvas Bottom Sheet
-    if (showCropRotateSheet && selectedClip != null) {
+    if (showCropRotateSheet) {
+        val targetClip = selectedClip ?: activeTargetClip
         val crops = listOf("16:9", "9:16", "1:1", "4:5", "3:4", "21:9", "Free")
         ModalBottomSheet(
             onDismissRequest = { showCropRotateSheet = false },
@@ -1529,41 +1551,45 @@ fun TimelineEditorScreen(
                 Text("Crop, Canvas & Rotation Studio", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text("Rasio Aspect Canvas:", color = StudioTextSecondary, fontSize = 12.sp)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(crops) { crop ->
-                        FilterChip(
-                            selected = selectedClip!!.cropRatio == crop,
-                            onClick = {
-                                viewModel.updateClipCropAndRotate(selectedClip!!, crop, 0)
-                            },
-                            label = { Text(crop) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Button(
-                        onClick = { viewModel.updateClipCropAndRotate(selectedClip!!, selectedClip!!.cropRatio, 90) },
-                        colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet)
-                    ) {
-                        Icon(imageVector = Icons.Default.RotateRight, contentDescription = "Rotate")
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Rotasi +90°")
+                if (targetClip != null) {
+                    Text("Rasio Aspect Canvas:", color = StudioTextSecondary, fontSize = 12.sp)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(crops) { crop ->
+                            FilterChip(
+                                selected = targetClip.cropRatio == crop,
+                                onClick = {
+                                    viewModel.updateClipCropAndRotate(targetClip, crop, 0)
+                                },
+                                label = { Text(crop) }
+                            )
+                        }
                     }
 
-                    Button(
-                        onClick = { viewModel.mirrorClip(selectedClip!!) },
-                        colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Icon(imageVector = Icons.Default.Flip, contentDescription = "Flip")
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Mirror Horizontal")
+                        Button(
+                            onClick = { viewModel.updateClipCropAndRotate(targetClip, targetClip.cropRatio, 90) },
+                            colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet)
+                        ) {
+                            Icon(imageVector = Icons.Default.RotateRight, contentDescription = "Rotate")
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Rotasi +90°")
+                        }
+
+                        Button(
+                            onClick = { viewModel.mirrorClip(targetClip) },
+                            colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal)
+                        ) {
+                            Icon(imageVector = Icons.Default.Flip, contentDescription = "Flip")
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Mirror Horizontal")
+                        }
                     }
+                } else {
+                    Text("Tambahkan klip ke timeline untuk mengatur crop & rotasi.", color = Color.LightGray)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1575,11 +1601,12 @@ fun TimelineEditorScreen(
     }
 
     // 4. Keyframe Bottom Sheet (Adjustable Keyframe Position/Scale/Rotation Engine)
-    if (showKeyframeSheet && selectedClip != null) {
+    if (showKeyframeSheet) {
+        val targetClip = selectedClip ?: activeTargetClip
         var posX by remember { mutableStateOf(0f) }
         var posY by remember { mutableStateOf(0f) }
         var scale by remember { mutableStateOf(1.0f) }
-        var rotation by remember { mutableStateOf(selectedClip!!.rotationDegrees.toFloat()) }
+        var rotation by remember(targetClip) { mutableStateOf(targetClip?.rotationDegrees?.toFloat() ?: 0f) }
         var opacity by remember { mutableStateOf(1.0f) }
         var easeCurve by remember { mutableStateOf("Ease In Out") }
 
@@ -1606,72 +1633,77 @@ fun TimelineEditorScreen(
                     }
                     Surface(
                         shape = CircleShape,
-                        color = StudioAccentAmber.copy(alpha = 0.2f),
-                        border = BorderStroke(1.dp, StudioAccentAmber)
+                        color = StudioPastelAmber,
+                        border = BorderStroke(1.5.dp, StudioAccentAmber)
                     ) {
-                        Text("Timestamp: ${currentTimeMs}ms", color = StudioAccentAmber, fontSize = 10.sp, modifier = Modifier.padding(6.dp))
+                        Text("Timestamp: ${currentTimeMs}ms", color = StudioTextDark, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(6.dp))
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text("Position X Offset: ${posX.toInt()}px", fontSize = 12.sp, color = Color.White)
-                Slider(value = posX, onValueChange = { posX = it }, valueRange = -500f..500f)
+                if (targetClip != null) {
+                    Text("Position X Offset: ${posX.toInt()}px", fontSize = 12.sp, color = Color.White)
+                    Slider(value = posX, onValueChange = { posX = it }, valueRange = -500f..500f)
 
-                Text("Position Y Offset: ${posY.toInt()}px", fontSize = 12.sp, color = Color.White)
-                Slider(value = posY, onValueChange = { posY = it }, valueRange = -500f..500f)
+                    Text("Position Y Offset: ${posY.toInt()}px", fontSize = 12.sp, color = Color.White)
+                    Slider(value = posY, onValueChange = { posY = it }, valueRange = -500f..500f)
 
-                Text("Scale Zoom: ${String.format("%.2f", scale)}x", fontSize = 12.sp, color = StudioSecondaryTeal)
-                Slider(value = scale, onValueChange = { scale = it }, valueRange = 0.2f..3.0f)
+                    Text("Scale Zoom: ${String.format("%.2f", scale)}x", fontSize = 12.sp, color = StudioSecondaryTeal)
+                    Slider(value = scale, onValueChange = { scale = it }, valueRange = 0.2f..3.0f)
 
-                Text("Rotation Angle: ${rotation.toInt()}°", fontSize = 12.sp, color = StudioPrimaryViolet)
-                Slider(value = rotation, onValueChange = { rotation = it }, valueRange = 0f..360f)
+                    Text("Rotation Angle: ${rotation.toInt()}°", fontSize = 12.sp, color = StudioPrimaryViolet)
+                    Slider(value = rotation, onValueChange = { rotation = it }, valueRange = 0f..360f)
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            viewModel.updateClipKeyframeTransform(
-                                clip = selectedClip!!,
-                                posX = posX,
-                                posY = posY,
-                                scale = scale,
-                                rotation = rotation,
-                                opacity = opacity,
-                                ease = easeCurve
-                            )
-                            showKeyframeSheet = false
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = StudioAccentAmber)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Simpan Keyframe", fontWeight = FontWeight.Bold)
-                    }
-
-                    if (selectedClip!!.hasKeyframe) {
-                        OutlinedButton(
+                        Button(
                             onClick = {
-                                viewModel.addOrRemoveKeyframe(selectedClip!!, "")
+                                viewModel.updateClipKeyframeTransform(
+                                    clip = targetClip,
+                                    posX = posX,
+                                    posY = posY,
+                                    scale = scale,
+                                    rotation = rotation,
+                                    opacity = opacity,
+                                    ease = easeCurve
+                                )
                                 showKeyframeSheet = false
                             },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioAccentPink)
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = StudioAccentAmber)
                         ) {
-                            Text("Hapus Keyframe")
+                            Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Simpan Keyframe", fontWeight = FontWeight.Bold)
+                        }
+
+                        if (targetClip.hasKeyframe) {
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.addOrRemoveKeyframe(targetClip, "")
+                                    showKeyframeSheet = false
+                                },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioAccentPink)
+                            ) {
+                                Text("Hapus Keyframe")
+                            }
                         }
                     }
+                } else {
+                    Text("Tambahkan klip ke timeline untuk mengatur keyframe animasi.", color = Color.LightGray)
                 }
             }
         }
     }
 
     // 5. Video & Body Effects Bottom Sheet
-    if (showEffectsSheet && selectedClip != null) {
+    if (showEffectsSheet) {
+        val targetClip = selectedClip ?: activeTargetClip
         val videoEffects = listOf("None", "Pembalik Warna Invert FX", "Kedip Strobe Flash", "Retro VHS", "Cyber Glitch", "Light Leak", "Film Grain", "Neon Edge")
         val bodyEffects = listOf("None", "Aura Glow", "Cyber Eyes", "Lightning Wings", "Halo Ring")
 
@@ -1689,27 +1721,31 @@ fun TimelineEditorScreen(
                 Text("Efek Video & AI Body Effects", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text("Efek Video Visual:", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(videoEffects) { fx ->
-                        FilterChip(
-                            selected = selectedClip!!.effectName == fx,
-                            onClick = { viewModel.updateClipEffects(selectedClip!!, fx, selectedClip!!.bodyEffectName) },
-                            label = { Text(fx) }
-                        )
+                if (targetClip != null) {
+                    Text("Efek Video Visual:", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(videoEffects) { fx ->
+                            FilterChip(
+                                selected = targetClip.effectName == fx,
+                                onClick = { viewModel.updateClipEffects(targetClip, fx, targetClip.bodyEffectName) },
+                                label = { Text(fx) }
+                            )
+                        }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(14.dp))
-                Text("Efek Tubuh / Body FX AI:", color = StudioAccentAmber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(bodyEffects) { bfx ->
-                        FilterChip(
-                            selected = selectedClip!!.bodyEffectName == bfx,
-                            onClick = { viewModel.updateClipEffects(selectedClip!!, selectedClip!!.effectName, bfx) },
-                            label = { Text(bfx) }
-                        )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text("Efek Tubuh / Body FX AI:", color = StudioAccentAmber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(bodyEffects) { bfx ->
+                            FilterChip(
+                                selected = targetClip.bodyEffectName == bfx,
+                                onClick = { viewModel.updateClipEffects(targetClip, targetClip.effectName, bfx) },
+                                label = { Text(bfx) }
+                            )
+                        }
                     }
+                } else {
+                    Text("Tambahkan klip ke timeline untuk menambahkan efek visual.", color = Color.LightGray)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1720,8 +1756,11 @@ fun TimelineEditorScreen(
         }
     }
 
-    // 0. Tambah Klip Bottom Sheet (Support Gallery, AI Generator & Stock Samples)
+    // 0. Tambah Klip Bottom Sheet (Support Placeholder Sample Videos, Device Gallery, AI Generator & Stock Samples)
     if (showAddClipSheet) {
+        val sampleSpecs = com.example.media.RealMediaManager.SAMPLE_VIDEOS
+        var aiPromptInput by remember { mutableStateOf("") }
+
         ModalBottomSheet(
             onDismissRequest = { showAddClipSheet = false },
             containerColor = StudioSurfaceDark,
@@ -1730,7 +1769,8 @@ fun TimelineEditorScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .verticalScroll(rememberScrollState())
                     .navigationBarsPadding()
             ) {
                 Row(
@@ -1739,54 +1779,250 @@ fun TimelineEditorScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.VideoCall, contentDescription = null, tint = StudioPrimaryViolet)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Tambah Klip ke Timeline", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                        Surface(
+                            shape = CircleShape,
+                            color = StudioPastelLavender,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(imageVector = Icons.Default.VideoCall, contentDescription = null, tint = StudioPrimaryViolet, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text("Tambah Klip ke Timeline", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = StudioTextDark)
+                            Text("Pilih video placeholder sampel atau galeri perangkat", fontSize = 12.sp, color = StudioTextMuted)
+                        }
                     }
                     IconButton(onClick = { showAddClipSheet = false }) {
                         Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Option 1: Dari Galeri HP
+                // SECTION 1: Placeholder Sample Videos for Immediate Testing
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showAddClipSheet = false
-                            mediaPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
-                            )
-                        }
-                        .border(1.dp, StudioPrimaryViolet, RoundedCornerShape(12.dp)),
-                    colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = StudioCardWhite),
+                    border = BorderStroke(1.5.dp, StudioElectricBlue),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = StudioPrimaryViolet.copy(alpha = 0.2f),
-                            modifier = Modifier.size(44.dp)
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null, tint = StudioPrimaryViolet)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(imageVector = Icons.Default.PlayCircle, contentDescription = null, tint = StudioElectricBlue, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Video Placeholder Uji Playback", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = StudioElectricBlue)
+                            }
+
+                            Button(
+                                onClick = {
+                                    showAddClipSheet = false
+                                    viewModel.addAllPlaceholderSampleVideos()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = StudioElectricBlue),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(20.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("+ Semua 5 Sampel", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text("Dari Galeri Device / HP", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
-                            Text("Pilih video atau foto lokal dari penyimpanan HP", color = StudioTextSecondary, fontSize = 12.sp)
+
+                        Text(
+                            "Video HD 1080p siap pakai dengan animasi & timer untuk menguji playback, split, speed curve, filter, dan transisi:",
+                            fontSize = 11.sp,
+                            color = StudioTextMuted,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+                        )
+
+                        sampleSpecs.forEach { spec ->
+                            val startHexColor = Color(spec.startColor)
+                            val endHexColor = Color(spec.endColor)
+
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        showAddClipSheet = false
+                                        viewModel.addPlaceholderSampleVideo(spec)
+                                    },
+                                color = StudioDarkCharcoal,
+                                border = BorderStroke(1.dp, StudioCardHairline)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Gradient color thumbnail preview
+                                    Box(
+                                        modifier = Modifier
+                                            .size(54.dp, 40.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Brush.horizontalGradient(listOf(startHexColor, endHexColor))),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Movie,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.9f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            "${spec.durationSeconds}s",
+                                            color = Color.White,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(2.dp)
+                                                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(3.dp))
+                                                .padding(horizontal = 3.dp, vertical = 1.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                spec.title,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = Color.White
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Surface(
+                                                color = StudioPastelLavender,
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    spec.tag,
+                                                    color = StudioPrimaryViolet,
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            spec.description,
+                                            fontSize = 11.sp,
+                                            color = StudioPastelSky,
+                                            maxLines = 1
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    FilledTonalButton(
+                                        onClick = {
+                                            showAddClipSheet = false
+                                            viewModel.addPlaceholderSampleVideo(spec)
+                                        },
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = StudioElectricBlue.copy(alpha = 0.2f),
+                                            contentColor = StudioElectricBlue
+                                        ),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text("+ Tambah", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Option 2: AI Video Generator
+                // SECTION 2: Import from Local Device Gallery
+                Text("Pilih Media Lokal dari HP:", color = StudioTextDark, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Option Video HP
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                showAddClipSheet = false
+                                mediaPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                                )
+                            }
+                            .border(1.dp, StudioPrimaryViolet, RoundedCornerShape(12.dp)),
+                        colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = StudioPastelLavender,
+                                border = BorderStroke(1.dp, StudioPrimaryViolet),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(imageVector = Icons.Default.Movie, contentDescription = null, tint = StudioPrimaryViolet)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Galeri Video HP", fontWeight = FontWeight.Bold, color = StudioTextDark, fontSize = 13.sp)
+                            Text("MP4, MOV, MKV", color = StudioTextMuted, fontSize = 11.sp)
+                        }
+                    }
+
+                    // Option Foto HP
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                showAddClipSheet = false
+                                mediaPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
+                            .border(1.dp, StudioSecondaryTeal, RoundedCornerShape(12.dp)),
+                        colors = CardDefaults.cardColors(containerColor = StudioCardBg)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = StudioPastelMint,
+                                border = BorderStroke(1.dp, StudioSecondaryTeal),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(imageVector = Icons.Default.Image, contentDescription = null, tint = StudioSecondaryTeal)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Galeri Foto HP", fontWeight = FontWeight.Bold, color = StudioTextDark, fontSize = 13.sp)
+                            Text("JPG, PNG, WebP", color = StudioTextMuted, fontSize = 11.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // SECTION 3: AI Video Generator Tab shortcut
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1794,55 +2030,52 @@ fun TimelineEditorScreen(
                             showAddClipSheet = false
                             viewModel.selectTab(MainTab.STUDIO_GENERATOR)
                         }
-                        .border(1.dp, StudioSecondaryTeal, RoundedCornerShape(12.dp)),
+                        .border(1.dp, StudioAccentAmber, RoundedCornerShape(12.dp)),
                     colors = CardDefaults.cardColors(containerColor = StudioCardBg)
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = StudioSecondaryTeal.copy(alpha = 0.2f),
-                            modifier = Modifier.size(44.dp)
+                            color = StudioPastelAmber,
+                            border = BorderStroke(1.dp, StudioAccentAmber),
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = StudioSecondaryTeal)
+                                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = StudioAccentAmber)
                             }
                         }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text("AI Video Generator Studio", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
-                            Text("Buat klip video AI otomatis menggunakan text-to-video / image", color = StudioTextSecondary, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("AI Video Generator Studio", fontWeight = FontWeight.Bold, color = StudioTextDark, fontSize = 14.sp)
+                            Text("Buat video sinematik dengan AI Text-to-Video & Image-to-Video", color = StudioTextMuted, fontSize = 11.sp)
                         }
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = StudioAccentAmber)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-                Text("Pilih Klip Sampel Studio Instant:", color = StudioAccentAmber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
+                // SECTION 4: Media Assets In Project
+                if (mediaAssets.any { it.category == "VIDEO" || it.category == "IMAGE" }) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text("Dari Pustaka Media Proyek:", color = StudioAccentAmber, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                val sampleClips = listOf(
-                    Pair("Cyberpunk Night City", "studio_sample_cyberpunk_night"),
-                    Pair("Futuristic Drone Sunset", "studio_sample_drone_sunset"),
-                    Pair("Anime Sky & Clouds", "studio_sample_anime_sky"),
-                    Pair("Ocean Waves Sunset", "studio_sample_ocean_sunset"),
-                    Pair("Matrix Particle Glow", "studio_sample_matrix_particle")
-                )
-
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(sampleClips) { (title, uri) ->
-                        OutlinedButton(
-                            onClick = {
-                                viewModel.addMediaFromGallery(uri, title)
-                                showAddClipSheet = false
-                            },
-                            border = BorderStroke(1.dp, StudioAccentAmber.copy(alpha = 0.6f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                        ) {
-                            Icon(imageVector = Icons.Default.Movie, contentDescription = null, modifier = Modifier.size(16.dp), tint = StudioAccentAmber)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(title, fontSize = 12.sp)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(mediaAssets.filter { it.category == "VIDEO" || it.category == "IMAGE" }) { asset ->
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.addVideoClip(asset.uri, asset.title, asset.durationMs)
+                                    showAddClipSheet = false
+                                },
+                                border = BorderStroke(1.5.dp, StudioAccentAmber),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioTextDark)
+                            ) {
+                                Icon(imageVector = if (asset.category == "VIDEO") Icons.Default.Movie else Icons.Default.Image, contentDescription = null, modifier = Modifier.size(16.dp), tint = StudioAccentAmber)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(asset.title, fontSize = 12.sp)
+                            }
                         }
                     }
                 }
@@ -2180,12 +2413,13 @@ fun TimelineEditorScreen(
     }
 
     // 7. Color Adjust & Grading Bottom Sheet
-    if (showAdjustSheet && selectedClip != null) {
-        var brightness by remember { mutableStateOf(selectedClip!!.brightness) }
-        var contrast by remember { mutableStateOf(selectedClip!!.contrast) }
-        var saturation by remember { mutableStateOf(selectedClip!!.saturation) }
-        var temperature by remember { mutableStateOf(selectedClip!!.temperature) }
-        var vignette by remember { mutableStateOf(selectedClip!!.vignette) }
+    if (showAdjustSheet) {
+        val targetClip = selectedClip ?: activeTargetClip
+        var brightness by remember(targetClip) { mutableStateOf(targetClip?.brightness ?: 0f) }
+        var contrast by remember(targetClip) { mutableStateOf(targetClip?.contrast ?: 1f) }
+        var saturation by remember(targetClip) { mutableStateOf(targetClip?.saturation ?: 1f) }
+        var temperature by remember(targetClip) { mutableStateOf(targetClip?.temperature ?: 0f) }
+        var vignette by remember(targetClip) { mutableStateOf(targetClip?.vignette ?: 0f) }
 
         ModalBottomSheet(
             onDismissRequest = { showAdjustSheet = false },
@@ -2202,17 +2436,21 @@ fun TimelineEditorScreen(
                 Text("Color Grading Studio", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text("Brightness: ${(brightness * 100).toInt()}%", fontSize = 12.sp, color = Color.White)
-                Slider(value = brightness, onValueChange = { brightness = it; viewModel.updateClipAdjustments(selectedClip!!, brightness, contrast, saturation, temperature, vignette) }, valueRange = -0.5f..0.5f)
+                if (targetClip != null) {
+                    Text("Brightness: ${(brightness * 100).toInt()}%", fontSize = 12.sp, color = Color.White)
+                    Slider(value = brightness, onValueChange = { brightness = it; viewModel.updateClipAdjustments(targetClip, brightness, contrast, saturation, temperature, vignette) }, valueRange = -0.5f..0.5f)
 
-                Text("Contrast: ${(contrast * 100).toInt()}%", fontSize = 12.sp, color = Color.White)
-                Slider(value = contrast, onValueChange = { contrast = it; viewModel.updateClipAdjustments(selectedClip!!, brightness, contrast, saturation, temperature, vignette) }, valueRange = 0.5f..1.5f)
+                    Text("Contrast: ${(contrast * 100).toInt()}%", fontSize = 12.sp, color = Color.White)
+                    Slider(value = contrast, onValueChange = { contrast = it; viewModel.updateClipAdjustments(targetClip, brightness, contrast, saturation, temperature, vignette) }, valueRange = 0.5f..1.5f)
 
-                Text("Saturation: ${(saturation * 100).toInt()}%", fontSize = 12.sp, color = Color.White)
-                Slider(value = saturation, onValueChange = { saturation = it; viewModel.updateClipAdjustments(selectedClip!!, brightness, contrast, saturation, temperature, vignette) }, valueRange = 0.0f..2.0f)
+                    Text("Saturation: ${(saturation * 100).toInt()}%", fontSize = 12.sp, color = Color.White)
+                    Slider(value = saturation, onValueChange = { saturation = it; viewModel.updateClipAdjustments(targetClip, brightness, contrast, saturation, temperature, vignette) }, valueRange = 0.0f..2.0f)
 
-                Text("Vignette: ${(vignette * 100).toInt()}%", fontSize = 12.sp, color = StudioSecondaryTeal)
-                Slider(value = vignette, onValueChange = { vignette = it; viewModel.updateClipAdjustments(selectedClip!!, brightness, contrast, saturation, temperature, vignette) }, valueRange = 0.0f..1.0f)
+                    Text("Vignette: ${(vignette * 100).toInt()}%", fontSize = 12.sp, color = StudioSecondaryTeal)
+                    Slider(value = vignette, onValueChange = { vignette = it; viewModel.updateClipAdjustments(targetClip, brightness, contrast, saturation, temperature, vignette) }, valueRange = 0.0f..1.0f)
+                } else {
+                    Text("Tambahkan klip ke timeline untuk mengatur warna & grading.", color = Color.LightGray)
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(onClick = { showAdjustSheet = false }, modifier = Modifier.fillMaxWidth()) {
@@ -2223,7 +2461,8 @@ fun TimelineEditorScreen(
     }
 
     // 8. Cutout Bottom Sheet
-    if (showCutoutSheet && selectedClip != null) {
+    if (showCutoutSheet) {
+        val targetClip = selectedClip ?: activeTargetClip
         val cutoutModes = listOf("None", "Auto AI Cutout Hapus BG", "Chroma Key Layar Hijau", "Smart Portrait Segmentation")
         ModalBottomSheet(
             onDismissRequest = { showCutoutSheet = false },
@@ -2239,21 +2478,25 @@ fun TimelineEditorScreen(
                 Text("Cutout & Smart Remove Background", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                cutoutModes.forEach { mode ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                viewModel.updateClipCutout(selectedClip!!, mode)
-                                showCutoutSheet = false
-                            }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = selectedClip!!.cutoutMode == mode, onClick = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(mode, color = Color.White, fontWeight = FontWeight.SemiBold)
+                if (targetClip != null) {
+                    cutoutModes.forEach { mode ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.updateClipCutout(targetClip, mode)
+                                    showCutoutSheet = false
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = targetClip.cutoutMode == mode, onClick = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(mode, color = Color.White, fontWeight = FontWeight.SemiBold)
+                        }
                     }
+                } else {
+                    Text("Tambahkan klip ke timeline untuk menerapkan cutout.", color = Color.LightGray)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -2266,12 +2509,13 @@ fun TimelineEditorScreen(
 
     // 9. Audio Studio Bottom Sheet (FFmpeg + GStreamer Native Engines)
     if (showAudioStudioSheet) {
+        val targetAudioClip = selectedClip ?: clips.find { tracks.find { t -> t.id == it.trackId }?.trackType == "AUDIO" } ?: clips.firstOrNull()
         val sfxList = listOf("Whoosh Transit", "Cinematic Impact", "SFX Pop", "Applause Crowd", "AI Voiceover", "Ambient Rain", "Cyberpunk Drop", "Camera Shutter")
         val voiceEffects = listOf("None", "Robot", "Chipmunk", "Deep Monster", "Echo Cave", "Radio Walkie", "Alien", "Studio Reverb")
-        var masterVol by remember { mutableStateOf(selectedClip?.volume ?: 1.0f) }
-        var isDenoise by remember { mutableStateOf(selectedClip?.noiseReduction ?: false) }
-        var currentFadeIn by remember { mutableStateOf(selectedClip?.audioFadeInSec ?: 0f) }
-        var currentFadeOut by remember { mutableStateOf(selectedClip?.audioFadeOutSec ?: 0f) }
+        var masterVol by remember { mutableStateOf(targetAudioClip?.volume ?: 1.0f) }
+        var isDenoise by remember { mutableStateOf(targetAudioClip?.noiseReduction ?: false) }
+        var currentFadeIn by remember { mutableStateOf(targetAudioClip?.audioFadeInSec ?: 0f) }
+        var currentFadeOut by remember { mutableStateOf(targetAudioClip?.audioFadeOutSec ?: 0f) }
         var currentVoiceFx by remember { mutableStateOf("None") }
 
         ModalBottomSheet(
@@ -2303,7 +2547,7 @@ fun TimelineEditorScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                selectedClip?.let { clip ->
+                targetAudioClip?.let { clip ->
                     // Volume Control
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -2367,8 +2611,8 @@ fun TimelineEditorScreen(
                                     isDenoise = !isDenoise
                                     viewModel.applyDenoiseToClip(clip, isDenoise)
                                 },
-                            color = if (isDenoise) StudioSecondaryTeal.copy(alpha = 0.25f) else StudioSurfaceLight,
-                            border = BorderStroke(1.dp, if (isDenoise) StudioSecondaryTeal else StudioCardBorder)
+                            color = if (isDenoise) StudioPastelMint else StudioCardWhite,
+                            border = BorderStroke(1.5.dp, if (isDenoise) StudioSecondaryTeal else StudioCardHairline)
                         ) {
                             Row(
                                 modifier = Modifier.padding(10.dp),
@@ -2378,7 +2622,7 @@ fun TimelineEditorScreen(
                                 Icon(
                                     imageVector = Icons.Default.SurroundSound,
                                     contentDescription = null,
-                                    tint = if (isDenoise) StudioSecondaryTeal else StudioTextSecondary,
+                                    tint = if (isDenoise) StudioSecondaryTeal else StudioTextMuted,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -2386,7 +2630,7 @@ fun TimelineEditorScreen(
                                     text = if (isDenoise) "Denoise Aktif" else "AI Denoise",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isDenoise) StudioSecondaryTeal else Color.White
+                                    color = if (isDenoise) StudioSecondaryTeal else StudioTextDark
                                 )
                             }
                         }
@@ -2399,8 +2643,8 @@ fun TimelineEditorScreen(
                                 .clickable {
                                     viewModel.detectBeatsForClip(clip)
                                 },
-                            color = StudioAccentAmber.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, StudioAccentAmber)
+                            color = StudioPastelAmber,
+                            border = BorderStroke(1.5.dp, StudioAccentAmber)
                         ) {
                             Row(
                                 modifier = Modifier.padding(10.dp),
@@ -2483,12 +2727,12 @@ fun TimelineEditorScreen(
 
     // 13. Add / Edit Text Subtitle Dialog
     if (showTextDialog) {
-        var textInput by remember { mutableStateOf(selectedClip?.textContent ?: "SUBJUDUL VIDEO STUDIO") }
+        var textInput by remember { mutableStateOf(selectedClip?.textContent ?: "SUBJUDUL VIDEO") }
         AlertDialog(
             onDismissRequest = { showTextDialog = false },
             title = {
                 Text(
-                    if (selectedClip?.textContent != null) "Edit Teks Subjudul" else "Tambah Teks Subjudul Studio",
+                    if (selectedClip?.textContent != null) "Edit Teks Subjudul" else "Tambah Teks Subjudul",
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -2747,8 +2991,8 @@ fun TimelineEditorScreen(
     // 16. Unified Overlay Studio Sheet (Photos & Stickers)
     if (showOverlaySheet) {
         val mainVideoTrack = tracks.find { it.trackType == "VIDEO" && it.trackIndex == 0 } ?: tracks.find { it.trackType == "VIDEO" }
-        val targetClip = selectedClip?.takeIf { it.trackId != mainVideoTrack?.id || it.stickerIcon.isNotBlank() }
-            ?: clips.find { it.trackId != mainVideoTrack?.id && (it.stickerIcon.isNotBlank() || it.mediaUri.contains("overlay") || it.mediaUri.contains("photo") || it.mediaUri.contains("image")) }
+        val targetClip = selectedClip?.takeIf { it.trackId != mainVideoTrack?.id || (it.stickerIcon.isNotBlank() && it.stickerIcon != "None") }
+            ?: clips.find { it.trackId != mainVideoTrack?.id && ((it.stickerIcon.isNotBlank() && it.stickerIcon != "None") || it.mediaUri.contains("overlay") || it.mediaUri.contains("photo") || it.mediaUri.contains("image")) }
         var currentOpacity by remember { mutableStateOf(targetClip?.opacity ?: 1.0f) }
         var currentBlendMode by remember { mutableStateOf(targetClip?.blendMode ?: "Normal") }
         val blendModes = listOf("Normal", "Screen", "Multiply", "Overlay", "Add", "Soft Light", "Darken")
@@ -2953,17 +3197,18 @@ fun TimelineEditorScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Option 1: Device Gallery Picker (Video or Photo)
+                // Option 1: Video PIP from Gallery
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
                             overlayMediaPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
                             )
                             showAddOverlayMediaSheet = false
                         },
                     colors = CardDefaults.cardColors(containerColor = StudioCardBg),
-                    border = BorderStroke(1.dp, StudioSecondaryTeal.copy(alpha = 0.5f))
+                    border = BorderStroke(1.5.dp, StudioSecondaryTeal)
                 ) {
                     Row(
                         modifier = Modifier.padding(14.dp),
@@ -2973,91 +3218,95 @@ fun TimelineEditorScreen(
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
-                                .background(StudioSecondaryTeal.copy(alpha = 0.15f)),
+                                .background(StudioPastelMint),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = StudioSecondaryTeal)
+                            Icon(Icons.Default.Movie, contentDescription = null, tint = StudioSecondaryTeal)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text("Impor dari Galeri HP", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text("Pilih video atau foto lokal untuk dijadikan overlay PIP di atas video utama", color = StudioTextSecondary, fontSize = 11.sp)
+                            Text("Pilih Video PIP dari Galeri HP", color = StudioTextDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Impor klip video lokal untuk picture-in-picture di atas video utama", color = StudioTextMuted, fontSize = 11.sp)
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Preset Video Overlay Sinematik (PIP):", color = StudioAccentAmber, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                val sampleVideoOverlays = listOf(
-                    Triple("Light Leak FX", "sample_overlay_light_leak", "Efek kebocoran cahaya vintage estetik"),
-                    Triple("Film Grain Overlay", "sample_overlay_grain", "Tekstur bintik analog 35mm sinematik"),
-                    Triple("Cyber Flare Neon", "sample_overlay_cyber_flare", "Pijaran kilau laser neon futuristik"),
-                    Triple("Rain & Bokeh Atmosphere", "sample_overlay_rain_bokeh", "Efek tetesan air hujan & cahaya bokeh"),
-                    Triple("Glitch Flash Transition", "sample_overlay_glitch_flash", "Efek distorsi digital & kilat retro")
-                )
-
-                sampleVideoOverlays.forEach { (title, uri, desc) ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clickable {
-                                viewModel.addOverlayMedia(uri, title, durationMs = 5000L, isPhoto = false)
-                                showAddOverlayMediaSheet = false
-                            },
-                        colors = CardDefaults.cardColors(containerColor = StudioCardBg),
-                        border = BorderStroke(1.dp, StudioCardBorder)
+                // Option 2: Photo / Sticker from Gallery
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            overlayPhotoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                            showAddOverlayMediaSheet = false
+                        },
+                    colors = CardDefaults.cardColors(containerColor = StudioCardBg),
+                    border = BorderStroke(1.5.dp, StudioPrimaryViolet)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(StudioPastelLavender),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Movie, contentDescription = null, tint = StudioAccentAmber, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text(desc, color = StudioTextSecondary, fontSize = 11.sp)
-                            }
-                            Icon(Icons.Default.Add, contentDescription = "Add", tint = StudioAccentAmber, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Image, contentDescription = null, tint = StudioPrimaryViolet)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text("Pilih Foto / Gambar dari Galeri HP", color = StudioTextDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Impor foto, grafik, logo transparan PNG dari penyimpanan HP", color = StudioTextMuted, fontSize = 11.sp)
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Preset Foto & Stiker Grafis:", color = StudioPrimaryViolet, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
+                if (mediaAssets.any { it.category == "VIDEO" || it.category == "IMAGE" }) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Dari Pustaka Media Proyek:", color = StudioAccentAmber, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                val samplePhotoOverlays = listOf(
-                    Triple("Framed Portrait PIP", "sample_photo_portrait", "Foto portrait dengan border elegan"),
-                    Triple("Hologram Stamp Badge", "sample_photo_hologram", "Badge lencana verifikasi neon glowing"),
-                    Triple("Aksen Cyber Sticker", "sample_photo_cyber", "Grafis stiker futuristik gaya studio")
-                )
-
-                samplePhotoOverlays.forEach { (title, uri, desc) ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clickable {
-                                viewModel.addOverlayMedia(uri, title, durationMs = 4000L, isPhoto = true)
-                                showAddOverlayMediaSheet = false
-                            },
-                        colors = CardDefaults.cardColors(containerColor = StudioCardBg),
-                        border = BorderStroke(1.dp, StudioCardBorder)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Image, contentDescription = null, tint = StudioPrimaryViolet, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text(desc, color = StudioTextSecondary, fontSize = 11.sp)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        mediaAssets.filter { it.category == "VIDEO" || it.category == "IMAGE" }.forEach { asset ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.addOverlayMedia(
+                                            mediaUri = asset.uri,
+                                            title = asset.title,
+                                            durationMs = asset.durationMs,
+                                            isPhoto = asset.category == "IMAGE"
+                                        )
+                                        showAddOverlayMediaSheet = false
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = StudioCardBg),
+                                border = BorderStroke(1.dp, StudioCardBorder)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = if (asset.category == "VIDEO") Icons.Default.Movie else Icons.Default.Image,
+                                        contentDescription = null,
+                                        tint = if (asset.category == "VIDEO") StudioSecondaryTeal else StudioPrimaryViolet,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(asset.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text("${asset.resolutionOrType} • ${asset.durationText}", color = StudioTextSecondary, fontSize = 11.sp)
+                                    }
+                                    Icon(Icons.Default.Add, contentDescription = "Add", tint = StudioAccentAmber, modifier = Modifier.size(20.dp))
+                                }
                             }
-                            Icon(Icons.Default.Add, contentDescription = "Add", tint = StudioPrimaryViolet, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -3459,202 +3708,6 @@ fun TimelineEditorScreen(
         }
     }
 
-    // 17. Add Video / Media Clip Bottom Sheet
-    if (showAddClipSheet) {
-        val sampleClips = listOf(
-            Triple("4K Cyberpunk Neon City", "video_cyberpunk_neon", 3500L),
-            Triple("Cinematic Drone Ocean", "video_drone_ocean", 4000L),
-            Triple("Tokyo Night Hyperlapse", "video_tokyo_night", 3000L),
-            Triple("Nature Waterfall 60fps", "video_waterfall_nature", 4500L),
-            Triple("Anime Motion Kinetic", "video_anime_action", 3200L),
-            Triple("Cyber VFX Particle Glow", "video_space_particle", 4000L)
-        )
-        var aiPromptInput by remember { mutableStateOf("") }
-        var isGeneratingAi by remember { mutableStateOf(false) }
-
-        ModalBottomSheet(
-            onDismissRequest = { showAddClipSheet = false },
-            containerColor = StudioSurfaceDark,
-            contentColor = Color.White
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
-                    .verticalScroll(rememberScrollState())
-                    .navigationBarsPadding()
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.VideoLibrary, contentDescription = null, tint = StudioPrimaryViolet)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Tambah Klip Video ke Timeline", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    }
-                    IconButton(onClick = { showAddClipSheet = false }) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Tutup", tint = Color.Gray)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // 1. Pick from Device Video Gallery
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = StudioCardBg),
-                    border = BorderStroke(1.dp, StudioPrimaryViolet.copy(alpha = 0.4f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                showAddClipSheet = false
-                                mediaPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
-                                )
-                            }
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = StudioPrimaryViolet.copy(alpha = 0.2f),
-                            modifier = Modifier.size(44.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.FolderOpen,
-                                    contentDescription = null,
-                                    tint = StudioPrimaryViolet,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Buka Galeri Video HP", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
-                            Text("Pilih video lokal dari penyimpanan perangkat", fontSize = 11.sp, color = StudioTextSecondary)
-                        }
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = StudioPrimaryViolet, modifier = Modifier.size(18.dp))
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 2. Preset Cinematic Sample Clips
-                Text("Pilihan Klip Sinematik Siap Pakai (Pro HD):", color = StudioSecondaryTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    sampleClips.forEach { (title, uriKey, duration) ->
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = StudioSurfaceLight.copy(alpha = 0.4f)),
-                            border = BorderStroke(1.dp, StudioCardBorder),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        showAddClipSheet = false
-                                        val mainVideoTrack = tracks.find { it.trackType == "VIDEO" && it.trackIndex == 0 } ?: tracks.find { it.trackType == "VIDEO" }
-                                        viewModel.insertAssetToActiveTimeline(
-                                            title = title,
-                                            mediaUri = "file:///android_asset/$uriKey.mp4",
-                                            durationMs = duration,
-                                            targetTrackId = mainVideoTrack?.id
-                                        )
-                                    }
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = StudioPrimaryViolet.copy(alpha = 0.25f),
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(imageVector = Icons.Default.Movie, contentDescription = null, tint = StudioPrimaryViolet, modifier = Modifier.size(20.dp))
-                                    }
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(title, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                                    Text("${duration / 1000}s • 4K UHD 60FPS", fontSize = 11.sp, color = StudioTextSecondary)
-                                }
-                                Button(
-                                    onClick = {
-                                        showAddClipSheet = false
-                                        val mainVideoTrack = tracks.find { it.trackType == "VIDEO" && it.trackIndex == 0 } ?: tracks.find { it.trackType == "VIDEO" }
-                                        viewModel.insertAssetToActiveTimeline(
-                                            title = title,
-                                            mediaUri = "file:///android_asset/$uriKey.mp4",
-                                            durationMs = duration,
-                                            targetTrackId = mainVideoTrack?.id
-                                        )
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal)
-                                ) {
-                                    Text("+ Tambah", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 3. AI Text-to-Video Generator Prompt
-                Text("Generator Teks-ke-Video AI:", color = StudioAccentAmber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = aiPromptInput,
-                    onValueChange = { aiPromptInput = it },
-                    label = { Text("Deskripsikan klip AI yang ingin dibuat...") },
-                    placeholder = { Text("Contoh: Sunset neon pantai futuristik") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = StudioAccentAmber,
-                        unfocusedBorderColor = StudioCardBorder
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = {
-                        if (aiPromptInput.isNotBlank()) {
-                            showAddClipSheet = false
-                            val promptTitle = "AI: " + aiPromptInput.take(16)
-                            val mainVideoTrack = tracks.find { it.trackType == "VIDEO" && it.trackIndex == 0 } ?: tracks.find { it.trackType == "VIDEO" }
-                            viewModel.insertAssetToActiveTimeline(
-                                title = promptTitle,
-                                mediaUri = "file:///android_asset/ai_gen_${System.currentTimeMillis()}.mp4",
-                                durationMs = 4000L,
-                                targetTrackId = mainVideoTrack?.id
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = StudioAccentAmber)
-                ) {
-                    Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = Color.Black)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Generate & Masukkan ke Timeline", fontWeight = FontWeight.Bold, color = Color.Black)
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-        }
-    }
-
     // 18. Vercel + Remotion Cloud VFX Rendering Bottom Sheet
     if (showRemotionCloudSheet) {
         val cloudJobs by viewModel.remotionCloudJobs.collectAsState()
@@ -3693,8 +3746,9 @@ fun TimelineEditorScreen(
                         )
                     }
                     Surface(
-                        color = StudioAccentPink.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(8.dp)
+                        color = StudioPastelRose,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, StudioAccentPink)
                     ) {
                         Text(
                             text = "GPU Serverless",
@@ -3899,8 +3953,9 @@ fun TimelineEditorScreen(
                         )
                     }
                     Surface(
-                        color = StudioSecondaryTeal.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(8.dp)
+                        color = StudioPastelMint,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, StudioSecondaryTeal)
                     ) {
                         Text(
                             text = "GPU-Driven",
@@ -3918,7 +3973,7 @@ fun TimelineEditorScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = StudioCardBg),
-                    border = BorderStroke(1.dp, StudioSecondaryTeal.copy(alpha = 0.4f))
+                    border = BorderStroke(1.5.dp, StudioSecondaryTeal)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         Text(
@@ -3995,8 +4050,14 @@ fun TimelineEditorScreen(
                                     else -> StudioTextSecondary
                                 }
                                 Surface(
-                                    color = statusColor.copy(alpha = 0.2f),
-                                    shape = RoundedCornerShape(4.dp)
+                                    color = when (state?.status) {
+                                        com.example.media.DynamicAiModelManager.ModelStatus.LOADED_IN_GPU_RAM -> StudioPastelMint
+                                        com.example.media.DynamicAiModelManager.ModelStatus.CACHED_ON_DISK -> StudioPastelSky
+                                        com.example.media.DynamicAiModelManager.ModelStatus.DOWNLOADING -> StudioPastelAmber
+                                        else -> StudioPillBg
+                                    },
+                                    shape = RoundedCornerShape(4.dp),
+                                    border = BorderStroke(1.dp, statusColor)
                                 ) {
                                     Text(
                                         text = statusLabel,
@@ -4070,6 +4131,316 @@ fun TimelineEditorScreen(
             }
         }
     }
+
+    // Modal BottomSheet: Auto Clip Video Pintar (Wajah, Suara, Gerakan & Kalimat)
+    if (showAutoClipSheet) {
+        val autoClipState by viewModel.autoClipState.collectAsState()
+        val targetClip = activeTargetClip
+        var selectedMode by remember { mutableStateOf<VideoProcessor.AutoClipMode>(VideoProcessor.AutoClipMode.FACE_SPEAKER_TRACKING) }
+        var sensitivity by remember { mutableStateOf(0.7f) }
+        var minSegSec by remember { mutableStateOf(2f) }
+        var maxSegSec by remember { mutableStateOf(6f) }
+
+        ModalBottomSheet(
+            onDismissRequest = {
+                showAutoClipSheet = false
+                viewModel.dismissAutoClipSheet()
+            },
+            containerColor = StudioCardBg,
+            scrimColor = Color.Black.copy(alpha = 0.6f)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesomeMotion,
+                            contentDescription = null,
+                            tint = StudioElectricBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Auto Clip Pintar",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            showAutoClipSheet = false
+                            viewModel.dismissAutoClipSheet()
+                        },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Tutup", tint = StudioTextSecondary)
+                    }
+                }
+
+                Text(
+                    text = "Potong video otomatis berdasarkan deteksi wajah aktif, sinkronisasi gerakan mulut dengan suara, pelacakan gerakan tubuh, dan jeda kalimat.",
+                    fontSize = 12.sp,
+                    color = StudioTextSecondary,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Mode Selection
+                Text(
+                    text = "Metode Pemotongan Otomatis",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                val modes: List<Triple<VideoProcessor.AutoClipMode, String, String>> = listOf(
+                    Triple(VideoProcessor.AutoClipMode.FACE_SPEAKER_TRACKING, "Deteksi Wajah & Gerak Mulut", "Memotong bagian saat pembicara aktif berbicara dengan pelacakan wajah & sinkronisasi suara"),
+                    Triple(VideoProcessor.AutoClipMode.SILENCE_JUMP_CUT, "Jeda Hening & Kalimat (Jump Cut)", "Memotong bagian jeda diam atau tanpa kata secara otomatis agar video dinamis"),
+                    Triple(VideoProcessor.AutoClipMode.BODY_MOTION_ACTION, "Auto Tracking Gerakan Tubuh", "Mendeteksi momen aksi dengan intensitas gerakan pose tubuh tinggi"),
+                    Triple(VideoProcessor.AutoClipMode.VIRAL_SHORTS_HIGHLIGHTS, "Sorotan Multi-Modal Shorts", "Kombinasi energi vokal, ekspresi wajah, dan gestur untuk video format pendek")
+                )
+
+                modes.forEach { item ->
+                    val mode = item.first
+                    val title = item.second
+                    val desc = item.third
+                    val isSelected = selectedMode == mode
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable { selectedMode = mode },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) StudioPrimaryViolet.copy(alpha = 0.25f) else StudioCardWhite.copy(alpha = 0.05f)
+                        ),
+                        border = BorderStroke(1.5.dp, if (isSelected) StudioElectricBlue else StudioCardBorder),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { selectedMode = mode },
+                                colors = RadioButtonDefaults.colors(selectedColor = StudioElectricBlue)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = title,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else StudioTextDark
+                                )
+                                Text(
+                                    text = desc,
+                                    fontSize = 11.sp,
+                                    color = StudioTextSecondary,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Detection Sensitivity Slider
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Sensitivitas Deteksi", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = StudioTextSecondary)
+                    Text("${(sensitivity * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = StudioElectricBlue)
+                }
+                Slider(
+                    value = sensitivity,
+                    onValueChange = { sensitivity = it },
+                    valueRange = 0.2f..1.0f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = StudioElectricBlue,
+                        activeTrackColor = StudioElectricBlue,
+                        inactiveTrackColor = StudioCardBorder
+                    )
+                )
+
+                // Segment Duration Range Slider Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Durasi Potongan Klip", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = StudioTextSecondary)
+                    Text("${minSegSec.toInt()}s - ${maxSegSec.toInt()}s", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = StudioAccentAmber)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Min: ${minSegSec.toInt()} detik", fontSize = 11.sp, color = StudioTextSecondary)
+                        Slider(
+                            value = minSegSec,
+                            onValueChange = { minSegSec = it.coerceAtMost(maxSegSec - 1f) },
+                            valueRange = 1f..10f,
+                            steps = 8
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Max: ${maxSegSec.toInt()} detik", fontSize = 11.sp, color = StudioTextSecondary)
+                        Slider(
+                            value = maxSegSec,
+                            onValueChange = { maxSegSec = it.coerceAtLeast(minSegSec + 1f) },
+                            valueRange = 3f..20f,
+                            steps = 16
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Action Trigger Button
+                Button(
+                    onClick = {
+                        targetClip?.let { clip ->
+                            viewModel.analyzeAndAutoClipVideo(
+                                clip = clip,
+                                mode = selectedMode,
+                                sensitivity = sensitivity,
+                                minSegmentSec = minSegSec.toInt(),
+                                maxSegmentSec = maxSegSec.toInt()
+                            )
+                        }
+                    },
+                    enabled = targetClip != null && !autoClipState.isProcessing,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = StudioElectricBlue)
+                ) {
+                    if (autoClipState.isProcessing) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Memproses Analisis Multimodal...", fontSize = 13.sp, color = Color.White)
+                    } else {
+                        Icon(imageVector = Icons.Default.AutoAwesomeMotion, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Mulai Auto Clip Video", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                // Detected Segments Preview & Apply List
+                if (autoClipState.detectedSegments.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Klip Terdeteksi (${autoClipState.detectedSegments.size} Bagian)",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        StatusBadge(
+                            text = "${autoClipState.detectedSegments.size} Segmen Siap",
+                            color = StudioEmeraldGreen
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    autoClipState.detectedSegments.forEachIndexed { index, seg ->
+                        val durSec = String.format("%.1f", (seg.endTimeMs - seg.startTimeMs) / 1000f)
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(containerColor = StudioCardWhite.copy(alpha = 0.08f)),
+                            border = BorderStroke(1.dp, StudioCardBorder),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = seg.title,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "${formatTimeMs(seg.startTimeMs)} - ${formatTimeMs(seg.endTimeMs)} • $durSec detik • ${seg.highlightReason}",
+                                        fontSize = 10.sp,
+                                        color = StudioTextSecondary,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+                                Surface(
+                                    color = StudioPastelLavender,
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = BorderStroke(1.dp, StudioPrimaryViolet)
+                                ) {
+                                    Text(
+                                        text = "${(seg.confidenceScore * 100).toInt()}% Akurat",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = StudioPrimaryViolet,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Apply to Timeline Button
+                    Button(
+                        onClick = {
+                            targetClip?.let { clip ->
+                                viewModel.applyAutoClipSegmentsToTimeline(clip, autoClipState.detectedSegments)
+                                showAutoClipSheet = false
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = StudioEmeraldGreen)
+                    ) {
+                        Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Terapkan Klip ke Timeline", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+        }
+    }
 }
 
 @Composable
@@ -4086,9 +4457,10 @@ fun MainToolButton(
             .clip(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .testTag(testTag),
-        color = if (enabled) color.copy(alpha = 0.12f) else StudioPillBg,
-        border = BorderStroke(1.dp, if (enabled) color.copy(alpha = 0.35f) else StudioCardHairline),
-        shape = RoundedCornerShape(12.dp)
+        color = if (enabled) StudioCardWhite else StudioPillBg,
+        border = BorderStroke(1.5.dp, if (enabled) color else StudioCardHairline),
+        shape = RoundedCornerShape(12.dp),
+        shadowElevation = if (enabled) 1.dp else 0.dp
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -4115,15 +4487,16 @@ fun MainToolButton(
 @Composable
 fun StatusBadge(text: String, color: Color) {
     Surface(
-        color = color.copy(alpha = 0.12f),
+        color = StudioCardWhite,
         shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.35f))
+        border = BorderStroke(1.5.dp, color),
+        shadowElevation = 0.5.dp
     ) {
         Text(
             text = text,
             color = color,
             fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.ExtraBold,
             modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
         )
     }
@@ -4142,9 +4515,10 @@ fun ActionToolChip(
             .size(42.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, onClick = onClick),
-        color = if (enabled) color.copy(alpha = 0.12f) else StudioPillBg,
-        border = BorderStroke(1.dp, if (enabled) color.copy(alpha = 0.4f) else StudioCardHairline),
-        shape = RoundedCornerShape(12.dp)
+        color = if (enabled) StudioCardWhite else StudioPillBg,
+        border = BorderStroke(1.5.dp, if (enabled) color else StudioCardHairline),
+        shape = RoundedCornerShape(12.dp),
+        shadowElevation = if (enabled) 1.dp else 0.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(

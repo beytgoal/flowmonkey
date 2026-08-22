@@ -122,7 +122,7 @@ fun QuickGenerateScreen(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "STUDIO AI PRO",
+                                        text = "AI GENERATOR PRO",
                                         color = Color.White,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.ExtraBold,
@@ -224,7 +224,7 @@ fun QuickGenerateScreen(
                                 .height(64.dp)
                                 .testTag("upload_image_button"),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
-                            border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.5f)),
+                            border = BorderStroke(1.5.dp, StudioElectricBlue),
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Text("Pilih Foto Dari Galeri", fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -279,7 +279,7 @@ fun QuickGenerateScreen(
                     IconButton(
                         onClick = { showMicDialog = true },
                         modifier = Modifier
-                            .background(StudioPastelRose.copy(alpha = 0.6f), CircleShape)
+                            .background(StudioPastelRose, CircleShape)
                             .testTag("mic_transcribe_button")
                     ) {
                         Icon(
@@ -348,8 +348,10 @@ fun QuickGenerateScreen(
                 )
             }
             Surface(
-                color = StudioElectricBlue.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(12.dp)
+                color = StudioCardWhite,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.5.dp, StudioElectricBlue),
+                shadowElevation = 0.5.dp
             ) {
                 Text(
                     text = style,
@@ -375,8 +377,8 @@ fun QuickGenerateScreen(
                         .height(84.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .border(
-                            2.dp,
-                            if (isSelected) StudioElectricBlue else Color.Transparent,
+                            if (isSelected) 2.dp else 1.dp,
+                            if (isSelected) StudioElectricBlue else StudioCardHairline,
                             RoundedCornerShape(16.dp)
                         )
                         .clickable { viewModel.selectedStyle.value = item.first }
@@ -392,18 +394,18 @@ fun QuickGenerateScreen(
                         )
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
+                                .fillMaxWidth()
+                                .align(Alignment.BottomCenter)
                                 .background(
-                                    if (isSelected) StudioElectricBlue.copy(alpha = 0.65f)
-                                    else Color.Black.copy(alpha = 0.45f)
+                                    if (isSelected) StudioElectricBlue else StudioDarkCharcoal
                                 )
-                                .padding(8.dp),
-                            contentAlignment = Alignment.BottomStart
+                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                            contentAlignment = Alignment.CenterStart
                         ) {
                             Text(
                                 text = item.first,
                                 color = Color.White,
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -449,7 +451,7 @@ fun QuickGenerateScreen(
                                     .weight(1f)
                                     .height(30.dp)
                                     .background(
-                                        if (isSelected) StudioDarkCTA else Color.Transparent,
+                                        if (isSelected) StudioDarkCTA else StudioPillBg,
                                         RoundedCornerShape(9.dp)
                                     )
                                     .clickable { viewModel.selectedAspectRatio.value = ratio },
@@ -499,7 +501,7 @@ fun QuickGenerateScreen(
                                     .weight(1f)
                                     .height(30.dp)
                                     .background(
-                                        if (isSelected) StudioDarkCTA else Color.Transparent,
+                                        if (isSelected) StudioDarkCTA else StudioPillBg,
                                         RoundedCornerShape(9.dp)
                                     )
                                     .clickable { viewModel.selectedDuration.value = dur },
@@ -560,19 +562,26 @@ fun QuickGenerateScreen(
             Text(
                 text = "Pratinjau Klip Ter-generate",
                 color = StudioTextDark,
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
-            Surface(
-                color = StudioElectricBlue.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(10.dp)
+            Button(
+                onClick = { viewModel.importGeneratedClipToTimeline() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = StudioElectricBlue,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(14.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                modifier = Modifier
+                    .height(32.dp)
+                    .testTag("import_clip_to_timeline_button")
             ) {
                 Text(
-                    text = "Rasio $aspectRatio",
-                    color = StudioElectricBlue,
+                    text = "Edit di Timeline",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    color = Color.White
                 )
             }
         }
@@ -605,8 +614,9 @@ fun QuickGenerateScreen(
                     modifier = Modifier.fillMaxWidth().padding(12.dp)
                 ) {
                     Surface(
-                        color = StudioAccentPink.copy(alpha = 0.2f),
+                        color = StudioPastelRose,
                         shape = CircleShape,
+                        border = BorderStroke(1.5.dp, StudioAccentPink),
                         modifier = Modifier.size(72.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {

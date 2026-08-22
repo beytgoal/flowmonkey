@@ -1,5 +1,15 @@
 package com.example.ui.components
 
+import android.graphics.Bitmap
+import android.graphics.Matrix
+import android.graphics.SurfaceTexture
+import android.media.AudioAttributes
+import android.media.MediaPlayer
+import android.net.Uri
+import android.os.Build
+import android.util.Log
+import android.view.Surface
+import android.view.TextureView
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -24,26 +34,29 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
+import coil.compose.AsyncImage
 import com.example.R
 import com.example.data.db.TimelineClipEntity
 import com.example.data.models.KeyframeHelper
-import com.example.data.models.KeyframePoint
 import com.example.data.models.KeyframeTransform
+import com.example.media.RealMediaManager
+import com.example.media.VideoProcessor
 import com.example.ui.theme.*
-import kotlin.math.roundToInt
+import java.io.File
 
 @Composable
 fun VideoPlayerView(
@@ -107,37 +120,57 @@ fun VideoPlayerView(
             activeEffect.contains("Pembalik Warna", ignoreCase = true) ||
             activeEffect.contains("Invert", ignoreCase = true)
 
-    // Active clips at current playback timestamp
+    // Active main video clip currently under the playhead
+    val activeMainClip = remember(clips, selectedClipId, currentTimeMs) {
+        // Priority 1: Main track video clip active at current playhead time
+        val atPlayhead = clips.find { clip ->
+            (clip.stickerIcon == "None" || clip.stickerIcon.isBlank()) &&
+                    clip.textContent == null &&
+                    (clip.audioSfx == "None" || clip.audioSfx.isBlank()) &&
+                    !clip.mediaUri.contains("overlay", ignoreCase = true) &&
+                    !clip.mediaUri.contains("photo", ignoreCase = true) &&
+                    !clip.mediaUri.contains("image", ignoreCase = true) &&
+                    currentTimeMs >= clip.startTimeMs && currentTimeMs < clip.endTimeMs
+        } ?: clips.find { clip ->
+            (clip.stickerIcon == "None" || clip.stickerIcon.isBlank()) &&
+                    clip.textContent == null &&
+                    (clip.audioSfx == "None" || clip.audioSfx.isBlank()) &&
+                    currentTimeMs >= clip.startTimeMs && currentTimeMs < clip.endTimeMs
+        } ?: clips.find { clip ->
+            currentTimeMs >= clip.startTimeMs && currentTimeMs < clip.endTimeMs
+        }
+
+        // Priority 2: If playhead is at the end of timeline
+        val maxEndTime = clips.maxOfOrNull { it.endTimeMs } ?: 0L
+        val atEnd = if (atPlayhead == null && clips.isNotEmpty() && currentTimeMs >= maxEndTime && maxEndTime > 0) {
+            clips.maxByOrNull { it.endTimeMs }
+        } else null
+
+        // Priority 3: Fallbacks
+        atPlayhead ?: atEnd ?: clips.find { it.id == selectedClipId } ?: clips.firstOrNull()
+    }
+
+    // All active clips at current playback timestamp (for overlays, text, stickers, audio)
     val activeClips = remember(clips, currentTimeMs) {
         clips.filter { it.startTimeMs <= currentTimeMs && it.endTimeMs > currentTimeMs }
     }
 
-    // Selected clip if active or in project
-    val activeSelectedClip = remember(clips, selectedClipId, currentTimeMs) {
-        clips.find { it.id == selectedClipId }
-    }
-
-    val activeMainClip = remember(activeClips, activeSelectedClip) {
-        activeSelectedClip?.takeIf { !it.mediaUri.contains("overlay", ignoreCase = true) && it.stickerIcon.isBlank() && it.textContent == null }
-            ?: activeClips.firstOrNull { !it.mediaUri.contains("overlay", ignoreCase = true) && it.stickerIcon.isBlank() && it.textContent == null }
-    }
-
     val playerHeight = when (aspectRatioStr) {
         "1:1" -> 260.dp
-        "9:16" -> 280.dp
-        else -> 210.dp
+        "9:16" -> 300.dp
+        else -> 220.dp
     }
 
     Card(
         modifier = modifier
             .fillMaxWidth()
             .height(playerHeight)
-            .clip(RoundedCornerShape(20.dp))
-            .border(1.dp, StudioCardHairline, RoundedCornerShape(20.dp))
+            .border(1.dp, StudioCardHairline, RoundedCornerShape(12.dp))
             .testTag("video_player_card"),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0E12))
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
@@ -147,12 +180,18 @@ fun VideoPlayerView(
                 ),
             contentAlignment = Alignment.Center
         ) {
+            val containerAspect = (maxWidth.value / maxHeight.value.coerceAtLeast(1f))
+            val canvasModifier = if (aspectRatioFloat > containerAspect) {
+                Modifier.fillMaxWidth().aspectRatio(aspectRatioFloat)
+            } else {
+                Modifier.fillMaxHeight().aspectRatio(aspectRatioFloat)
+            }
+
             Box(
-                modifier = Modifier
-                    .fillMaxHeight(0.92f)
-                    .aspectRatio(aspectRatioFloat)
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                modifier = canvasModifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.Black)
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(8.dp))
                     .pointerInput(Unit) {
                         detectTransformGestures { _, pan, zoom, _ ->
                             scale = (scale * zoom).coerceIn(0.5f, 5f)
@@ -184,101 +223,252 @@ fun VideoPlayerView(
                             translationY = offset.y
                         )
                 ) {
-                    // Background preview graphic with horizontal mirror support
-                    val imageRes = thumbnailDrawableRes ?: R.drawable.img_hero_banner_1785585794962
-                    Image(
-                        painter = painterResource(id = imageRes),
-                        contentDescription = "Preview Video Clip",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer(
-                                scaleX = if (activeMainClip?.isMirrored == true) -1f else 1f
-                            ),
-                        contentScale = ContentScale.Crop
-                    )
+                    val activeUri = activeMainClip?.mediaUri ?: ""
+                    val isImage = remember(activeUri) {
+                        activeUri.endsWith(".jpg", true) || activeUri.endsWith(".jpeg", true) ||
+                                activeUri.endsWith(".png", true) || activeUri.endsWith(".webp", true) ||
+                                activeUri.contains("image", true) || activeUri.contains("photo", true)
+                    }
+                    val isVideo = remember(activeUri, isImage) {
+                        !isImage && (activeUri.endsWith(".mp4", true) || activeUri.endsWith(".mkv", true) ||
+                                activeUri.endsWith(".mov", true) || activeUri.endsWith(".webm", true) ||
+                                activeUri.startsWith("content://") || activeUri.startsWith("file://") ||
+                                File(activeUri).exists())
+                    }
+
+                    val activeOffsetMs = (currentTimeMs - (activeMainClip?.startTimeMs ?: 0L)).coerceAtLeast(0L)
+                    val effectivePlaybackSpeed = remember(activeMainClip, activeOffsetMs) {
+                        if (activeMainClip != null) {
+                            VideoProcessor.instance.calculateEffectiveSpeed(activeMainClip, activeOffsetMs)
+                        } else {
+                            1.0f
+                        }
+                    }
+                    val mainTransform = remember(activeMainClip, activeOffsetMs) {
+                        if (activeMainClip != null) {
+                            VideoProcessor.instance.calculateKeyframeTransform(activeMainClip, activeOffsetMs)
+                        } else {
+                            KeyframeTransform()
+                        }
+                    }
+
+                    // 1. FULL FRAME VIDEO PLAYBACK SURFACE (MediaPlayer + TextureView)
+                    if (isVideo && activeUri.isNotBlank()) {
+                        NativeFullFrameVideoSurface(
+                            mediaUri = activeUri,
+                            isPlaying = isPlaying,
+                            currentTimeMs = currentTimeMs,
+                            clipStartTimeMs = activeMainClip?.startTimeMs ?: 0L,
+                            clipEndTimeMs = activeMainClip?.endTimeMs ?: (activeOffsetMs + 5000L),
+                            speedMultiplier = effectivePlaybackSpeed,
+                            volume = activeMainClip?.volume ?: 1f,
+                            isMirrored = activeMainClip?.isMirrored == true,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer(
+                                    translationX = mainTransform.posX,
+                                    translationY = mainTransform.posY,
+                                    scaleX = (if (activeMainClip?.isMirrored == true) -1f else 1f) * mainTransform.scale,
+                                    scaleY = mainTransform.scale,
+                                    rotationZ = mainTransform.rotation,
+                                    alpha = mainTransform.opacity
+                                )
+                        )
+                    } else if (isImage && activeUri.isNotBlank()) {
+                        // 2. FULL FRAME PHOTO / IMAGE DISPLAY
+                        val imageModel = remember(activeUri) {
+                            if (activeUri.startsWith("/") || activeUri.startsWith("file://")) {
+                                File(activeUri.removePrefix("file://"))
+                            } else {
+                                Uri.parse(activeUri)
+                            }
+                        }
+                        AsyncImage(
+                            model = imageModel,
+                            contentDescription = activeMainClip?.title ?: "Full Frame Photo",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer(
+                                    translationX = mainTransform.posX,
+                                    translationY = mainTransform.posY,
+                                    scaleX = (if (activeMainClip?.isMirrored == true) -1f else 1f) * mainTransform.scale,
+                                    scaleY = mainTransform.scale,
+                                    rotationZ = mainTransform.rotation,
+                                    alpha = mainTransform.opacity
+                                ),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else if (thumbnailDrawableRes != null) {
+                        // 3. FULL FRAME DRAWABLE ASSET
+                        Image(
+                            painter = painterResource(id = thumbnailDrawableRes),
+                            contentDescription = "Full Frame Video Clip",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer(
+                                    translationX = mainTransform.posX,
+                                    translationY = mainTransform.posY,
+                                    scaleX = (if (activeMainClip?.isMirrored == true) -1f else 1f) * mainTransform.scale,
+                                    scaleY = mainTransform.scale,
+                                    rotationZ = mainTransform.rotation,
+                                    alpha = mainTransform.opacity
+                                ),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        // 4. EMPTY / FALLBACK FULL FRAME CANVAS
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.radialGradient(
+                                        listOf(Color(0xFF1E293B), Color(0xFF0F172A))
+                                    )
+                                )
+                        )
+                    }
 
                     // Low-Res Proxy Preview Mode Downsampling Layer
                     if (isProxyMode) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.06f))
-                                .drawWithCache {
-                                    onDrawWithContent {
-                                        drawContent()
-                                        val step = 16f
-                                        for (x in 0..size.width.toInt() step step.toInt()) {
-                                            drawLine(
-                                                color = Color.Black.copy(alpha = 0.025f),
-                                                start = Offset(x.toFloat(), 0f),
-                                                end = Offset(x.toFloat(), size.height),
-                                                strokeWidth = 1f
-                                            )
-                                        }
-                                    }
-                                }
+                                .background(Color.Black.copy(alpha = 0.04f))
                         )
                     }
 
-                    // Visual Filter Overlay simulation
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                when {
-                                    activeFilter.contains("Pembalik Warna") || activeFilter.contains("Invert") -> Brush.verticalGradient(
-                                        listOf(Color(0x66FFFFFF), Color(0x33000000))
-                                    )
-                                    activeFilter.contains("Cyberpunk") || activeFilter.contains("Neon") -> Brush.verticalGradient(
-                                        listOf(Color(0x33FF00FF), Color(0x3300FFFF))
-                                    )
-                                    activeFilter.contains("Teal & Orange") || activeFilter.contains("TealOrange") -> Brush.verticalGradient(
-                                        listOf(Color(0x33008080), Color(0x33FF7F50))
-                                    )
-                                    activeFilter.contains("Cinematic") || activeFilter.contains("Hollywood") -> Brush.radialGradient(
-                                        listOf(Color(0x22FFD700), Color(0x66000000))
-                                    )
-                                    activeFilter.contains("Vintage") || activeFilter.contains("Fuji") || activeFilter.contains("Kodak") -> Brush.verticalGradient(
-                                        listOf(Color(0x33A0522D), Color(0x228B4513))
-                                    )
-                                    activeFilter.contains("Sunset") || activeFilter.contains("Amber") -> Brush.horizontalGradient(
-                                        listOf(Color(0x33FF7F50), Color(0x33FFD700))
-                                    )
-                                    activeFilter.contains("Noir") || activeFilter.contains("B&W") -> Brush.linearGradient(
-                                        listOf(Color(0x88000000), Color(0x88333333))
-                                    )
-                                    activeFilter.contains("LOG") || activeFilter.contains("ARRI") || activeFilter.contains("Rec709") -> Brush.verticalGradient(
-                                        listOf(Color(0x2200BFFF), Color(0x44000000))
-                                    )
-                                    activeFilter.contains("LUT:") -> Brush.radialGradient(
-                                        listOf(Color(0x2200FA9A), Color(0x55000000))
-                                    )
-                                    else -> Brush.verticalGradient(
-                                        listOf(Color.Transparent, Color(0x44000000))
-                                    )
-                                }
-                            )
-                    )
-
-                    // True Pembalik Warna (Invert Colors) Blend Mode Layer
-                    if (isInvertActive) {
+                    // Brightness Color Grade Adjustment Layer
+                    val brightnessVal = activeMainClip?.brightness ?: 0f
+                    if (brightnessVal > 0f) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .drawWithCache {
-                                    onDrawWithContent {
-                                        drawContent()
-                                        drawRect(
-                                            color = Color.White,
-                                            blendMode = BlendMode.Difference
-                                        )
-                                    }
-                                }
+                                .background(Color.White.copy(alpha = (brightnessVal * 0.7f).coerceIn(0f, 0.7f)))
+                        )
+                    } else if (brightnessVal < 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = (-brightnessVal * 0.8f).coerceIn(0f, 0.8f)))
                         )
                     }
 
-                    // Kedip / Flash / Strobe Animasi Overlay Layer
-                    if (isBlinkActive && blinkAlpha > 0f) {
+                    // Color Temperature Adjustment Layer
+                    val tempVal = activeMainClip?.temperature ?: 0f
+                    if (tempVal > 0.05f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFFFF9800).copy(alpha = (tempVal * 0.25f).coerceIn(0f, 0.4f)))
+                        )
+                    } else if (tempVal < -0.05f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFF00E5FF).copy(alpha = (-tempVal * 0.25f).coerceIn(0f, 0.4f)))
+                        )
+                    }
+
+                    // Active Visual Filter Layer
+                    when {
+                        activeFilter.contains("Teal", ignoreCase = true) || activeFilter.contains("Orange", ignoreCase = true) || activeFilter == "Cool Cyber" -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                Color(0xFF00E5FF).copy(alpha = 0.18f),
+                                                Color(0xFFFF6D00).copy(alpha = 0.18f)
+                                            )
+                                        )
+                                    )
+                            )
+                        }
+                        activeFilter.contains("Moody", ignoreCase = true) || activeFilter.contains("Dark Film", ignoreCase = true) -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0xFF1E1B4B).copy(alpha = 0.25f))
+                            )
+                        }
+                        activeFilter.contains("Vintage", ignoreCase = true) || activeFilter.contains("35mm", ignoreCase = true) -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0xFFD97706).copy(alpha = 0.15f))
+                            )
+                        }
+                        activeFilter.contains("Cyberpunk", ignoreCase = true) || activeFilter.contains("Neon Glow", ignoreCase = true) -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(
+                                                Color(0xFFEC4899).copy(alpha = 0.2f),
+                                                Color(0xFF6366F1).copy(alpha = 0.2f)
+                                            )
+                                        )
+                                    )
+                            )
+                        }
+                        activeFilter.contains("Warm Sunset", ignoreCase = true) || activeFilter.contains("Warm Sun", ignoreCase = true) || activeFilter == "Warm Cinema" -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0xFFFF9800).copy(alpha = 0.18f))
+                            )
+                        }
+                        activeFilter.contains("B&W", ignoreCase = true) || activeFilter.contains("Noir", ignoreCase = true) || activeFilter.contains("Monochrome", ignoreCase = true) -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.35f))
+                            )
+                        }
+                        activeFilter.contains("HDR", ignoreCase = true) -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.White.copy(alpha = 0.08f))
+                            )
+                        }
+                        activeFilter.startsWith("LUT:") -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.radialGradient(
+                                            listOf(
+                                                Color(0xFF6366F1).copy(alpha = 0.15f),
+                                                Color(0xFF14B8A6).copy(alpha = 0.20f)
+                                            )
+                                        )
+                                    )
+                            )
+                        }
+                    }
+
+                    // Vignette Lens Falloff Adjustment Layer
+                    val vignetteVal = activeMainClip?.vignette ?: 0f
+                    if (vignetteVal > 0.05f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.radialGradient(
+                                        listOf(
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = (vignetteVal * 0.85f).coerceIn(0f, 0.9f))
+                                        )
+                                    )
+                                )
+                        )
+                    }
+
+                    // Active Visual FX Strobe / Flash Layer
+                    if (isBlinkActive) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -286,91 +476,78 @@ fun VideoPlayerView(
                         )
                     }
 
-                    // Transition Dynamic Effect Layer (Active at clip boundaries)
-                    val activeMainClip = activeClips.find { it.trackId == (clips.firstOrNull { c -> c.mediaUri.contains("video", ignoreCase = true) || c.trackId == 1L }?.trackId ?: 1L) }
-                    if (activeMainClip != null && activeMainClip.transitionType.isNotBlank() && activeMainClip.transitionType != "None") {
-                        val transDurationMs = 600L
-                        val timeFromStart = currentTimeMs - activeMainClip.startTimeMs
-                        val timeToEnd = activeMainClip.endTimeMs - currentTimeMs
-
-                        if (timeFromStart in 0..transDurationMs) {
-                            val progress = (timeFromStart.toFloat() / transDurationMs).coerceIn(0f, 1f)
-                            RenderSmoothTransition(
-                                transitionType = activeMainClip.transitionType,
-                                progress = 1f - progress, // Transition In
-                                isIncoming = true
-                            )
-                        } else if (timeToEnd in 0..transDurationMs) {
-                            val progress = (1f - (timeToEnd.toFloat() / transDurationMs)).coerceIn(0f, 1f)
-                            RenderSmoothTransition(
-                                transitionType = activeMainClip.transitionType,
-                                progress = progress, // Transition Out
-                                isIncoming = false
-                            )
-                        }
+                    // Color Inversion FX Layer
+                    if (isInvertActive) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.White.copy(alpha = 0.5f))
+                        )
                     }
 
-                    // --- KEYFRAME ANIMATED OVERLAYS, TEXT & STICKERS LAYER ---
-                    activeClips.forEach { clip ->
-                        val isSelected = clip.id == selectedClipId
-                        val clipOffsetMs = (currentTimeMs - clip.startTimeMs).coerceIn(0L, clip.durationMs)
-                        val keyframes = remember(clip.keyframeData) {
-                            KeyframeHelper.parseKeyframes(clip.keyframeData)
-                        }
+                    // Multi-Track Overlays (PIP Videos, Subtitles, Text, Stickers)
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        activeClips.forEach { clip ->
+                            val isSelected = clip.id == selectedClipId
+                            val clipOffsetMs = (currentTimeMs - clip.startTimeMs).coerceAtLeast(0L)
+                            val keyframes = remember(clip.keyframeData) {
+                                KeyframeHelper.parseKeyframes(clip.keyframeData)
+                            }
 
-                        // Base transform from keyframe interpolation
-                        val baseTransform = remember(keyframes, clipOffsetMs, clip.rotationDegrees, clip.opacity) {
-                            KeyframeHelper.evaluateTransform(
-                                keyframes = keyframes,
-                                clipTimeOffsetMs = clipOffsetMs,
-                                defaultRotation = clip.rotationDegrees.toFloat(),
-                                defaultOpacity = clip.opacity
-                            )
-                        }
+                            // Base transform from keyframe interpolation
+                            val baseTransform = remember(keyframes, clipOffsetMs, clip.rotationDegrees, clip.opacity) {
+                                KeyframeHelper.evaluateTransform(
+                                    keyframes = keyframes,
+                                    clipTimeOffsetMs = clipOffsetMs,
+                                    defaultRotation = clip.rotationDegrees.toFloat(),
+                                    defaultOpacity = clip.opacity
+                                )
+                            }
 
-                        // Apply smooth in/out/combo animation modifier
-                        val animatedTransform = evaluateSmoothClipAnimation(
-                            clip = clip,
-                            clipOffsetMs = clipOffsetMs,
-                            baseTransform = baseTransform
-                        )
-
-                        // Video Overlay PIP / Graphic Layer
-                        if (clip.mediaUri.contains("overlay", ignoreCase = true) || clip.title.startsWith("Overlay")) {
-                            KeyframeOverlayItem(
+                            val animatedTransform = evaluateSmoothClipAnimation(
                                 clip = clip,
-                                transform = animatedTransform,
-                                isSelected = isSelected,
-                                onTransformChanged = { x, y, s, r ->
-                                    onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, animatedTransform.opacity)
-                                }
+                                clipOffsetMs = clipOffsetMs,
+                                baseTransform = baseTransform
                             )
-                        }
 
-                        // Text / Subtitle Caption Layer
-                        if (clip.textContent != null) {
-                            KeyframeTextItem(
-                                clip = clip,
-                                text = clip.textContent,
-                                transform = animatedTransform,
-                                isSelected = isSelected,
-                                onTransformChanged = { x, y, s, r ->
-                                    onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, animatedTransform.opacity)
-                                }
-                            )
-                        }
+                            // Video Overlay PIP / Graphic Photo Layer
+                            if (clip.mediaUri.isNotBlank() && clip.id != activeMainClip?.id && (clip.trackId != (activeMainClip?.trackId ?: -1L) || clip.mediaUri.contains("overlay", ignoreCase = true) || clip.title.startsWith("Overlay") || clip.stickerIcon == "IMAGE_OVERLAY" || clip.mediaUri.endsWith(".jpg", true) || clip.mediaUri.endsWith(".jpeg", true) || clip.mediaUri.endsWith(".png", true) || clip.mediaUri.endsWith(".webp", true))) {
+                                KeyframeOverlayItem(
+                                    clip = clip,
+                                    transform = animatedTransform,
+                                    clipOffsetMs = clipOffsetMs,
+                                    isSelected = isSelected,
+                                    onTransformChanged = { x, y, s, r ->
+                                        onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, animatedTransform.opacity)
+                                    }
+                                )
+                            }
 
-                        // Sticker & Badge Layer
-                        if (clip.stickerIcon.isNotBlank() && clip.stickerIcon != "None") {
-                            KeyframeStickerItem(
-                                clip = clip,
-                                sticker = clip.stickerIcon,
-                                transform = animatedTransform,
-                                isSelected = isSelected,
-                                onTransformChanged = { x, y, s, r ->
-                                    onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, animatedTransform.opacity)
-                                }
-                            )
+                            // Text / Subtitle Caption Layer
+                            if (clip.textContent != null && clip.textContent.isNotBlank()) {
+                                KeyframeTextItem(
+                                    clip = clip,
+                                    text = clip.textContent,
+                                    transform = animatedTransform,
+                                    isSelected = isSelected,
+                                    onTransformChanged = { x, y, s, r ->
+                                        onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, animatedTransform.opacity)
+                                    }
+                                )
+                            }
+
+                            // Sticker & Badge Layer (Must NOT be IMAGE_OVERLAY and NOT None/blank)
+                            if (clip.stickerIcon.isNotBlank() && clip.stickerIcon != "None" && clip.stickerIcon != "IMAGE_OVERLAY") {
+                                KeyframeStickerItem(
+                                    clip = clip,
+                                    sticker = clip.stickerIcon,
+                                    transform = animatedTransform,
+                                    isSelected = isSelected,
+                                    onTransformChanged = { x, y, s, r ->
+                                        onAddOrUpdateKeyframe?.invoke(clip, clipOffsetMs, x, y, s, r, animatedTransform.opacity)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -384,8 +561,9 @@ fun VideoPlayerView(
                             .clip(CircleShape)
                             .clickable { onTogglePlay() }
                             .testTag("play_pause_button"),
-                        color = StudioElectricBlue.copy(alpha = 0.9f),
-                        border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.8f)),
+                        color = StudioElectricBlue,
+                        border = BorderStroke(2.dp, Color.White),
+                        shadowElevation = 4.dp,
                         shape = CircleShape
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -402,9 +580,9 @@ fun VideoPlayerView(
                         modifier = Modifier
                             .align(Alignment.Center)
                             .padding(16.dp),
-                        color = Color.Black.copy(alpha = 0.65f),
+                        color = StudioDarkCharcoal,
                         shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                        border = BorderStroke(1.5.dp, StudioElectricBlue)
                     ) {
                         Column(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -426,7 +604,7 @@ fun VideoPlayerView(
                             )
                             Text(
                                 text = "Tambahkan media untuk memulai",
-                                color = Color.White.copy(alpha = 0.65f),
+                                color = StudioPastelSky,
                                 fontSize = 11.sp
                             )
                         }
@@ -437,13 +615,276 @@ fun VideoPlayerView(
     }
 }
 
+/**
+ * Native hardware-accelerated video rendering surface with automatic Full-Frame scaling (ContentScale.Crop).
+ */
+@Composable
+fun NativeFullFrameVideoSurface(
+    mediaUri: String,
+    isPlaying: Boolean,
+    currentTimeMs: Long,
+    clipStartTimeMs: Long,
+    clipEndTimeMs: Long,
+    speedMultiplier: Float,
+    volume: Float,
+    isMirrored: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val clipOffsetMs = (currentTimeMs - clipStartTimeMs).coerceIn(0L, (clipEndTimeMs - clipStartTimeMs).coerceAtLeast(100L))
+
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var isPrepared by remember { mutableStateOf(false) }
+    var textureViewRef by remember { mutableStateOf<TextureView?>(null) }
+    var surfaceRef by remember { mutableStateOf<Surface?>(null) }
+    var videoWidth by remember { mutableIntStateOf(1280) }
+    var videoHeight by remember { mutableIntStateOf(720) }
+
+    fun applyCropMatrix(tv: TextureView, vw: Int, vh: Int) {
+        if (vw <= 0 || vh <= 0 || tv.width <= 0 || tv.height <= 0) return
+        val viewWidth = tv.width.toFloat()
+        val viewHeight = tv.height.toFloat()
+        val videoW = vw.toFloat()
+        val videoH = vh.toFloat()
+
+        val scaleX: Float
+        val scaleY: Float
+        val videoAspect = videoW / videoH
+        val viewAspect = viewWidth / viewHeight
+
+        if (videoAspect > viewAspect) {
+            scaleY = 1f
+            scaleX = (videoW * (viewHeight / videoH)) / viewWidth
+        } else {
+            scaleX = 1f
+            scaleY = (videoH * (viewWidth / videoW)) / viewHeight
+        }
+
+        val matrix = Matrix()
+        matrix.setScale(if (isMirrored) -scaleX else scaleX, scaleY, viewWidth / 2f, viewHeight / 2f)
+        tv.setTransform(matrix)
+    }
+
+    DisposableEffect(mediaUri) {
+        val player = MediaPlayer()
+        mediaPlayer = player
+        isPrepared = false
+
+        try {
+            player.setOnErrorListener { _, what, extra ->
+                Log.w("VideoPlayer", "MediaPlayer onError caught: what=$what, extra=$extra")
+                true // Handled to prevent unhandled crash
+            }
+
+            if (mediaUri.startsWith("content://") || mediaUri.startsWith("android.resource://")) {
+                player.setDataSource(context, Uri.parse(mediaUri))
+            } else {
+                val cleanPath = mediaUri.removePrefix("file://")
+                player.setDataSource(cleanPath)
+            }
+
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .build()
+            )
+            player.setVolume(volume.coerceIn(0f, 1f), volume.coerceIn(0f, 1f))
+            player.isLooping = false
+
+            player.setOnVideoSizeChangedListener { _, w, h ->
+                if (w > 0 && h > 0) {
+                    videoWidth = w
+                    videoHeight = h
+                    textureViewRef?.let { applyCropMatrix(it, w, h) }
+                }
+            }
+
+            player.setOnPreparedListener { mp ->
+                isPrepared = true
+                surfaceRef?.let { if (it.isValid) mp.setSurface(it) }
+                try {
+                    mp.seekTo(clipOffsetMs.toInt())
+                } catch (e: Exception) {
+                    Log.w("VideoPlayer", "Initial seek error: ${e.message}")
+                }
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && speedMultiplier > 0f) {
+                        mp.playbackParams = mp.playbackParams.setSpeed(speedMultiplier)
+                        // CRITICAL: setPlaybackParams automatically sets state to started, pause immediately if not playing
+                        if (!isPlaying) {
+                            mp.pause()
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore
+                }
+                if (isPlaying) {
+                    try {
+                        mp.start()
+                    } catch (e: Exception) {
+                        Log.w("VideoPlayer", "Start error on prepared: ${e.message}")
+                    }
+                } else {
+                    try {
+                        if (mp.isPlaying) {
+                            mp.pause()
+                        }
+                    } catch (e: Exception) {}
+                }
+            }
+            player.prepareAsync()
+        } catch (e: Exception) {
+            Log.w("VideoPlayer", "MediaPlayer setup failed: ${e.message}")
+        }
+
+        onDispose {
+            isPrepared = false
+            try {
+                player.setOnPreparedListener(null)
+                player.setOnVideoSizeChangedListener(null)
+                player.setOnErrorListener(null)
+            } catch (e: Exception) {}
+
+            try {
+                if (player.isPlaying) {
+                    player.stop()
+                }
+            } catch (e: Exception) {}
+
+            try {
+                player.reset()
+                player.release()
+            } catch (e: Exception) {}
+
+            mediaPlayer = null
+        }
+    }
+
+    // Play/Pause State Sync (Safe only when prepared)
+    LaunchedEffect(isPlaying, isPrepared) {
+        if (!isPrepared) return@LaunchedEffect
+        mediaPlayer?.let { mp ->
+            try {
+                if (isPlaying) {
+                    if (!mp.isPlaying) {
+                        mp.seekTo(clipOffsetMs.toInt())
+                        mp.start()
+                    }
+                } else {
+                    if (mp.isPlaying) {
+                        mp.pause()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("VideoPlayer", "Play/Pause toggle failed: ${e.message}")
+            }
+        }
+    }
+
+    // Scrub / Seek Sync when paused or seeking (Safe only when prepared)
+    LaunchedEffect(clipOffsetMs, isPrepared) {
+        if (!isPrepared) return@LaunchedEffect
+        mediaPlayer?.let { mp ->
+            try {
+                if (!isPlaying) {
+                    mp.seekTo(clipOffsetMs.toInt())
+                }
+            } catch (e: Exception) {
+                Log.w("VideoPlayer", "Seek failed: ${e.message}")
+            }
+        }
+    }
+
+    // Volume Sync (Safe only when prepared)
+    LaunchedEffect(volume, isPrepared) {
+        if (!isPrepared) return@LaunchedEffect
+        try {
+            mediaPlayer?.setVolume(volume.coerceIn(0f, 1f), volume.coerceIn(0f, 1f))
+        } catch (e: Exception) {}
+    }
+
+    // Speed Sync (Safe only when prepared)
+    LaunchedEffect(speedMultiplier, isPrepared) {
+        if (!isPrepared) return@LaunchedEffect
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && speedMultiplier > 0f) {
+                mediaPlayer?.let { mp ->
+                    mp.playbackParams = mp.playbackParams.setSpeed(speedMultiplier)
+                    if (!isPlaying) {
+                        mp.pause()
+                    }
+                }
+            }
+        } catch (e: Exception) {}
+    }
+
+    AndroidView(
+        factory = { ctx ->
+            TextureView(ctx).apply {
+                textureViewRef = this
+                addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                    applyCropMatrix(this, videoWidth, videoHeight)
+                }
+                surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                    override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+                        val surface = Surface(st)
+                        surfaceRef = surface
+                        if (isPrepared) {
+                            try {
+                                mediaPlayer?.setSurface(surface)
+                            } catch (e: Exception) {}
+                        }
+                        applyCropMatrix(this@apply, videoWidth, videoHeight)
+                    }
+
+                    override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {
+                        applyCropMatrix(this@apply, videoWidth, videoHeight)
+                    }
+
+                    override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+                        surfaceRef = null
+                        try {
+                            mediaPlayer?.setSurface(null)
+                        } catch (e: Exception) {}
+                        return true
+                    }
+
+                    override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
+                }
+            }
+        },
+        update = { tv ->
+            textureViewRef = tv
+            applyCropMatrix(tv, videoWidth, videoHeight)
+        },
+        modifier = modifier.fillMaxSize()
+    )
+}
+
 @Composable
 fun KeyframeOverlayItem(
     clip: TimelineClipEntity,
     transform: KeyframeTransform,
+    clipOffsetMs: Long,
     isSelected: Boolean,
     onTransformChanged: (posX: Float, posY: Float, scale: Float, rotation: Float) -> Unit
 ) {
+    val isImage = remember(clip.mediaUri) {
+        clip.mediaUri.endsWith(".jpg", true) || clip.mediaUri.endsWith(".jpeg", true) ||
+                clip.mediaUri.endsWith(".png", true) || clip.mediaUri.endsWith(".webp", true) ||
+                clip.mediaUri.contains("image", true) || clip.mediaUri.contains("photo", true) ||
+                clip.stickerIcon == "IMAGE_OVERLAY"
+    }
+
+    val overlayFrame by produceState<Bitmap?>(initialValue = null, key1 = clip.mediaUri, key2 = clipOffsetMs) {
+        if (clip.mediaUri.isNotBlank() && !isImage) {
+            value = RealMediaManager.extractVideoFrame(clip.mediaUri, clipOffsetMs)
+        } else {
+            value = null
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -467,32 +908,62 @@ fun KeyframeOverlayItem(
                         onTransformChanged(newX, newY, newScale, newRot)
                     }
                 }
+                .size(160.dp, 100.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .border(
                     if (isSelected) 2.dp else 1.dp,
-                    if (isSelected) StudioAccentAmber else Color.White.copy(alpha = 0.4f),
+                    if (isSelected) StudioAccentAmber else StudioCardHairline,
                     RoundedCornerShape(8.dp)
                 )
-                .background(Color.Black.copy(alpha = 0.5f))
-                .padding(8.dp)
+                .background(StudioDarkCharcoal)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Layers,
-                    contentDescription = null,
-                    tint = StudioSecondaryTeal,
-                    modifier = Modifier.size(16.dp)
+            if (overlayFrame != null) {
+                Image(
+                    bitmap = overlayFrame!!.asImageBitmap(),
+                    contentDescription = clip.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = clip.title.take(18),
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
+            } else if (clip.mediaUri.isNotBlank()) {
+                val overlayModel = remember(clip.mediaUri) {
+                    if (clip.mediaUri.startsWith("/") || clip.mediaUri.startsWith("file://")) {
+                        File(clip.mediaUri.removePrefix("file://"))
+                    } else {
+                        Uri.parse(clip.mediaUri)
+                    }
+                }
+                AsyncImage(
+                    model = overlayModel,
+                    contentDescription = clip.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Layers,
+                            contentDescription = null,
+                            tint = StudioSecondaryTeal,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = clip.title.take(18),
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
     }
@@ -634,7 +1105,7 @@ fun formatTimeMs(ms: Long): String {
 @Composable
 fun RenderSmoothTransition(
     transitionType: String,
-    progress: Float, // 0.0f to 1.0f
+    progress: Float,
     isIncoming: Boolean
 ) {
     val smoothProgress = (progress * progress * (3f - 2f * progress)).coerceIn(0f, 1f)
@@ -712,7 +1183,7 @@ fun evaluateSmoothClipAnimation(
     // 1. In-Animation Easing
     if (clip.animationIn.isNotBlank() && clip.animationIn != "None" && clipOffsetMs < inDurationMs) {
         val t = (clipOffsetMs.toFloat() / inDurationMs.toFloat()).coerceIn(0f, 1f)
-        val smoothT = t * t * (3f - 2f * t) // Hermite smoothstep
+        val smoothT = t * t * (3f - 2f * t)
         when {
             clip.animationIn.contains("Fade In", ignoreCase = true) -> {
                 opacity *= smoothT
@@ -726,7 +1197,6 @@ fun evaluateSmoothClipAnimation(
                 opacity *= smoothT
             }
             clip.animationIn.contains("Bounce In", ignoreCase = true) -> {
-                // Spring overshoot bounce formula
                 val bounce = kotlin.math.sin(t * kotlin.math.PI * 1.5).toFloat()
                 scale *= (0.2f + bounce * 0.8f).coerceAtLeast(0.1f)
                 opacity *= smoothT
@@ -771,7 +1241,7 @@ fun evaluateSmoothClipAnimation(
         }
     }
 
-    // 3. Combo Animation Easing (Continuous motion along the clip)
+    // 3. Combo Animation Easing
     if (clip.animationCombo.isNotBlank() && clip.animationCombo != "None") {
         val progress = (clipOffsetMs.toFloat() / totalDur.toFloat()).coerceIn(0f, 1f)
         when {

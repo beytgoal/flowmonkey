@@ -287,7 +287,7 @@ fun ExportStudioScreen(
                     ) {
                         Text("Ekspor Video Selesai!", color = StudioEmeraldGreen, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Surface(
-                            color = StudioElectricBlue.copy(alpha = 0.12f),
+                            color = StudioPastelSky,
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(selectedResolution, color = StudioElectricBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
@@ -320,7 +320,7 @@ fun ExportStudioScreen(
                         OutlinedButton(
                             onClick = { /* Save */ },
                             modifier = Modifier.weight(1f),
-                            border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.6f)),
+                            border = BorderStroke(1.dp, StudioElectricBlue),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
                             shape = RoundedCornerShape(20.dp)
                         ) {

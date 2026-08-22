@@ -22,7 +22,7 @@ class GreetingScreenshotTest {
 
   @Test
   fun greeting_screenshot() {
-    composeTestRule.setContent { FlowMonkeyTheme { Text("FlowMonkey Studio") } }
+    composeTestRule.setContent { FlowMonkeyTheme { Text("FlowMonkey") } }
 
     composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/greeting.png")
   }

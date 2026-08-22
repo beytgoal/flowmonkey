@@ -97,8 +97,8 @@ fun TransitionSelectionSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = StudioSurfaceDark,
-        contentColor = Color.White,
+        containerColor = StudioCardWhite,
+        contentColor = StudioTextDark,
         modifier = Modifier.testTag("transition_selection_sheet")
     ) {
         Column(
@@ -115,7 +115,7 @@ fun TransitionSelectionSheet(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = StudioSecondaryTeal.copy(alpha = 0.2f),
+                        color = StudioPastelMint,
                         shape = CircleShape,
                         modifier = Modifier.size(36.dp)
                     ) {
@@ -134,20 +134,20 @@ fun TransitionSelectionSheet(
                             text = "Tool Pemilih Transisi Klip",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = StudioTextDark
                         )
                         val clipATitle = clipA?.title?.take(14) ?: "Klip A"
                         val clipBTitle = clipB?.title?.take(14) ?: "Klip B"
                         Text(
                             text = "$clipATitle ➔ $clipBTitle",
                             fontSize = 11.sp,
-                            color = StudioTextSecondary
+                            color = StudioTextMuted
                         )
                     }
                 }
 
                 IconButton(onClick = onDismiss) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Tutup", tint = Color.Gray)
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Tutup", tint = StudioTextMuted)
                 }
             }
 
@@ -159,8 +159,8 @@ fun TransitionSelectionSheet(
                     .fillMaxWidth()
                     .height(110.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Black),
-                border = BorderStroke(1.dp, StudioSecondaryTeal.copy(alpha = 0.4f))
+                colors = CardDefaults.cardColors(containerColor = StudioDarkCharcoal),
+                border = BorderStroke(1.dp, StudioCardHairline)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -179,7 +179,7 @@ fun TransitionSelectionSheet(
                     ) {
                         Text(
                             text = clipA?.title?.take(16) ?: "Klip A",
-                            color = Color.White.copy(alpha = 0.8f),
+                            color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
@@ -255,7 +255,7 @@ fun TransitionSelectionSheet(
                     ) {
                         Text(
                             text = clipB?.title?.take(16) ?: "Klip B",
-                            color = Color.White.copy(alpha = 0.9f),
+                            color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
@@ -284,12 +284,12 @@ fun TransitionSelectionSheet(
                             .align(Alignment.BottomEnd)
                             .padding(8.dp),
                         shape = RoundedCornerShape(6.dp),
-                        color = Color.Black.copy(alpha = 0.7f),
-                        border = BorderStroke(1.dp, StudioSecondaryTeal.copy(alpha = 0.6f))
+                        color = StudioDarkCharcoal,
+                        border = BorderStroke(1.dp, StudioElectricBlue)
                     ) {
                         Text(
                             text = "Efek: $selectedTransition",
-                            color = StudioSecondaryTeal,
+                            color = StudioPastelSky,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -310,20 +310,20 @@ fun TransitionSelectionSheet(
                     text = "Durasi Transisi: ${String.format("%.1f", transitionDurationSec)}s",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = StudioSecondaryTeal
+                    color = StudioTextDark
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf(0.3f, 0.5f, 0.8f, 1.0f, 1.5f).forEach { dur ->
                         Surface(
                             shape = RoundedCornerShape(4.dp),
-                            color = if (transitionDurationSec == dur) StudioSecondaryTeal else StudioCardBg,
-                            border = BorderStroke(1.dp, if (transitionDurationSec == dur) StudioSecondaryTeal else StudioCardBorder),
+                            color = if (transitionDurationSec == dur) StudioElectricBlue else StudioPillBg,
+                            border = BorderStroke(1.dp, if (transitionDurationSec == dur) StudioElectricBlue else StudioCardHairline),
                             modifier = Modifier.clickable { transitionDurationSec = dur }
                         ) {
                             Text(
                                 text = "${dur}s",
-                                color = if (transitionDurationSec == dur) Color.Black else Color.White,
+                                color = if (transitionDurationSec == dur) Color.White else StudioTextDark,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
@@ -343,8 +343,8 @@ fun TransitionSelectionSheet(
                         onClick = { selectedCategory = cat },
                         label = { Text(cat, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = StudioSecondaryTeal,
-                            selectedLabelColor = Color.Black
+                            selectedContainerColor = StudioElectricBlue,
+                            selectedLabelColor = Color.White
                         )
                     )
                 }
@@ -370,11 +370,11 @@ fun TransitionSelectionSheet(
                             .clickable { selectedTransition = item.name }
                             .testTag("transition_item_${item.name}"),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) StudioSecondaryTeal.copy(alpha = 0.25f) else StudioCardBg
+                            containerColor = if (isSelected) StudioPastelSky else StudioPillBg
                         ),
                         border = BorderStroke(
-                            if (isSelected) 1.5.dp else 1.dp,
-                            if (isSelected) StudioSecondaryTeal else StudioCardBorder
+                            if (isSelected) 2.dp else 1.dp,
+                            if (isSelected) StudioElectricBlue else StudioCardHairline
                         ),
                         shape = RoundedCornerShape(10.dp)
                     ) {
@@ -388,15 +388,15 @@ fun TransitionSelectionSheet(
                             Icon(
                                 imageVector = item.icon,
                                 contentDescription = item.name,
-                                tint = if (isSelected) StudioSecondaryTeal else Color.White,
+                                tint = if (isSelected) StudioElectricBlue else StudioTextDark,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = item.name,
                                 fontSize = 10.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) StudioSecondaryTeal else Color.White,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                color = if (isSelected) StudioElectricBlue else StudioTextDark,
                                 maxLines = 1
                             )
                         }
@@ -417,8 +417,8 @@ fun TransitionSelectionSheet(
                         onDismiss()
                     },
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioAccentAmber),
-                    border = BorderStroke(1.dp, StudioAccentAmber.copy(alpha = 0.8f))
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
+                    border = BorderStroke(1.dp, StudioElectricBlue)
                 ) {
                     Text("Terapkan ke Semua", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
@@ -429,9 +429,9 @@ fun TransitionSelectionSheet(
                         onDismiss()
                     },
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = StudioSecondaryTeal)
+                    colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA)
                 ) {
-                    Text("Terapkan", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("Terapkan", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

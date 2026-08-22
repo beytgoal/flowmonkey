@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.graphics.Bitmap
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.*
@@ -15,22 +17,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.R
 import com.example.data.db.VideoProjectEntity
 import com.example.data.models.LocalMediaAsset
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import com.example.media.RealMediaManager
 import com.example.ui.theme.*
 import com.example.ui.viewmodels.MainTab
 import com.example.ui.viewmodels.VideoStudioViewModel
+import kotlinx.coroutines.launch
+import java.io.File
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +58,8 @@ fun ProjectListScreen(
     var selectedSubTab by remember { mutableIntStateOf(0) } // 0: Proyek, 1: Template, 2: Pustaka Media
     var showCreateDialog by remember { mutableStateOf(false) }
     var selectedTemplateForMediaReplace by remember { mutableStateOf<VideoProjectEntity?>(null) }
+    var projectToDelete by remember { mutableStateOf<VideoProjectEntity?>(null) }
+    var templateToDelete by remember { mutableStateOf<VideoProjectEntity?>(null) }
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -70,7 +81,7 @@ fun ProjectListScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = Color.Transparent
+        containerColor = StudioCleanCanvas
     ) { innerPadding ->
         Column(
             modifier = modifier
@@ -185,7 +196,9 @@ fun ProjectListScreen(
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(24.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
@@ -195,9 +208,20 @@ fun ProjectListScreen(
                                 modifier = Modifier.size(48.dp)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
-                            Text("Belum ada proyek aktif", color = StudioTextDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(
+                                text = "Belum ada proyek aktif",
+                                color = StudioTextDark,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                textAlign = TextAlign.Center
+                            )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("Tarik proyek ke kiri untuk menjadikannya Template!", color = StudioTextMuted, fontSize = 12.sp)
+                            Text(
+                                text = "Tarik proyek ke kiri untuk menjadikannya Template!",
+                                color = StudioTextMuted,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center
+                            )
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
                                 onClick = { showCreateDialog = true },
@@ -231,8 +255,7 @@ fun ProjectListScreen(
                                 }
                             },
                             onDeleteProject = {
-                                viewModel.deleteProject(project)
-                                snackbarMessage = "Proyek '${project.title}' dihapus."
+                                projectToDelete = project
                             }
                         )
                         Spacer(modifier = Modifier.height(10.dp))
@@ -250,7 +273,9 @@ fun ProjectListScreen(
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
@@ -260,12 +285,19 @@ fun ProjectListScreen(
                                 modifier = Modifier.size(40.dp)
                             )
                             Spacer(modifier = Modifier.height(10.dp))
-                            Text("Belum Ada Template Kustom", color = StudioTextDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(
+                                text = "Belum Ada Template Kustom",
+                                color = StudioTextDark,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                textAlign = TextAlign.Center
+                            )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "Buka tab 'Proyek', lalu tarik (swipe) proyek ke kiri dan tekan ikon Buat Template untuk menyimpan preset full tools + placeholder!",
                                 color = StudioTextMuted,
                                 fontSize = 12.sp,
+                                textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(horizontal = 12.dp)
                             )
                         }
@@ -284,8 +316,7 @@ fun ProjectListScreen(
                             selectedTemplateForMediaReplace = template
                         },
                         onDeleteTemplate = {
-                            viewModel.deleteProject(template)
-                            snackbarMessage = "Template '${template.title}' dihapus."
+                            templateToDelete = template
                         }
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -298,6 +329,84 @@ fun ProjectListScreen(
                 )
             }
         }
+    }
+
+    // Dialog Konfirmasi Hapus Proyek
+    projectToDelete?.let { project ->
+        AlertDialog(
+            onDismissRequest = { projectToDelete = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = null, tint = StudioAccentPink)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Hapus Proyek?", fontWeight = FontWeight.Bold, color = StudioTextDark)
+                }
+            },
+            text = {
+                Text(
+                    "Apakah Anda yakin ingin menghapus proyek '${project.title}'? Seluruh klip, timeline, dan data di dalamnya akan dihapus.",
+                    color = StudioTextDark,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteProject(project)
+                        snackbarMessage = "Proyek '${project.title}' dihapus."
+                        projectToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StudioAccentPink),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Text("Hapus", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { projectToDelete = null }) {
+                    Text("Batal")
+                }
+            }
+        )
+    }
+
+    // Dialog Konfirmasi Hapus Template
+    templateToDelete?.let { template ->
+        AlertDialog(
+            onDismissRequest = { templateToDelete = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = null, tint = StudioAccentPink)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Hapus Template?", fontWeight = FontWeight.Bold, color = StudioTextDark)
+                }
+            },
+            text = {
+                Text(
+                    "Apakah Anda yakin ingin menghapus template '${template.title}'?",
+                    color = StudioTextDark,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteProject(template)
+                        snackbarMessage = "Template '${template.title}' dihapus."
+                        templateToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StudioAccentPink),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Text("Hapus", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { templateToDelete = null }) {
+                    Text("Batal")
+                }
+            }
+        )
     }
 
     // Dialog Input / Replace Placeholder Media for Template
@@ -596,7 +705,7 @@ fun SwipeableProjectCard(
                 Icon(
                     imageVector = Icons.Default.ChevronLeft,
                     contentDescription = "Swipe left",
-                    tint = StudioTextMuted.copy(alpha = 0.6f),
+                    tint = StudioTextSubtle,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -630,8 +739,9 @@ fun TemplateItemCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = StudioElectricBlue.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(8.dp)
+                        color = StudioPastelSky,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, StudioElectricBlue)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
@@ -721,7 +831,7 @@ fun TemplateItemCard(
                 OutlinedButton(
                     onClick = onReplaceMedia,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = StudioElectricBlue),
-                    border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.6f)),
+                    border = BorderStroke(1.5.dp, StudioElectricBlue),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.weight(1f)
@@ -745,18 +855,45 @@ fun LocalMediaLibraryView(
     val mediaAssets by viewModel.localMediaAssets.collectAsState()
     var selectedCategory by remember { mutableStateOf("Semua") }
     var searchQuery by remember { mutableStateOf("") }
-    var showImportDialog by remember { mutableStateOf(false) }
+    var assetToDelete by remember { mutableStateOf<LocalMediaAsset?>(null) }
 
     val categories = listOf("Semua", "Video", "Audio", "Gambar & Grafis", "Filter & LUT", "AI Generated")
 
-    val lutFilePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val coroutineScope = rememberCoroutineScope()
+    val mediaFilePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
-        uri?.let {
-            val fileName = it.lastPathSegment?.substringAfterLast('/') ?: "Custom_Film_Grade.cube"
-            val cleanName = if (fileName.contains('.')) fileName else "$fileName.cube"
-            viewModel.importCustomLut(cleanName, it.toString())
-            onShowSnackbar("Berhasil mengimpor LUT '$cleanName' ke Pustaka Media!")
+        uri?.let { pickedUri ->
+            coroutineScope.launch {
+                try {
+                    val result = RealMediaManager.importMediaFromUri(context, pickedUri)
+                    if (result.category == "LUT") {
+                        val cleanLutName = if (result.fileName.endsWith(".cube", ignoreCase = true) || result.fileName.endsWith(".3dl", ignoreCase = true)) result.fileName else "${result.fileName}.cube"
+                        viewModel.importCustomLut(cleanLutName, result.permanentFilePath)
+                        onShowSnackbar("Berhasil mengimpor LUT '$cleanLutName'!")
+                    } else {
+                        viewModel.addMediaAsset(
+                            LocalMediaAsset(
+                                id = "media_${System.currentTimeMillis()}",
+                                title = result.fileName,
+                                category = result.category,
+                                uri = result.permanentFilePath,
+                                durationText = result.durationText,
+                                durationMs = result.durationMs,
+                                resolutionOrType = result.resolutionOrType,
+                                isAiGenerated = false,
+                                dateAdded = "Baru Saja",
+                                tags = listOf(result.category, result.fileName.substringAfterLast('.', "FILE").uppercase())
+                            )
+                        )
+                        onShowSnackbar("Berhasil mengimpor ${result.category}: '${result.fileName}'!")
+                    }
+                } catch (e: Exception) {
+                    onShowSnackbar("Gagal mengimpor media: ${e.message}")
+                }
+            }
         }
     }
 
@@ -810,29 +947,15 @@ fun LocalMediaLibraryView(
             )
 
             Button(
-                onClick = { lutFilePickerLauncher.launch("*/*") },
-                colors = ButtonDefaults.buttonColors(containerColor = StudioPrimaryViolet),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .height(48.dp)
-                    .testTag("button_import_lut")
-            ) {
-                Icon(imageVector = Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Impor LUT", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-            }
-
-            Button(
-                onClick = { showImportDialog = true },
+                onClick = { mediaFilePickerLauncher.launch("*/*") },
                 colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .height(48.dp)
                     .testTag("button_import_media")
             ) {
-                Text("+ Impor", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text("Impor", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }
 
@@ -876,14 +999,27 @@ fun LocalMediaLibraryView(
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(imageVector = Icons.Default.PermMedia, contentDescription = null, tint = StudioElectricBlue, modifier = Modifier.size(44.dp))
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text("Aset Media Tidak Ditemukan", color = StudioTextDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(
+                        text = "Aset Media Tidak Ditemukan",
+                        color = StudioTextDark,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Tekan '+ Impor' untuk menambah media dari galeri device.", color = StudioTextMuted, fontSize = 12.sp)
+                    Text(
+                        text = "Tekan 'Impor' untuk menambah media dari galeri device.",
+                        color = StudioTextMuted,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         } else {
@@ -903,8 +1039,7 @@ fun LocalMediaLibraryView(
                         onShowSnackbar("Aset '${asset.title}' berhasil diduplikat (0 memory/storage overhead).")
                     },
                     onDeleteAsset = {
-                        viewModel.deleteMediaAsset(asset.id)
-                        onShowSnackbar("Aset '${asset.title}' dihapus dari pustaka.")
+                        assetToDelete = asset
                     }
                 )
                 Spacer(modifier = Modifier.height(10.dp))
@@ -912,111 +1047,41 @@ fun LocalMediaLibraryView(
         }
     }
 
-    // Dialog Import Media Baru
-    if (showImportDialog) {
-        var newTitle by remember { mutableStateOf("") }
-        var selectedCategory by remember { mutableStateOf("VIDEO") }
-        var newUri by remember { mutableStateOf("") }
-        var durationInput by remember { mutableStateOf("00:05") }
-
+    // Dialog Konfirmasi Hapus Aset Media
+    assetToDelete?.let { asset ->
         AlertDialog(
-            onDismissRequest = { showImportDialog = false },
+            onDismissRequest = { assetToDelete = null },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, tint = StudioElectricBlue)
+                    Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = null, tint = StudioAccentPink)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Impor Media Baru", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Hapus Aset Media?", fontWeight = FontWeight.Bold, color = StudioTextDark)
                 }
             },
             text = {
-                Column {
-                    OutlinedTextField(
-                        value = newTitle,
-                        onValueChange = { newTitle = it },
-                        label = { Text("Nama / Judul Aset") },
-                        placeholder = { Text("Contoh: Video Cinematic Sunset") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = StudioTextDark,
-                            unfocusedTextColor = StudioTextDark,
-                            focusedBorderColor = StudioElectricBlue,
-                            unfocusedBorderColor = StudioCardHairline
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text("Kategori Media:", fontSize = 12.sp, color = StudioTextMuted)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("VIDEO", "AUDIO", "IMAGE", "LUT").forEach { cat ->
-                            FilterChip(
-                                selected = selectedCategory == cat,
-                                onClick = { selectedCategory = cat },
-                                label = { Text(if (cat == "IMAGE") "GAMBAR" else if (cat == "LUT") "FILTER LUT" else cat, fontSize = 11.sp) },
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = newUri,
-                        onValueChange = { newUri = it },
-                        label = { Text("URI / Path File Media") },
-                        placeholder = { Text("storage/emulated/0/Movies/clip.mp4") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = StudioTextDark,
-                            unfocusedTextColor = StudioTextDark,
-                            focusedBorderColor = StudioElectricBlue,
-                            unfocusedBorderColor = StudioCardHairline
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = durationInput,
-                        onValueChange = { durationInput = it },
-                        label = { Text("Durasi (mm:ss)") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = StudioTextDark,
-                            unfocusedTextColor = StudioTextDark,
-                            focusedBorderColor = StudioElectricBlue,
-                            unfocusedBorderColor = StudioCardHairline
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
-                }
+                Text(
+                    "Apakah Anda yakin ingin menghapus '${asset.title}' dari pustaka media? Tindakan ini tidak dapat dibatalkan.",
+                    color = StudioTextDark,
+                    fontSize = 13.sp
+                )
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val titleFinal = newTitle.ifBlank { if (selectedCategory == "LUT") "Custom_LUT_${System.currentTimeMillis() % 1000}.cube" else "Media Impor ${System.currentTimeMillis() % 1000}" }
-                        val uriFinal = newUri.ifBlank { if (selectedCategory == "LUT") "luts/${titleFinal.lowercase().replace(" ", "_")}" else "imported_media_${System.currentTimeMillis()}" }
-                        if (selectedCategory == "LUT") {
-                            viewModel.importCustomLut(titleFinal, uriFinal)
-                        } else {
-                            viewModel.addMediaAsset(
-                                LocalMediaAsset(
-                                    title = titleFinal,
-                                    category = selectedCategory,
-                                    uri = uriFinal,
-                                    durationText = durationInput,
-                                    isAiGenerated = false,
-                                    dateAdded = "Baru saja"
-                                )
-                            )
-                        }
-                        showImportDialog = false
-                        onShowSnackbar("Aset '${titleFinal}' berhasil diimpor ke pustaka!")
+                        viewModel.deleteMediaAsset(asset.id)
+                        onShowSnackbar("Aset '${asset.title}' dihapus dari pustaka.")
+                        assetToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = StudioDarkCTA),
+                    colors = ButtonDefaults.buttonColors(containerColor = StudioAccentPink),
                     shape = RoundedCornerShape(20.dp)
                 ) {
-                    Text("Impor ke Pustaka", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Hapus", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showImportDialog = false }) { Text("Batal") }
+                TextButton(onClick = { assetToDelete = null }) {
+                    Text("Batal")
+                }
             }
         )
     }
@@ -1047,55 +1112,88 @@ fun MediaAssetCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Asset Thumbnail Placeholder / Category Icon
+            // Asset Thumbnail / Preview
+            val isVideo = asset.category.equals("VIDEO", ignoreCase = true)
+            val isImage = asset.category.equals("IMAGE", ignoreCase = true)
+            val videoFrame by produceState<Bitmap?>(initialValue = null, key1 = asset.uri) {
+                if (isVideo && asset.uri.isNotBlank()) {
+                    value = RealMediaManager.extractVideoFrame(asset.uri, 0L)
+                } else {
+                    value = null
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .size(68.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(
                         when (asset.category.uppercase()) {
-                            "VIDEO" -> StudioElectricBlue.copy(alpha = 0.15f)
-                            "AUDIO" -> StudioEmeraldGreen.copy(alpha = 0.15f)
-                            "LUT" -> StudioPrimaryViolet.copy(alpha = 0.15f)
-                            else -> StudioRosePink.copy(alpha = 0.15f)
+                            "VIDEO" -> StudioPastelSky
+                            "AUDIO" -> StudioPastelMint
+                            "LUT" -> StudioPastelLavender
+                            else -> StudioPastelRose
                         }
                     )
                     .border(
-                        1.dp,
+                        1.5.dp,
                         when (asset.category.uppercase()) {
-                            "VIDEO" -> StudioElectricBlue.copy(alpha = 0.3f)
-                            "AUDIO" -> StudioEmeraldGreen.copy(alpha = 0.3f)
-                            "LUT" -> StudioPrimaryViolet.copy(alpha = 0.35f)
-                            else -> StudioRosePink.copy(alpha = 0.3f)
-                        },
-                        RoundedCornerShape(12.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = when (asset.category.uppercase()) {
-                            "VIDEO" -> Icons.Default.Movie
-                            "AUDIO" -> Icons.Default.MusicNote
-                            "LUT" -> Icons.Default.ColorLens
-                            else -> Icons.Default.Image
-                        },
-                        contentDescription = null,
-                        tint = when (asset.category.uppercase()) {
                             "VIDEO" -> StudioElectricBlue
                             "AUDIO" -> StudioEmeraldGreen
                             "LUT" -> StudioPrimaryViolet
                             else -> StudioRosePink
                         },
-                        modifier = Modifier.size(24.dp)
+                        RoundedCornerShape(12.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (videoFrame != null) {
+                    Image(
+                        bitmap = videoFrame!!.asImageBitmap(),
+                        contentDescription = asset.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = if (asset.category.uppercase() == "LUT") "3D LUT" else asset.durationText,
-                        color = StudioTextDark,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
+                } else if (isImage && asset.uri.isNotBlank()) {
+                    val imgFile = remember(asset.uri) {
+                        if (asset.uri.startsWith("/") || asset.uri.startsWith("file://")) {
+                            File(asset.uri.removePrefix("file://"))
+                        } else {
+                            Uri.parse(asset.uri)
+                        }
+                    }
+                    AsyncImage(
+                        model = imgFile,
+                        contentDescription = asset.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = when (asset.category.uppercase()) {
+                                "VIDEO" -> Icons.Default.Movie
+                                "AUDIO" -> Icons.Default.MusicNote
+                                "LUT" -> Icons.Default.ColorLens
+                                else -> Icons.Default.Image
+                            },
+                            contentDescription = null,
+                            tint = when (asset.category.uppercase()) {
+                                "VIDEO" -> StudioElectricBlue
+                                "AUDIO" -> StudioEmeraldGreen
+                                "LUT" -> StudioPrimaryViolet
+                                else -> StudioRosePink
+                            },
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (asset.category.uppercase() == "LUT") "3D LUT" else asset.durationText,
+                            color = StudioTextDark,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -1128,7 +1226,8 @@ fun MediaAssetCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(StudioElectricBlue.copy(alpha = 0.15f))
+                                .background(StudioPastelSky)
+                                .border(1.dp, StudioElectricBlue, RoundedCornerShape(6.dp))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1167,7 +1266,7 @@ fun MediaAssetCard(
                         onClick = onDuplicateAsset,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, StudioElectricBlue.copy(alpha = 0.5f)),
+                        border = BorderStroke(1.5.dp, StudioElectricBlue),
                         modifier = Modifier.height(32.dp)
                     ) {
                         Text("Salin", fontSize = 11.sp, color = StudioElectricBlue, fontWeight = FontWeight.Bold)
@@ -1178,7 +1277,7 @@ fun MediaAssetCard(
                         onClick = onDragAndInsertToTimeline,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, StudioEmeraldGreen.copy(alpha = 0.5f)),
+                        border = BorderStroke(1.5.dp, StudioEmeraldGreen),
                         modifier = Modifier.height(32.dp)
                     ) {
                         Text("Editor", fontSize = 11.sp, color = StudioEmeraldGreen, fontWeight = FontWeight.Bold)
