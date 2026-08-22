@@ -1651,7 +1651,16 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun pausePlayback() {
+        if (isPlaying.value) {
+            isPlaying.value = false
+            playbackJob?.cancel()
+        }
+    }
+
     fun seekTo(timeMs: Long) {
+        // Distraction Logic: Automatically pause playback if the timeline is scrubbed/dragged while playing
+        pausePlayback()
         currentTimeMs.value = timeMs.coerceAtLeast(0L)
     }
 
@@ -2178,31 +2187,41 @@ class VideoStudioViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // --- Export Simulation ---
+    // --- Production Hardware Video Export Pipeline ---
     fun startExport(platform: String, resolution: String, fps: Int) {
         viewModelScope.launch {
+            val activeClips = timelineClips.value
+            val activeProj = activeProject.value
+            val totalDurationMs = (activeClips.maxOfOrNull { it.endTimeMs } ?: 6000L).coerceAtLeast(1000L)
+            val calculatedTotalFrames = ((totalDurationMs * fps) / 1000L).toInt().coerceAtLeast(fps)
+
             _exportState.value = ExportState(
                 isExporting = true,
                 progressPercent = 0,
                 currentFrame = 0,
-                totalFrames = fps * (timelineClips.value.maxOfOrNull { it.endTimeMs } ?: 10000L).toInt() / 1000,
+                totalFrames = calculatedTotalFrames,
                 platformTarget = platform
             )
 
-            val total = _exportState.value.totalFrames.coerceAtLeast(60)
-            for (i in 1..total) {
-                delay(30)
-                val percent = (i * 100) / total
-                _exportState.value = _exportState.value.copy(
-                    progressPercent = percent,
-                    currentFrame = i
-                )
-            }
+            val exportedPath = com.example.media.RealMediaManager.renderProjectTimelineToMp4(
+                context = getApplication(),
+                clips = activeClips,
+                aspectRatioStr = activeProj?.aspectRatio ?: "16:9",
+                resolutionStr = resolution,
+                fps = fps,
+                onProgress = { curFrame, totFrames, percent ->
+                    _exportState.value = _exportState.value.copy(
+                        currentFrame = curFrame,
+                        totalFrames = totFrames,
+                        progressPercent = percent
+                    )
+                }
+            )
 
             _exportState.value = _exportState.value.copy(
                 isExporting = false,
                 progressPercent = 100,
-                exportedVideoUri = "flowmonkey_export_${System.currentTimeMillis()}_${resolution}.mp4"
+                exportedVideoUri = exportedPath
             )
         }
     }

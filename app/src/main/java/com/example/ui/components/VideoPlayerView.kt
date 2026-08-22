@@ -165,9 +165,9 @@ fun VideoPlayerView(
         modifier = modifier
             .fillMaxWidth()
             .height(playerHeight)
-            .border(1.dp, StudioCardHairline, RoundedCornerShape(12.dp))
+            .border(1.dp, StudioCardHairline, RectangleShape)
             .testTag("video_player_card"),
-        shape = RoundedCornerShape(12.dp),
+        shape = RectangleShape,
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0E12))
     ) {
         BoxWithConstraints(
@@ -189,9 +189,9 @@ fun VideoPlayerView(
 
             Box(
                 modifier = canvasModifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RectangleShape)
                     .background(Color.Black)
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(8.dp))
+                    .border(1.dp, StudioCardHairline, RectangleShape)
                     .pointerInput(Unit) {
                         detectTransformGestures { _, pan, zoom, _ ->
                             scale = (scale * zoom).coerceIn(0.5f, 5f)

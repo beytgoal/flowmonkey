@@ -483,7 +483,7 @@ fun TimelineView(
                                                 icon = Icons.Default.AutoAwesome,
                                                 trackId = trk.id,
                                                 trackType = "STICKER",
-                                                trackColor = Color(0xFFFFB74D),
+                                                trackColor = StudioAmberGold,
                                                 clips = stickerClips,
                                                 selectedClipId = selectedClip?.id,
                                                 currentTimeMs = currentTimeMs,
@@ -514,7 +514,7 @@ fun TimelineView(
                                         icon = Icons.Default.AutoAwesome,
                                         trackId = -999L,
                                         trackType = "STICKER",
-                                        trackColor = Color(0xFFFFB74D),
+                                        trackColor = StudioAmberGold,
                                         clips = stickerClips,
                                         selectedClipId = selectedClip?.id,
                                         currentTimeMs = currentTimeMs,
@@ -859,7 +859,7 @@ fun TrackClipsRowWithIcon(
                                         // AI Cutout badge
                                         if (clip.cutoutMode.isNotBlank() && clip.cutoutMode != "None") {
                                             Surface(
-                                                color = Color(0xDD6200EA),
+                                                color = StudioVioletIndigo,
                                                 shape = RoundedCornerShape(3.dp)
                                             ) {
                                                 Text(
@@ -875,7 +875,7 @@ fun TrackClipsRowWithIcon(
                                         // FX badge
                                         if (clip.effectName.isNotBlank() && clip.effectName != "None") {
                                             Surface(
-                                                color = Color(0xDD00838F),
+                                                color = StudioElectricBlue,
                                                 shape = RoundedCornerShape(3.dp)
                                             ) {
                                                 Text(
@@ -891,7 +891,7 @@ fun TrackClipsRowWithIcon(
                                         // Keyframes Badge
                                         if (keyframes.isNotEmpty()) {
                                             Surface(
-                                                color = Color(0xDDFF8F00),
+                                                color = StudioAmberGold,
                                                 shape = RoundedCornerShape(3.dp)
                                             ) {
                                                 Text(
@@ -907,7 +907,7 @@ fun TrackClipsRowWithIcon(
                                         // SFX badge
                                         if (clip.audioSfx.isNotBlank() && clip.audioSfx != "None") {
                                             Surface(
-                                                color = Color(0xFFE91E63),
+                                                color = StudioRosePink,
                                                 shape = RoundedCornerShape(3.dp)
                                             ) {
                                                 Text(

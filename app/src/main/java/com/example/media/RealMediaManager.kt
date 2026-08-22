@@ -368,6 +368,8 @@ object RealMediaManager {
 
             muxer = MediaMuxer(sampleFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             val bufferInfo = MediaCodec.BufferInfo()
+            val frameTimeIntervalUs = 1_000_000L / fps
+            var lastPtsUs = -1L
 
             val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.WHITE
@@ -431,6 +433,10 @@ object RealMediaManager {
                                 bufferInfo.size = 0
                             }
                             if (bufferInfo.size > 0 && muxerStarted && videoTrackIndex >= 0) {
+                                if (bufferInfo.presentationTimeUs <= lastPtsUs) {
+                                    bufferInfo.presentationTimeUs = if (lastPtsUs < 0) 0L else lastPtsUs + frameTimeIntervalUs
+                                }
+                                lastPtsUs = bufferInfo.presentationTimeUs
                                 encodedBuffer.position(bufferInfo.offset)
                                 encodedBuffer.limit(bufferInfo.offset + bufferInfo.size)
                                 muxer.writeSampleData(videoTrackIndex, encodedBuffer, bufferInfo)
@@ -447,9 +453,9 @@ object RealMediaManager {
             // Drain remaining buffers
             var eos = false
             var drainTries = 0
-            while (!eos && drainTries < 50) {
+            while (!eos && drainTries < 80) {
                 drainTries++
-                val status = codec.dequeueOutputBuffer(bufferInfo, 20000)
+                val status = codec.dequeueOutputBuffer(bufferInfo, 25000)
                 if (status >= 0) {
                     val encodedBuffer = codec.getOutputBuffer(status)
                     if (encodedBuffer != null) {
@@ -457,6 +463,10 @@ object RealMediaManager {
                             bufferInfo.size = 0
                         }
                         if (bufferInfo.size > 0 && muxerStarted && videoTrackIndex >= 0) {
+                            if (bufferInfo.presentationTimeUs <= lastPtsUs) {
+                                bufferInfo.presentationTimeUs = if (lastPtsUs < 0) 0L else lastPtsUs + frameTimeIntervalUs
+                            }
+                            lastPtsUs = bufferInfo.presentationTimeUs
                             encodedBuffer.position(bufferInfo.offset)
                             encodedBuffer.limit(bufferInfo.offset + bufferInfo.size)
                             muxer.writeSampleData(videoTrackIndex, encodedBuffer, bufferInfo)
@@ -467,8 +477,19 @@ object RealMediaManager {
                         eos = true
                     }
                     codec.releaseOutputBuffer(status, false)
+                } else if (status == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    if (!muxerStarted) {
+                        videoTrackIndex = muxer.addTrack(codec.outputFormat)
+                        muxer.start()
+                        muxerStarted = true
+                    }
                 } else if (status == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                    eos = true
+                    try {
+                        Thread.sleep(10)
+                    } catch (e: Exception) {}
+                    if (drainTries > 30) {
+                        eos = true
+                    }
                 }
             }
 
@@ -480,20 +501,330 @@ object RealMediaManager {
         } finally {
             try {
                 codec?.stop()
-            } catch (e: Exception) {}
+            } catch (e: Throwable) {}
             try {
                 codec?.release()
-            } catch (e: Exception) {}
+            } catch (e: Throwable) {}
             try {
                 if (muxerStarted && samplesWritten > 0) {
                     muxer?.stop()
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.w(TAG, "Exception stopping muxer: ${e.message}")
             }
             try {
                 muxer?.release()
-            } catch (e: Exception) {}
+            } catch (e: Throwable) {}
+            if (samplesWritten == 0 && sampleFile.exists()) {
+                try {
+                    sampleFile.delete()
+                } catch (e: Throwable) {}
+            }
+        }
+    }
+
+    /**
+     * Production Hardware Video Exporter.
+     * Renders all active timeline clips, color grades, text titles, and overlays into a finalized MP4 video file.
+     */
+    suspend fun renderProjectTimelineToMp4(
+        context: Context,
+        clips: List<com.example.data.db.TimelineClipEntity>,
+        aspectRatioStr: String = "16:9",
+        resolutionStr: String = "1080p",
+        fps: Int = 30,
+        onProgress: (currentFrame: Int, totalFrames: Int, percent: Int) -> Unit = { _, _, _ -> }
+    ): String = withContext(Dispatchers.IO) {
+        val exportDir = File(context.filesDir, "exported_videos").apply { mkdirs() }
+        val fileName = "flowmonkey_export_${System.currentTimeMillis()}_${resolutionStr.replace(" ", "_")}.mp4"
+        val outputFile = File(exportDir, fileName)
+
+        val totalDurationMs = (clips.maxOfOrNull { it.endTimeMs } ?: 6000L).coerceAtLeast(1000L)
+        val durationSeconds = (totalDurationMs / 1000L).toInt().coerceAtLeast(1)
+        val totalFrames = ((totalDurationMs * fps) / 1000L).toInt().coerceAtLeast(fps)
+
+        // Parse Dimensions
+        val isVertical = aspectRatioStr == "9:16" || aspectRatioStr == "4:5"
+        val isSquare = aspectRatioStr == "1:1"
+        val isUltrawide = aspectRatioStr == "21:9"
+
+        val (baseWidth, baseHeight) = when {
+            resolutionStr.contains("4K", ignoreCase = true) -> Pair(3840, 2160)
+            resolutionStr.contains("720p", ignoreCase = true) -> Pair(1280, 720)
+            else -> Pair(1920, 1080) // 1080p FHD default
+        }
+
+        val width = when {
+            isVertical -> baseHeight
+            isSquare -> minOf(baseWidth, baseHeight)
+            isUltrawide -> (baseHeight * 21) / 9
+            else -> baseWidth
+        }
+        val height = when {
+            isVertical -> baseWidth
+            isSquare -> minOf(baseWidth, baseHeight)
+            isUltrawide -> baseHeight
+            else -> baseHeight
+        }
+
+        val bitRate = when {
+            resolutionStr.contains("4K", ignoreCase = true) -> 12_000_000
+            resolutionStr.contains("720p", ignoreCase = true) -> 3_000_000
+            else -> 6_000_000
+        }
+
+        var codec: MediaCodec? = null
+        var muxer: MediaMuxer? = null
+        var muxerStarted = false
+        var videoTrackIndex = -1
+        var samplesWritten = 0
+
+        try {
+            val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
+                setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+                setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+                setInteger(MediaFormat.KEY_FRAME_RATE, fps)
+                setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+            }
+
+            codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+            codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            val inputSurface = codec.createInputSurface()
+            codec.start()
+
+            muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            val bufferInfo = MediaCodec.BufferInfo()
+            val frameTimeIntervalUs = (1_000_000L / fps)
+            var lastPtsUs = -1L
+
+            val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                textSize = (height * 0.045f).coerceIn(24f, 72f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+                setShadowLayer(8f, 2f, 2f, Color.argb(200, 0, 0, 0))
+            }
+            val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.rgb(255, 255, 255)
+                textSize = (height * 0.038f).coerceIn(20f, 60f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+                setShadowLayer(6f, 1f, 1f, Color.argb(220, 0, 0, 0))
+            }
+
+            for (frame in 0 until totalFrames) {
+                val currentPtsUs = frame * frameTimeIntervalUs
+                val currentPtsMs = currentPtsUs / 1000L
+
+                val canvas = inputSurface.lockCanvas(null)
+
+                // 1. Clear background (Cinematic dark canvas)
+                canvas.drawColor(Color.BLACK)
+
+                // 2. Identify active video clips at currentPtsMs
+                val activeClips = clips.filter { currentPtsMs in it.startTimeMs until it.endTimeMs }
+                val videoClip = activeClips.firstOrNull { it.textContent == null && (it.stickerIcon.isBlank() || it.stickerIcon == "None") }
+
+                if (videoClip != null) {
+                    val localOffsetMs = (currentPtsMs - videoClip.startTimeMs).coerceAtLeast(0L)
+                    val frameBitmap = extractVideoFrame(videoClip.mediaUri, localOffsetMs)
+
+                    if (frameBitmap != null) {
+                        val srcRect = Rect(0, 0, frameBitmap.width, frameBitmap.height)
+                        val dstRect = Rect(0, 0, width, height)
+                        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+
+                        // Apply filter matrix if needed
+                        val filter = videoClip.filterName
+                        if (filter.contains("B&W", ignoreCase = true) || filter.contains("Monochrome", ignoreCase = true)) {
+                            val cm = ColorMatrix()
+                            cm.setSaturation(0f)
+                            paint.colorFilter = ColorMatrixColorFilter(cm)
+                        } else if (filter.contains("Vibrant", ignoreCase = true)) {
+                            val cm = ColorMatrix()
+                            cm.setSaturation(1.4f)
+                            paint.colorFilter = ColorMatrixColorFilter(cm)
+                        } else if (filter.contains("Cyber", ignoreCase = true) || filter.contains("Teal", ignoreCase = true)) {
+                            val cm = ColorMatrix(floatArrayOf(
+                                1.1f, 0f, 0f, 0f, 10f,
+                                0f, 1.2f, 0f, 0f, 20f,
+                                0f, 0f, 1.4f, 0f, 30f,
+                                0f, 0f, 0f, 1f, 0f
+                            ))
+                            paint.colorFilter = ColorMatrixColorFilter(cm)
+                        }
+
+                        canvas.drawBitmap(frameBitmap, srcRect, dstRect, paint)
+                    } else {
+                        // Fallback gradient background with clip title
+                        val bgPaint = Paint().apply {
+                            shader = LinearGradient(
+                                0f, 0f, width.toFloat(), height.toFloat(),
+                                Color.rgb(15, 23, 42),
+                                Color.rgb(99, 102, 241),
+                                Shader.TileMode.CLAMP
+                            )
+                        }
+                        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
+                        canvas.drawText(videoClip.title, width / 2f, height / 2f, textPaint)
+                    }
+                } else {
+                    // Draw base intro/outro if no active video clip
+                    val bgPaint = Paint().apply {
+                        shader = LinearGradient(
+                            0f, 0f, width.toFloat(), height.toFloat(),
+                            Color.rgb(20, 20, 30),
+                            Color.rgb(40, 40, 70),
+                            Shader.TileMode.CLAMP
+                        )
+                    }
+                    canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
+                }
+
+                // 3. Render active Subtitle / Text overlays
+                val activeTextClips = activeClips.filter { it.textContent != null }
+                for (textClip in activeTextClips) {
+                    val content = textClip.textContent ?: ""
+                    if (content.isNotBlank()) {
+                        val subBgPaint = Paint().apply {
+                            color = Color.argb(160, 0, 0, 0)
+                            style = Paint.Style.FILL
+                        }
+                        val textY = height * 0.82f
+                        val textWidth = subtitlePaint.measureText(content)
+                        val padding = 24f
+                        val rectF = RectF(
+                            (width / 2f) - (textWidth / 2f) - padding,
+                            textY - (subtitlePaint.textSize) - 10f,
+                            (width / 2f) + (textWidth / 2f) + padding,
+                            textY + 16f
+                        )
+                        canvas.drawRoundRect(rectF, 12f, 12f, subBgPaint)
+                        canvas.drawText(content, width / 2f, textY, subtitlePaint)
+                    }
+                }
+
+                // 4. Render active Sticker overlays
+                val activeStickerClips = activeClips.filter { it.stickerIcon.isNotBlank() && it.stickerIcon != "None" }
+                for (stk in activeStickerClips) {
+                    val stickerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = Color.rgb(255, 215, 0)
+                        textSize = (height * 0.08f).coerceIn(40f, 100f)
+                        textAlign = Paint.Align.CENTER
+                    }
+                    canvas.drawText(stk.stickerIcon, width * 0.8f, height * 0.25f, stickerPaint)
+                }
+
+                inputSurface.unlockCanvasAndPost(canvas)
+
+                // Drain encoder
+                while (true) {
+                    val status = codec.dequeueOutputBuffer(bufferInfo, 10000)
+                    if (status == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                        break
+                    } else if (status == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                        if (!muxerStarted) {
+                            videoTrackIndex = muxer.addTrack(codec.outputFormat)
+                            muxer.start()
+                            muxerStarted = true
+                        }
+                    } else if (status >= 0) {
+                        val encodedBuffer = codec.getOutputBuffer(status)
+                        if (encodedBuffer != null) {
+                            if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                                bufferInfo.size = 0
+                            }
+                            if (bufferInfo.size > 0 && muxerStarted && videoTrackIndex >= 0) {
+                                if (bufferInfo.presentationTimeUs <= lastPtsUs) {
+                                    bufferInfo.presentationTimeUs = if (lastPtsUs < 0) 0L else lastPtsUs + frameTimeIntervalUs
+                                }
+                                lastPtsUs = bufferInfo.presentationTimeUs
+                                encodedBuffer.position(bufferInfo.offset)
+                                encodedBuffer.limit(bufferInfo.offset + bufferInfo.size)
+                                muxer.writeSampleData(videoTrackIndex, encodedBuffer, bufferInfo)
+                                samplesWritten++
+                            }
+                        }
+                        codec.releaseOutputBuffer(status, false)
+                    }
+                }
+
+                val currentProgressPercent = ((frame + 1) * 100) / totalFrames
+                onProgress(frame + 1, totalFrames, currentProgressPercent)
+            }
+
+            codec.signalEndOfInputStream()
+
+            // Drain remaining buffers until EOS
+            var eos = false
+            var drainTries = 0
+            while (!eos && drainTries < 80) {
+                drainTries++
+                val status = codec.dequeueOutputBuffer(bufferInfo, 25000)
+                if (status >= 0) {
+                    val encodedBuffer = codec.getOutputBuffer(status)
+                    if (encodedBuffer != null) {
+                        if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                            bufferInfo.size = 0
+                        }
+                        if (bufferInfo.size > 0 && muxerStarted && videoTrackIndex >= 0) {
+                            if (bufferInfo.presentationTimeUs <= lastPtsUs) {
+                                bufferInfo.presentationTimeUs = if (lastPtsUs < 0) 0L else lastPtsUs + frameTimeIntervalUs
+                            }
+                            lastPtsUs = bufferInfo.presentationTimeUs
+                            encodedBuffer.position(bufferInfo.offset)
+                            encodedBuffer.limit(bufferInfo.offset + bufferInfo.size)
+                            muxer.writeSampleData(videoTrackIndex, encodedBuffer, bufferInfo)
+                            samplesWritten++
+                        }
+                    }
+                    if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                        eos = true
+                    }
+                    codec.releaseOutputBuffer(status, false)
+                } else if (status == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    if (!muxerStarted) {
+                        videoTrackIndex = muxer.addTrack(codec.outputFormat)
+                        muxer.start()
+                        muxerStarted = true
+                    }
+                } else if (status == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                    try {
+                        Thread.sleep(10)
+                    } catch (e: Exception) {}
+                    if (drainTries > 30) {
+                        eos = true
+                    }
+                }
+            }
+
+            Log.i(TAG, "Successfully exported project MP4 to: ${outputFile.absolutePath} ($samplesWritten samples)")
+            return@withContext outputFile.absolutePath
+        } catch (e: Exception) {
+            Log.e(TAG, "Hardware video export failed: ${e.message}", e)
+            return@withContext outputFile.absolutePath
+        } finally {
+            try {
+                codec?.stop()
+            } catch (e: Throwable) {}
+            try {
+                codec?.release()
+            } catch (e: Throwable) {}
+            try {
+                if (muxerStarted && samplesWritten > 0) {
+                    muxer?.stop()
+                }
+            } catch (e: Throwable) {
+                Log.w(TAG, "Exception stopping export muxer: ${e.message}")
+            }
+            try {
+                muxer?.release()
+            } catch (e: Throwable) {}
+            if (samplesWritten == 0 && outputFile.exists()) {
+                try {
+                    outputFile.delete()
+                } catch (e: Throwable) {}
+            }
         }
     }
 
